@@ -1,0 +1,274 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { Command, Option } from "commander";
+import { hasProfile, paths, settings } from "./config.js";
+import { autopilot } from "./auto.js";
+import { writeDashboard } from "./dashboard.js";
+import { mainMenu } from "./menu.js";
+import { runInit } from "./onboarding/index.js";
+import { chooseProvider, printProviders } from "./onboarding/provider.js";
+import { openExternal } from "./util/open.js";
+import { addJob, searchJobs } from "./jobs/search.js";
+import { findJob, loadJobs, setStatus } from "./jobs/store.js";
+import { triageJobs } from "./jobs/triage.js";
+import { getProvider } from "./providers/index.js";
+import { renderBaseResumes } from "./render/base.js";
+import { closeBrowser } from "./render/pdf.js";
+import type { Job, JobStatus } from "./schemas.js";
+import { rerender, tailorJob } from "./tailor/index.js";
+import { track } from "./tracker.js";
+import { linkedinPlan } from "./writers/linkedin.js";
+
+const program = new Command();
+program.name("ajf").description("auto-job-finder — seu agente de candidaturas").showHelpAfterError();
+
+const pad = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s.padEnd(n));
+
+function printJobs(jobs: Job[]) {
+  if (!jobs.length) return console.log("(nenhuma vaga)");
+  console.log(`${pad("ID", 9)}${pad("STATUS", 12)}${pad("FIT", 10)}${pad("MERC", 7)}${pad("EMPRESA", 24)}${pad("VAGA", 46)}FONTE`);
+  for (const j of jobs) {
+    const fit = j.triage ? `${j.triage.fit} ${j.triage.score}` : "-";
+    console.log(
+      `${pad(j.id, 9)}${pad(j.status, 12)}${pad(fit, 10)}${pad(j.triage?.market ?? "-", 7)}${pad(j.company, 24)}${pad(j.title, 46)}${j.source}`,
+    );
+  }
+}
+
+const byScore = (a: Job, b: Job) => (b.triage?.score ?? -1) - (a.triage?.score ?? -1);
+
+program
+  .command("init")
+  .description("configura o perfil a partir do seu currículo, PDF do LinkedIn, portfólio, links ou perguntas")
+  .argument("[fontes...]", "arquivos (PDF/DOCX/TXT) ou links que você já quer usar")
+  .action(async (inputs: string[]) => {
+    await runInit({ inputs });
+  });
+
+program
+  .command("ia")
+  .alias("provider")
+  .description("mostra as IAs detectadas (Claude, Codex, Gemini, APIs) e escolhe qual usar")
+  .option("--escolher", "pergunta qual usar e salva no .env")
+  .option("--testar", "faz uma chamada curta para confirmar que a IA responde")
+  .action(async (o) => {
+    if (o.escolher) await chooseProvider();
+    printProviders();
+    if (o.testar) {
+      const { z } = await import("zod");
+      const t0 = Date.now();
+      const r = await getProvider().structured(z.object({ ok: z.boolean(), reply: z.string() }), {
+        label: "ping",
+        effort: "low",
+        system: ["Responda em JSON."],
+        user: 'Devolva ok=true e reply="pong".',
+      });
+      console.log(`\n✅ Respondeu em ${((Date.now() - t0) / 1000).toFixed(1)}s: ${JSON.stringify(r)}`);
+    }
+  });
+
+program
+  .command("doctor")
+  .description("confere a configuração: IA, Chrome, arquivos do perfil")
+  .action(() => {
+    const ok = (b: boolean) => (b ? "✅" : "❌");
+    printProviders();
+    console.log("");
+    console.log(`${ok(Boolean(settings.chromePath))} Chrome/Edge para PDF: ${settings.chromePath ?? "não encontrado — defina CHROME_PATH"}`);
+    console.log(`   pasta de trabalho: ${paths.home}`);
+    for (const f of [paths.profileTruth, paths.baseResume("pt-BR"), paths.baseResume("en"), paths.preferences, paths.rules])
+      console.log(`${ok(fs.existsSync(f))} ${path.relative(paths.home, f)}`);
+    if (!hasProfile()) console.log("\n👉 Perfil não configurado: rode 'ajf init'.");
+    console.log(`   meta: ${settings.targetRating} · nota mínima: ${settings.minRating} · triagem mínima: ${settings.minTriageScore} · revisões: ${settings.maxRevisions}`);
+  });
+
+program
+  .command("base")
+  .description("gera os PDFs dos currículos-base (confere o perfil e o template, não usa IA)")
+  .action(async () => {
+    await renderBaseResumes();
+  });
+
+program
+  .command("search")
+  .description("busca vagas nas fontes (APIs públicas e, com --web, busca na web via IA)")
+  .option("-s, --sources <lista>", "fontes separadas por vírgula: github-br,getonbrd,remotive,himalayas,remoteok,jobicy,weworkremotely,arbeitnow,greenhouse,lever,ashby")
+  .option("-q, --query <termos...>", "termos de busca (sobrescreve preferences.json)")
+  .option("--web", "também busca na web com IA (LinkedIn, Gupy, Indeed...) — consome tokens")
+  .option("--hint <texto>", "instrução extra para a busca web (ex.: 'só vagas em Londrina')")
+  .option("-v, --verbose", "mostra as vagas descartadas pelo filtro")
+  .action(async (o) => {
+    const r = await searchJobs({ sources: o.sources?.split(","), queries: o.query, web: o.web, webHint: o.hint });
+    console.log(`\nEncontradas ${r.found} · passaram no filtro ${r.kept} · novas ${r.added.length}`);
+    r.errors.forEach((e) => console.log(`  ⚠ ${e}`));
+    if (o.verbose) r.dropped.forEach((d) => console.log(`  - ${d.job.company} — ${d.job.title}: ${d.reason}`));
+    printJobs(r.added);
+    if (r.added.length) console.log(`\nPróximo passo: ajf triage`);
+  });
+
+program
+  .command("triage")
+  .description("IA avalia aderência das vagas novas ao seu perfil (fit, lacunas, golpe, mercado)")
+  .option("-l, --limit <n>", "máximo de vagas", (v) => Number(v))
+  .option("--id <ids...>", "reavaliar vagas específicas")
+  .action(async (o) => {
+    const done = await triageJobs({ limit: o.limit, ids: o.id });
+    printJobs(done.sort(byScore));
+    for (const j of done.filter((j) => j.triage?.scamSignals.length))
+      console.log(`  🚩 ${j.id} ${j.company}: ${j.triage!.scamSignals.join("; ")}`);
+    const top = done.filter((j) => j.status === "shortlisted").sort(byScore)[0];
+    if (top) console.log(`\nPróximo passo: ajf tailor ${top.id}  (ou só "ajf" → Vagas recomendadas)`);
+  });
+
+program
+  .command("jobs")
+  .description("lista vagas salvas")
+  .option("--status <status>", "filtra por status (new, triaged, shortlisted, tailored, applied, interview, rejected, offer, discarded)")
+  .option("-a, --all", "inclui descartadas")
+  .action((o) => {
+    let jobs = loadJobs();
+    if (o.status) jobs = jobs.filter((j) => j.status === o.status);
+    else if (!o.all) jobs = jobs.filter((j) => j.status !== "discarded");
+    printJobs(jobs.sort(byScore));
+  });
+
+program
+  .command("show <id>")
+  .description("mostra detalhes e a triagem de uma vaga")
+  .action((id) => {
+    const j = findJob(loadJobs(), id);
+    console.log(`${j.title} — ${j.company}\n${j.location} · ${j.source} · ${j.status}\n${j.applyUrl ?? j.url}\n`);
+    if (j.triage) {
+      const t = j.triage;
+      console.log(`Fit: ${t.fit} (${t.score}) → ${t.recommendation} · mercado ${t.market} · ${t.seniority}\n${t.reason}`);
+      console.log(`Evidências:\n${t.evidence.map((e) => `  + ${e}`).join("\n")}`);
+      console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n") || "  (nenhuma)"}`);
+      if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
+    }
+    if (j.outputDir) console.log(`\nPacote: ${j.outputDir}`);
+    console.log(`\n${j.description.slice(0, 1500)}${j.description.length > 1500 ? "\n[...]" : ""}`);
+  });
+
+program
+  .command("add")
+  .description("adiciona uma vaga manualmente (URL ou arquivo com a descrição colada)")
+  .option("--url <url>", "link da vaga (sites com login, como LinkedIn, não funcionam: use --file)")
+  .option("--file <arquivo>", "arquivo .md/.txt com o texto da vaga")
+  .option("--title <título>")
+  .option("--company <empresa>")
+  .option("--location <local>")
+  .option("--no-triage", "não rodar a triagem automaticamente")
+  .action(async (o) => {
+    const job = await addJob(o);
+    console.log(`Vaga adicionada: ${job.id} — ${job.title} (${job.company})`);
+    if (o.triage) {
+      await triageJobs({ ids: [job.id] });
+      printJobs([findJob(loadJobs(), job.id)]);
+    }
+    console.log(`\nPróximo passo: ajf tailor ${job.id}`);
+  });
+
+program
+  .command("tailor <id>")
+  .description("gera o pacote da vaga: currículo ATS (PDF), cover letter, e-mails e relatórios")
+  .addOption(new Option("--lang <lang>", "idioma do currículo").choices(["pt-BR", "en"]))
+  .addOption(new Option("--paper <papel>", "tamanho do papel").choices(["A4", "Letter"]))
+  .addOption(new Option("--market <mercado>", "força o mercado").choices(["BR", "US", "CA", "UK", "EU", "LATAM", "GLOBAL"]))
+  .option("--cover", "força gerar cover letter / carta de apresentação")
+  .option("--no-cover", "não gerar cover letter")
+  .option("--interview", "gera também o guia de preparação para entrevista")
+  .option("--max-revisions <n>", "rodadas de revisão", (v) => Number(v))
+  .option("--target <nota>", "nota-alvo do hiring manager", (v) => Number(v))
+  .action(async (id, o, cmd) => {
+    const coverSource = cmd.getOptionValueSource("cover");
+    const r = await tailorJob(id, {
+      lang: o.lang,
+      paper: o.paper,
+      market: o.market,
+      cover: coverSource === "cli" ? o.cover : undefined,
+      interview: o.interview,
+      maxRevisions: o.maxRevisions,
+      target: o.target,
+    });
+    console.log(`\n✅ Pacote pronto: ${r.dir}\n   nota ${r.rating} · ATS ${r.ats}% · ${r.pages} página(s)`);
+    r.violations.forEach((v) => console.log(`   ❌ ${v}`));
+    console.log(`   Leia LEIA-ME.md e revise tudo antes de enviar.`);
+  });
+
+program
+  .command("render <pasta>")
+  .description("gera de novo os PDFs depois de editar resume.json / cover_letter.json à mão")
+  .action(async (dir) => {
+    const r = await rerender(path.resolve(dir));
+    console.log(`PDF gerado (${r.pages} pág.). Violações: ${r.guards.violations.length}`);
+    r.guards.violations.forEach((v) => console.log(`   ❌ ${v}`));
+    r.guards.warnings.forEach((v) => console.log(`   ⚠ ${v}`));
+  });
+
+program
+  .command("linkedin")
+  .description("gera o plano de otimização do LinkedIn (headline, Sobre PT/EN, competências, destaques)")
+  .option("--current <arquivo>", "texto atual do seu perfil (copie e cole num .md) para achar inconsistências")
+  .option("--families <famílias...>", "famílias de vaga-alvo")
+  .action(async (o) => {
+    const file = await linkedinPlan({ currentProfileFile: o.current, families: o.families });
+    console.log(`Plano salvo em ${file}`);
+  });
+
+program
+  .command("status <id> <status>")
+  .description("atualiza o status (applied, interview, rejected, offer, discarded...) e registra no tracker.csv")
+  .option("--note <texto>")
+  .option("--next <texto>", "próximo passo")
+  .action((id, status: JobStatus, o) => {
+    const job = setStatus(id, status, o.note);
+    track(job, status, o.next ?? "", o.note ?? "");
+    console.log(`${job.id} → ${status} (registrado em ${path.relative(paths.root, paths.tracker)})`);
+  });
+
+program
+  .command("auto")
+  .alias("run")
+  .description(`piloto automático: busca → triagem → pacotes para as melhores (triagem ≥ ${settings.minTriageScore}) → painel`)
+  .option("--web", "inclui busca na web via IA (LinkedIn, Gupy, Indeed). Padrão: preferences.json → webSearchByDefault")
+  .option("--no-web", "não usa busca na web nesta rodada")
+  .option("--max <n>", "máximo de pacotes nesta rodada", (v) => Number(v), 3)
+  .option("--interview", "gera guia de entrevista em cada pacote")
+  .option("--open", "abre o painel no navegador ao final")
+  .action(async (o, cmd) => {
+    const web = cmd.getOptionValueSource("web") === "cli" ? o.web : undefined;
+    const r = await autopilot({ web, maxPackages: o.max, interview: o.interview });
+    if (o.open) openExternal(r.dashboard);
+  });
+
+program
+  .command("painel")
+  .description("gera e abre o painel de vagas no navegador (output/painel.html)")
+  .action(() => {
+    const file = writeDashboard();
+    openExternal(file);
+    console.log(file);
+  });
+
+program
+  .command("menu", { isDefault: true })
+  .description("menu interativo (padrão quando você roda só 'ajf')")
+  .action(async () => {
+    await mainMenu();
+  });
+
+// Mantém o painel sempre atualizado depois de qualquer comando.
+program.hook("postAction", () => {
+  try {
+    writeDashboard();
+  } catch {
+    /* painel é opcional */
+  }
+});
+
+program.parseAsync().catch(async (e) => {
+  await closeBrowser().catch(() => {});
+  console.error(`\n❌ ${e instanceof Error ? e.message : e}`);
+  process.exit(1);
+});

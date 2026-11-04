@@ -1,0 +1,35 @@
+{
+  "name": "auto-job-finder",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Agente de IA para candidaturas em qualquer área: monta o perfil (currículo, LinkedIn, portfólio), busca vagas, adapta o currículo ATS, cover letter, e-mails e LinkedIn. Funciona com Claude, ChatGPT/Codex, Gemini ou APIs.",
+  "type": "module",
+  "scripts": {
+    "ajf": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^1.1.1",
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@anthropic-ai/vertex-sdk": "^1.1.1",
+    "@inquirer/prompts": "^8.7.3",
+    "commander": "^15.0.0",
+    "dotenv": "^18.0.9",
+    "mammoth": "^1.13.0",
+    "puppeteer-core": "^25.16.0",
+    "unpdf": "^2.1.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "bin": {
+    "ajf": "./bin/ajf.mjs"
+  }
+}
