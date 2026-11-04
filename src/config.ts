@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
@@ -53,21 +54,52 @@ export function hasProfile(): boolean {
   return fs.existsSync(paths.profileTruth) && fs.existsSync(paths.baseResume("pt-BR")) && fs.existsSync(paths.baseResume("en"));
 }
 
+/** Chrome, Edge, Chromium ou Brave (qualquer navegador Chromium serve para gerar o PDF). */
 function detectChrome(): string | undefined {
+  const home = os.homedir();
+  const local = process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local");
+  const mac = (app: string, bin: string) => [`/Applications/${app}.app/Contents/MacOS/${bin}`, path.join(home, "Applications", `${app}.app`, "Contents", "MacOS", bin)];
   const candidates = [
+    // Windows: instalação para todos e só para o usuário (comum sem permissão de administrador)
     "C:/Program Files/Google/Chrome/Application/chrome.exe",
     "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    path.join(local, "Google", "Chrome", "Application", "chrome.exe"),
     "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
     "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
+    path.join(local, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+    path.join(local, "Chromium", "Application", "chrome.exe"),
+    // macOS: /Applications e ~/Applications
+    ...mac("Google Chrome", "Google Chrome"),
+    ...mac("Microsoft Edge", "Microsoft Edge"),
+    ...mac("Chromium", "Chromium"),
+    ...mac("Brave Browser", "Brave Browser"),
+    // Linux (inclui o Chromium do snap, padrão no Ubuntu)
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
+    "/snap/bin/chromium",
     "/usr/bin/microsoft-edge",
+    "/usr/bin/microsoft-edge-stable",
+    "/usr/bin/brave-browser",
   ];
-  return candidates.find((p) => fs.existsSync(p));
+  const found = candidates.find((p) => fs.existsSync(p));
+  if (found) return found;
+  // Último recurso: o navegador está no PATH com outro caminho de instalação.
+  const names = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "brave-browser", "chrome", "msedge", "brave"];
+  const exts = process.platform === "win32" ? [".exe"] : [""];
+  for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean))
+    for (const name of names)
+      for (const ext of exts) {
+        const full = path.join(dir, name + ext);
+        try {
+          if (fs.statSync(full).isFile()) return full;
+        } catch {
+          /* não existe */
+        }
+      }
+  return undefined;
 }
 
 export function ensureDir(dir: string) {
