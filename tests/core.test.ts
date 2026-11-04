@@ -15,6 +15,10 @@ import { fixMojibake, htmlToText } from "../src/util/text.js";
 import { forbiddenPatterns } from "../src/profile.js";
 import { extractJson, strictJsonSchema, structuredViaText } from "../src/providers/jsonText.js";
 import { activeProviderId, normalizeProviderId } from "../src/providers/index.js";
+import { which } from "../src/providers/spawn.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { looksLikeLinkedinExport } from "../src/onboarding/sources.js";
 import { z } from "zod";
 
@@ -253,6 +257,23 @@ test("provedores: aliases e AJF_PROVIDER", () => {
   process.env.AJF_PROVIDER = "nao-existe";
   assert.throws(() => activeProviderId(), /não existe/);
   delete process.env.AJF_PROVIDER;
+});
+
+test("provedores: which acha CLI no PATH, por caminho explícito e ignora atalho sh sem extensão no Windows", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ajf-which-"));
+  const oldPath = process.env.PATH;
+  try {
+    fs.writeFileSync(path.join(dir, "ajf-fake-cli"), "#!/bin/sh\n");
+    if (process.platform === "win32") fs.writeFileSync(path.join(dir, "ajf-fake-cli.cmd"), "@echo off\n");
+    const expected = path.join(dir, process.platform === "win32" ? "ajf-fake-cli.cmd" : "ajf-fake-cli");
+    process.env.PATH = dir;
+    assert.equal(which("ajf-fake-cli"), expected);
+    assert.equal(which(expected), expected);
+    assert.equal(which(path.join(dir, "nao-existe")), null);
+  } finally {
+    process.env.PATH = oldPath;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("JSON: extrai de resposta com cercas e valida com nova tentativa", async () => {
