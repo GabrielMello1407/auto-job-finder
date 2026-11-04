@@ -305,7 +305,7 @@ ${attachments.map((a) => `- ${a}`).join("\n")}
 - [ ] Nenhuma lacuna foi "preenchida" com algo que não fiz
 - [ ] Vaga existe no site oficial da empresa; e-mail do recrutador tem domínio da empresa
 - [ ] Não pediram documento, pagamento ou para baixar e rodar código
-- [ ] Depois de enviar: rode \`ajf enviei ${job.id}\` (esta pasta vai para output/2-em-andamento)
+- [ ] Depois de enviar: clique em "Já me candidatei" na interface (\`ajf\`) ou rode \`ajf enviei ${job.id}\` (esta pasta vai para output/2-em-andamento)
 
 ${mp.notes.map((n) => `> ${n}`).join("\n")}
 `,

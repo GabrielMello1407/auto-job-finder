@@ -19,6 +19,7 @@ import { renderBaseResumes } from "./render/base.js";
 import { closeBrowser } from "./render/pdf.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { rerender, tailorJob } from "./tailor/index.js";
+import { startUi } from "./ui/server.js";
 import { linkedinPlan } from "./writers/linkedin.js";
 
 const program = new Command();
@@ -276,8 +277,19 @@ program
   });
 
 program
-  .command("menu", { isDefault: true })
-  .description("menu interativo (padrão quando você roda só 'ajf')")
+  .command("ui", { isDefault: true })
+  .alias("interface")
+  .description("abre a interface no navegador para gerenciar tudo (padrão quando você roda só 'ajf')")
+  .option("--port <n>", "porta local (padrão 4317 ou AJF_UI_PORT)", (v) => Number(v))
+  .option("--no-open", "não abre o navegador sozinho (só mostra o link)")
+  .action(async (o) => {
+    // Sem perfil, a própria interface abre no cadastro.
+    await startUi({ port: o.port, open: o.open });
+  });
+
+program
+  .command("menu")
+  .description("menu interativo no terminal")
   .action(async () => {
     await mainMenu();
   });

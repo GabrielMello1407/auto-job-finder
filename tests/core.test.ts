@@ -18,6 +18,8 @@ import { activeProviderId, normalizeProviderId } from "../src/providers/index.js
 import { which } from "../src/providers/spawn.js";
 import { isStatus, matchJobs } from "../src/jobs/status.js";
 import { relocatePackage } from "../src/jobs/folders.js";
+import { parseEmails } from "../src/ui/routes/jobs.js";
+import { pendingItems } from "../src/ui/routes/profile.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -301,12 +303,30 @@ test("pastas: pacote vai para a subpasta do status e os caminhos dos PDFs acompa
     assert.equal(moved.outputDir, path.join(paths.outputDir, "2-em-andamento", path.basename(old)));
     assert.ok(fs.existsSync(moved.files!.resume!) && !fs.existsSync(old));
     assert.equal(relocatePackage({ ...job, ...moved }), null);
+    // Caminho salvo desatualizado (pasta já movida por outro comando): reencontra a pasta.
+    const healed = relocatePackage(job)!;
+    assert.equal(healed.outputDir, moved.outputDir);
+    assert.equal(healed.files!.resume, moved.files!.resume);
     assert.equal(relocatePackage({ ...job, outputDir: os.tmpdir() }), null); // fora de output/: não mexe
   } finally {
     fs.rmSync(old, { recursive: true, force: true });
     fs.rmSync(path.join(paths.outputDir, "2-em-andamento", path.basename(old)), { recursive: true, force: true });
     if (!hadOutput) fs.rmSync(paths.outputDir, { recursive: true, force: true }); // pasta criada só pelo teste
   }
+});
+
+test("interface: pontos a confirmar e e-mails separados para copiar", () => {
+  const truth = "# Perfil\n\n## ⚠️ A confirmar\n\n- [x] **Datas:** resolvido\n- [ ] **Telefone:** não informado\n\n## Experiência\n\n- [ ] não é pendência\n";
+  assert.deepEqual(pendingItems(truth), ["Telefone: não informado"]);
+
+  const emails = parseEmails(
+    "# E-mails\n\n**Anexos:** cv.pdf\n\n## 1. E-mail de candidatura\n**Assunto (escolha um):**\n- Assunto A\n- Assunto B\n\n```text\nOlá, [Nome],\nMensagem.\n```\n\n## 4. Follow-up\n**Assunto:** Assunto C\n```text\nOi de novo.\n```\n",
+  )!;
+  assert.equal(emails.intro, "**Anexos:** cv.pdf");
+  assert.deepEqual(emails.sections[0].subjects, ["Assunto A", "Assunto B"]);
+  assert.equal(emails.sections[0].message, "Olá, [Nome],\nMensagem.");
+  assert.deepEqual(emails.sections[1].subjects, ["Assunto C"]);
+  assert.equal(emails.sections[1].message, "Oi de novo.");
 });
 
 test("JSON: extrai de resposta com cercas e valida com nova tentativa", async () => {

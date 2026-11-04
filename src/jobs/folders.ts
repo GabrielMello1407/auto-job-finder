@@ -27,15 +27,27 @@ const inside = (dir: string, parent: string) => {
  * ou null se não havia nada para mover. Só mexe em pastas dentro de output/.
  */
 export function relocatePackage(job: Job): Pick<Job, "outputDir" | "files"> | null {
-  const from = job.outputDir;
-  if (!from || !inside(from, paths.outputDir) || !fs.existsSync(from)) return null;
+  const saved = job.outputDir;
+  if (!saved || !inside(saved, paths.outputDir)) return null;
+  // Caminho salvo desatualizado (pasta movida por outro comando): procura a pasta nas subpastas de status.
+  const from = fs.existsSync(saved) ? saved : findMoved(path.basename(saved));
+  if (!from) return null;
   let to = path.join(paths.outputDir, STATUS_FOLDER[job.status], path.basename(from));
-  if (path.resolve(from) === path.resolve(to)) return null;
-  if (fs.existsSync(to)) to = `${to}-${job.id}`;
-  fs.mkdirSync(path.dirname(to), { recursive: true });
-  fs.renameSync(from, to);
-  const moved = (p?: string) => (p && inside(p, from) ? path.join(to, path.relative(from, p)) : p);
-  return { outputDir: to, files: job.files && { resume: moved(job.files.resume), coverLetter: moved(job.files.coverLetter) } };
+  const remap = (p?: string) => (p && inside(p, saved) ? path.join(to, path.relative(saved, p)) : p);
+  if (path.resolve(from) !== path.resolve(to)) {
+    if (fs.existsSync(to)) to = `${to}-${job.id}`;
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.renameSync(from, to);
+  } else if (from === saved) return null;
+  return { outputDir: to, files: job.files && { resume: remap(job.files.resume), coverLetter: remap(job.files.coverLetter) } };
+}
+
+function findMoved(name: string): string | null {
+  for (const folder of new Set(Object.values(STATUS_FOLDER))) {
+    const dir = path.join(paths.outputDir, folder, name);
+    if (fs.existsSync(dir)) return dir;
+  }
+  return null;
 }
 
 /** Mensagem amigável quando o Windows não deixa mover (arquivo aberto no leitor de PDF, Explorer etc.). */

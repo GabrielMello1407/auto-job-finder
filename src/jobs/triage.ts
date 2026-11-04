@@ -21,10 +21,11 @@ ${truncate(j.description, 5000)}
 
 /** Triagem por IA: aderência, lacunas obrigatórias, sinais de golpe e mercado (BR/US/...). */
 export async function triageJobs(opts: { limit?: number; ids?: string[] } = {}) {
-  const jobs = loadJobs();
-  let pending = jobs.filter((j) => (opts.ids?.length ? opts.ids.includes(j.id) : j.status === "new"));
+  let pending = loadJobs().filter((j) => (opts.ids?.length ? opts.ids.includes(j.id) : j.status === "new"));
   if (opts.limit) pending = pending.slice(0, opts.limit);
   if (!pending.length) return [];
+  // Status de cada vaga ao entrar na fila: se mudar durante a triagem (ex.: pela interface), a mudança vale.
+  const statusBefore = new Map(pending.map((j) => [j.id, j.status]));
 
   const system = profileSystem();
   const prefs = loadPreferences();
@@ -59,12 +60,15 @@ ${excluded || "(nenhuma)"}
 ${batch.map(jobBlock).join("\n\n")}`,
     });
 
+    // Relê o arquivo: outras partes (interface, outro comando) podem ter salvado enquanto a IA respondia.
+    const jobs = loadJobs();
     for (const r of result.results) {
       const job = jobs.find((j) => j.id === r.jobId);
       if (!job) continue;
       const { jobId: _ignored, ...triage } = r;
       job.triage = triage;
-      job.status = triage.recommendation === "descartar" ? "discarded" : triage.recommendation === "candidatar" ? "shortlisted" : "triaged";
+      if (job.status === statusBefore.get(job.id))
+        job.status = triage.recommendation === "descartar" ? "discarded" : triage.recommendation === "candidatar" ? "shortlisted" : "triaged";
       done.push(job);
     }
     saveJobs(jobs);

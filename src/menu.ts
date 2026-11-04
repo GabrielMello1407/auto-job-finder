@@ -9,12 +9,11 @@ import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs } from "./jobs/search.js";
-import { findJob, loadJobs, setStatus } from "./jobs/store.js";
+import { findJob, loadJobs } from "./jobs/store.js";
 import { changeStatus, markApplied } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { interviewGuide, tailorJob } from "./tailor/index.js";
-import { track } from "./tracker.js";
 import { openExternal } from "./util/open.js";
 import { linkedinPlan } from "./writers/linkedin.js";
 
@@ -141,7 +140,7 @@ async function recommendedFlow() {
       refresh();
     }
     if (action === "discard") {
-      setStatus(job.id, "discarded");
+      changeStatus(job, "discarded");
       refresh();
     }
   }
