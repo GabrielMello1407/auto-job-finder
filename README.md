@@ -89,7 +89,20 @@ Opções do menu:
 
 ## O pacote de cada vaga
 
-`output/<data>-<empresa>-<cargo>/`
+`output/<subpasta do status>/<data>-<empresa>-<cargo>/`
+
+A pasta de cada pacote muda de lugar sozinha quando o status muda:
+
+```
+output/
+  1-prontas-para-enviar/   pacote pronto (nota ≥ mínimo), ainda sem candidatura
+  2-em-andamento/          enviada, entrevista ou oferta
+  3-baixa-aderencia/       nota abaixo do mínimo
+  4-encerradas/            recusada ou descartada
+  painel.html · tracker.csv · base/ · linkedin/
+```
+
+Se algum arquivo do pacote estiver aberto (PDF no leitor, por exemplo), a pasta é movida no próximo comando.
 
 ```
 LEIA-ME.md          nota, ATS, COMO SE CANDIDATAR (e-mail, LinkedIn, Gupy/plataforma, site, WhatsApp) e checklist
@@ -97,7 +110,7 @@ LEIA-ME.md          nota, ATS, COMO SE CANDIDATAR (e-mail, LinkedIn, Gupy/plataf
 <Nome>_Cover_Letter_<Empresa>.pdf  quando o mercado pede (EUA, Canadá, Europa, internacional) ou com --cover
 emails.md           e-mail de candidatura, convite LinkedIn (≤300), mensagem direta, follow-up, agradecimento
 ats_report.md · rating_report.md · coverage_review.md · interview_prep.md (opcional)
-resume.json         edite à mão e rode `ajf render <pasta>`
+resume.json         edite à mão e rode `ajf render <id da vaga>`
 ```
 
 O agente lê a vaga e identifica **como se candidatar**: por e-mail (com assunto exigido e anexos), pelo LinkedIn (candidatura simplificada + convite ao recrutador), por plataforma (Gupy, Greenhouse, Workday…), pelo site ou por WhatsApp. O LEIA-ME traz o passo a passo certo.
@@ -128,12 +141,13 @@ O `ajf init` escolhe as fontes conforme a sua área. Fora de tecnologia, a busca
 | `ajf jobs [--status shortlisted]` · `ajf show <id>` | Lista / detalhes |
 | `ajf add --file vaga.md --company X --title Y` · `ajf add --url <link>` | Adiciona vaga |
 | `ajf tailor <id> [--interview] [--market US] [--cover]` | Gera o pacote |
-| `ajf render <pasta>` | Gera o PDF de novo depois de editar `resume.json` |
+| `ajf render <pasta ou id>` | Gera o PDF de novo depois de editar `resume.json` |
 | `ajf linkedin [--current meu_linkedin.md]` | Plano de LinkedIn: headline, Sobre PT/EN, competências, destaques, Open to Work |
-| `ajf status <id> applied --note "via Gupy"` | Atualiza status e registra em `output/tracker.csv` |
+| `ajf enviei [empresa ou cargo] [--note "via Gupy"]` | Marca que você se candidatou. Sem argumento, abre uma lista em que você digita parte do nome |
+| `ajf status [empresa, cargo ou id] [status]` | Muda o status (entrevista, oferta, recusa...) e registra em `output/tracker.csv`. Sem argumentos, pergunta tudo |
 | `ajf auto [--web/--no-web] [--max 3] [--interview] [--open]` | Piloto automático |
 
-Sem `npm link`, use `npm run ajf -- <comando>` dentro do projeto. O ID aceita prefixo (`tailor 78cb`).
+Sem `npm link`, use `npm run ajf -- <comando>` dentro do projeto. O ID aceita prefixo (`tailor 78cb`). No painel, o botão 📋 de cada vaga copia o comando `ajf enviei <id>` pronto para colar.
 
 ## Anti-invenção
 

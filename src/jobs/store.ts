@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { ensureDir, paths } from "../config.js";
 import type { Job, JobStatus } from "../schemas.js";
 import { norm } from "../util/text.js";
+import { moveError, relocatePackage } from "./folders.js";
 import { jobId, type RawJob } from "./sources/index.js";
 
 export function loadJobs(): Job[] {
@@ -45,12 +46,34 @@ export function upsertJobs(raw: RawJob[]): Job[] {
   return added;
 }
 
+/** Tenta mover a pasta do pacote para a subpasta do status. Não falha: se não der, avisa e tenta no próximo comando. */
+function placePackage(job: Job): boolean {
+  try {
+    const moved = relocatePackage(job);
+    if (moved) Object.assign(job, moved);
+    return Boolean(moved);
+  } catch (e) {
+    console.warn(moveError(job, e));
+    return false;
+  }
+}
+
 export function updateJob(id: string, patch: Partial<Job>): Job {
   const jobs = loadJobs();
   const job = findJob(jobs, id);
   Object.assign(job, patch);
+  if (patch.status || patch.outputDir) placePackage(job);
   saveJobs(jobs);
   return job;
+}
+
+/** Deixa cada pasta de pacote em output/ na subpasta do seu status (organiza também as pastas antigas). */
+export function organizePackages(): number {
+  const jobs = loadJobs();
+  let moved = 0;
+  for (const job of jobs) if (placePackage(job)) moved++;
+  if (moved) saveJobs(jobs);
+  return moved;
 }
 
 export function setStatus(id: string, status: JobStatus, notes?: string): Job {

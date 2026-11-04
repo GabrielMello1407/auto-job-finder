@@ -298,14 +298,14 @@ ${howToApply(analysis, job, attachments)}
 ${attachments.map((a) => `- ${a}`).join("\n")}
 - emails.md — candidatura, LinkedIn, follow-up, agradecimento
 - ats_report.md · rating_report.md · coverage_review.md${opts.interview ? " · interview_prep.md" : ""}
-- resume.json — edite aqui e rode \`ajf render "${dir}"\` para gerar o PDF de novo
+- resume.json — edite aqui e rode \`ajf render ${job.id}\` para gerar o PDF de novo
 
 ## Antes de enviar (você aprova tudo)
 - [ ] Li o PDF inteiro: datas, cargos, empresas e números conferem
 - [ ] Nenhuma lacuna foi "preenchida" com algo que não fiz
 - [ ] Vaga existe no site oficial da empresa; e-mail do recrutador tem domínio da empresa
 - [ ] Não pediram documento, pagamento ou para baixar e rodar código
-- [ ] Depois de enviar: rode \`ajf\` → "Meus pacotes" → "Marcar como enviado"
+- [ ] Depois de enviar: rode \`ajf enviei ${job.id}\` (esta pasta vai para output/2-em-andamento)
 
 ${mp.notes.map((n) => `> ${n}`).join("\n")}
 `,
@@ -316,9 +316,45 @@ ${mp.notes.map((n) => `> ${n}`).join("\n")}
     resume: path.join(dir, pdfName),
     coverLetter: wantCover ? path.join(dir, attachments[1]) : undefined,
   };
-  updateJob(job.id, { status, outputDir: dir, rating, atsScore: ats.score, files });
-  track({ ...job, outputDir: dir }, status, ready ? "revisar e enviar" : "baixa aderência — não recomendado");
-  return { dir, rating, ready, ats: ats.score, pages, violations: guards.violations };
+  // updateJob move a pasta para a subpasta do status (output/1-prontas-para-enviar ou 3-baixa-aderencia).
+  const updated = updateJob(job.id, { status, outputDir: dir, rating, atsScore: ats.score, files });
+  track(updated, status, ready ? "revisar e enviar" : "baixa aderência — não recomendado");
+  return { dir: updated.outputDir ?? dir, rating, ready, ats: ats.score, pages, violations: guards.violations };
+}
+
+/**
+ * Gera ou atualiza só o guia de entrevista, sem refazer o currículo nem mudar o status da vaga.
+ * Usa o currículo que foi enviado (resume.json do pacote); sem pacote, usa o currículo-base.
+ */
+export async function interviewGuide(id: string): Promise<string> {
+  let job = findJob(loadJobs(), id);
+  const pkg = job.outputDir && fs.existsSync(path.join(job.outputDir, "analysis.json")) && fs.existsSync(path.join(job.outputDir, "resume.json"));
+  let analysis: JobAnalysis;
+  let mp: MarketProfile;
+  let resume: Resume;
+  let dir: string;
+  if (pkg) {
+    dir = job.outputDir!;
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, "analysis.json"), "utf8")) as { analysis: JobAnalysis; market: MarketProfile };
+    analysis = meta.analysis;
+    mp = meta.market;
+    resume = ResumeSchema.parse(JSON.parse(fs.readFileSync(path.join(dir, "resume.json"), "utf8")));
+  } else {
+    job = await ensureFullDescription(job);
+    console.log("Analisando a vaga...");
+    analysis = await analyzeJob(jobDescription(job));
+    const jobLang = job.triage?.jobLanguage === "other" ? undefined : (job.triage?.jobLanguage ?? guessLanguage(jobDescription(job)));
+    mp = marketProfile(job.triage?.market ?? analysis.market, jobLang);
+    resume = loadBaseResume(mp.language);
+    dir = job.outputDir ?? path.join(paths.outputDir, `${today()}-${slugify(job.company, 25)}-${slugify(analysis.roleTitle, 35)}`);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, "job.md"), `# ${job.title} — ${job.company}\n\n${jobDescription(job)}\n`);
+  }
+  console.log("Escrevendo o guia de entrevista...");
+  fs.writeFileSync(path.join(dir, "interview_prep.md"), await writeInterviewPrep({ jd: jobDescription(job), analysis, resume, market: mp }));
+  // Vaga sem pacote ganha uma pasta própria (vai para a subpasta do status).
+  const final = job.outputDir === dir ? dir : (updateJob(job.id, { outputDir: dir }).outputDir ?? dir);
+  return path.join(final, "interview_prep.md");
 }
 
 /** Re-renderiza PDFs a partir de resume.json / cover_letter.json editados à mão. */
