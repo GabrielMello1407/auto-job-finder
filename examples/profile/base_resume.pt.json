@@ -1,0 +1,65 @@
+{
+  "language": "pt-BR",
+  "name": "Ana Souza",
+  "headline": "Desenvolvedora Full Stack | Node.js | React | TypeScript | PostgreSQL",
+  "contact": {
+    "location": "Londrina, PR, Brasil",
+    "email": "ana.souza@example.com",
+    "phone": "",
+    "linkedin": "linkedin.com/in/ana-souza-exemplo",
+    "github": "github.com/ana-souza-exemplo",
+    "portfolio": "anasouza.example.com",
+    "availability": "Aberta a vagas remotas ou híbridas"
+  },
+  "summary": "Desenvolvedora Full Stack com Node.js, TypeScript, React e PostgreSQL. Experiência com APIs REST, migração de dados de sistemas legados e IA aplicada com LLMs e RAG.",
+  "skills": [
+    { "category": "Back End", "items": ["Node.js", "Express", "TypeScript", "APIs REST", "PostgreSQL", "SQL"] },
+    { "category": "Front End", "items": ["React", "Next.js", "JavaScript"] },
+    { "category": "IA e Testes", "items": ["LLMs", "RAG", "Jest", "Testing Library"] }
+  ],
+  "experience": [
+    {
+      "title": "Desenvolvedora Full Stack",
+      "company": "Prefeitura Exemplo",
+      "location": "Londrina, PR",
+      "mode": "Híbrido",
+      "start": "03/2023",
+      "end": "Atual",
+      "bullets": [
+        "Migrei 5.235 documentos (4,2 GB) do sistema legado para o novo repositório com scripts em Node.js e SQL.",
+        "Automatizei a geração de relatórios técnicos com LLMs e RAG, reduzindo o tempo de 3 horas para menos de 10 minutos.",
+        "Desenvolvi APIs REST em Node.js (Express) e TypeScript com PostgreSQL."
+      ]
+    },
+    {
+      "title": "Desenvolvedora Front-end",
+      "company": "Agência Pixel Exemplo",
+      "location": "Remoto",
+      "mode": "Remoto",
+      "start": "02/2021",
+      "end": "02/2023",
+      "bullets": [
+        "Construí interfaces em React e Next.js para clientes de varejo.",
+        "Criei testes automatizados com Jest e Testing Library."
+      ]
+    },
+    {
+      "title": "Desenvolvedora Voluntária",
+      "company": "ONG Código Aberto Exemplo",
+      "location": "Remoto",
+      "mode": "Remoto",
+      "start": "06/2020",
+      "end": "01/2021",
+      "bullets": [
+        "Mantive o site institucional em JavaScript e HTML/CSS.",
+        "Corrigi problemas de acessibilidade apontados pela comunidade."
+      ]
+    }
+  ],
+  "projects": [],
+  "education": [
+    { "degree": "Tecnologia em Análise e Desenvolvimento de Sistemas", "institution": "Faculdade Exemplo", "period": "02/2018 – 12/2020" }
+  ],
+  "certifications": [],
+  "languages": "Português: nativo | Inglês: intermediário (conversação), leitura técnica fluente"
+}

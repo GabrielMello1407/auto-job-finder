@@ -1,0 +1,87 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+/** Pasta do código (não depende da pasta onde o comando foi chamado). */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+dotenv.config({ path: path.join(ROOT, ".env"), quiet: true });
+
+/**
+ * Pasta de trabalho: perfil, vagas e pacotes gerados de UMA pessoa.
+ * Padrão: a própria pasta do projeto. Para manter vários perfis (ou instalar o agente globalmente),
+ * defina AJF_HOME=/caminho/da/pasta no .env ou no ambiente.
+ */
+const HOME = process.env.AJF_HOME ? path.resolve(ROOT, process.env.AJF_HOME) : ROOT;
+if (HOME !== ROOT) dotenv.config({ path: path.join(HOME, ".env"), quiet: true });
+
+export const paths = {
+  root: ROOT,
+  home: HOME,
+  envFile: path.join(HOME, ".env"),
+  profileDir: path.join(HOME, "profile"),
+  profileTruth: path.join(HOME, "profile", "profile_truth.md"),
+  baseResume: (lang: "pt-BR" | "en") =>
+    path.join(HOME, "profile", lang === "en" ? "base_resume.en.json" : "base_resume.pt.json"),
+  preferences: path.join(HOME, "profile", "preferences.json"),
+  rules: path.join(HOME, "profile", "rules.json"),
+  excluded: path.join(HOME, "profile", "excluded.md"),
+  /** Texto extraído das fontes do perfil (currículo, LinkedIn, portfólio, respostas). */
+  sourcesDir: path.join(HOME, "profile", "sources"),
+  dataDir: path.join(HOME, "data"),
+  jobsDb: path.join(HOME, "data", "jobs.json"),
+  usageLog: path.join(HOME, "data", "usage.jsonl"),
+  outputDir: path.join(HOME, "output"),
+  tracker: path.join(HOME, "output", "tracker.csv"),
+};
+
+export const settings = {
+  targetRating: Number(process.env.AJF_TARGET_RATING || 8.5),
+  /** Nota final mínima para um pacote ser considerado "pronto para enviar". */
+  minRating: Number(process.env.AJF_MIN_RATING || 7),
+  /** Nota mínima da triagem (0–100) para o piloto automático gerar pacote. */
+  minTriageScore: Number(process.env.AJF_MIN_TRIAGE_SCORE || 70),
+  maxRevisions: Number(process.env.AJF_MAX_REVISIONS || 3),
+  /** Fallback server-side em caso de recusa do modelo (beta, só API Anthropic). Desligue com AJF_FALLBACKS=off. */
+  fallbacks: (process.env.AJF_FALLBACKS || "on") !== "off",
+  chromePath: process.env.CHROME_PATH || detectChrome(),
+  userAgent: "auto-job-finder/0.2 (personal job search CLI)",
+};
+
+/** O perfil já foi configurado (ajf init)? */
+export function hasProfile(): boolean {
+  return fs.existsSync(paths.profileTruth) && fs.existsSync(paths.baseResume("pt-BR")) && fs.existsSync(paths.baseResume("en"));
+}
+
+function detectChrome(): string | undefined {
+  const candidates = [
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge",
+  ];
+  return candidates.find((p) => fs.existsSync(p));
+}
+
+export function ensureDir(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+/** Grava/atualiza uma variável no .env da pasta de trabalho (e no processo atual). */
+export function setEnvVar(key: string, value: string) {
+  const file = paths.envFile;
+  const lines = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split(/\r?\n/) : [];
+  const line = `${key}=${value}`;
+  const i = lines.findIndex((l) => new RegExp(`^\\s*#?\\s*${key}=`).test(l));
+  if (i >= 0) lines[i] = line;
+  else lines.push(line);
+  fs.writeFileSync(file, lines.join("\n").replace(/\n*$/, "\n"));
+  process.env[key] = value;
+}

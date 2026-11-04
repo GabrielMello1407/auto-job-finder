@@ -1,0 +1,65 @@
+{
+  "language": "en",
+  "name": "Ana Souza",
+  "headline": "Full Stack Developer | Node.js | React | TypeScript | PostgreSQL",
+  "contact": {
+    "location": "Londrina, PR, Brazil",
+    "email": "ana.souza@example.com",
+    "phone": "",
+    "linkedin": "linkedin.com/in/ana-souza-exemplo",
+    "github": "github.com/ana-souza-exemplo",
+    "portfolio": "anasouza.example.com",
+    "availability": "Open to remote or hybrid roles"
+  },
+  "summary": "Full Stack Developer working with Node.js, TypeScript, React and PostgreSQL. Experienced in REST APIs, data migration from legacy systems and applied AI with LLMs and RAG.",
+  "skills": [
+    { "category": "Back End", "items": ["Node.js", "Express", "TypeScript", "REST APIs", "PostgreSQL", "SQL"] },
+    { "category": "Front End", "items": ["React", "Next.js", "JavaScript"] },
+    { "category": "AI & Testing", "items": ["LLMs", "RAG", "Jest", "Testing Library"] }
+  ],
+  "experience": [
+    {
+      "title": "Full Stack Developer",
+      "company": "Prefeitura Exemplo",
+      "location": "Londrina, PR",
+      "mode": "Hybrid",
+      "start": "03/2023",
+      "end": "Present",
+      "bullets": [
+        "Migrated 5,235 documents (4.2 GB) from the legacy system to the new repository using Node.js and SQL scripts.",
+        "Automated technical report generation with LLMs and RAG, cutting the time from 3 hours to under 10 minutes.",
+        "Built REST APIs in Node.js (Express) and TypeScript backed by PostgreSQL."
+      ]
+    },
+    {
+      "title": "Front-end Developer",
+      "company": "Agência Pixel Exemplo",
+      "location": "Remote",
+      "mode": "Remote",
+      "start": "02/2021",
+      "end": "02/2023",
+      "bullets": [
+        "Built React and Next.js interfaces for retail clients.",
+        "Wrote automated tests with Jest and Testing Library."
+      ]
+    },
+    {
+      "title": "Volunteer Developer",
+      "company": "ONG Código Aberto Exemplo",
+      "location": "Remote",
+      "mode": "Remote",
+      "start": "06/2020",
+      "end": "01/2021",
+      "bullets": [
+        "Maintained the institutional website in JavaScript and HTML/CSS.",
+        "Fixed accessibility issues reported by the community."
+      ]
+    }
+  ],
+  "projects": [],
+  "education": [
+    { "degree": "Associate Degree in Systems Analysis and Development", "institution": "Faculdade Exemplo", "period": "02/2018 – 12/2020" }
+  ],
+  "certifications": [],
+  "languages": "Portuguese: native | English: intermediate (conversation), fluent technical reading"
+}

@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.log
+
+# Dados pessoais de quem usa o agente: ficam só na sua máquina.
+# (perfil, currículos, vagas, pacotes gerados). O exemplo fictício fica em examples/.
+/profile/
+/data/
+/output/
+/*.pdf
+/*.docx

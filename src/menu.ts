@@ -1,0 +1,323 @@
+import fs from "node:fs";
+import path from "node:path";
+import { checkbox, confirm, editor, input, number, select, Separator } from "@inquirer/prompts";
+import { autopilot, candidatesForPackage } from "./auto.js";
+import { hasProfile, settings } from "./config.js";
+import { canWebSearch } from "./llm.js";
+import { runInit } from "./onboarding/index.js";
+import { chooseProvider, printProviders } from "./onboarding/provider.js";
+import { loadPreferences } from "./profile.js";
+import { writeDashboard } from "./dashboard.js";
+import { addJob, searchJobs } from "./jobs/search.js";
+import { findJob, loadJobs, setStatus } from "./jobs/store.js";
+import { triageJobs } from "./jobs/triage.js";
+import type { Job, JobStatus } from "./schemas.js";
+import { tailorJob } from "./tailor/index.js";
+import { track } from "./tracker.js";
+import { openExternal } from "./util/open.js";
+import { linkedinPlan } from "./writers/linkedin.js";
+
+const BACK = "__back__";
+const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+function label(j: Job): string {
+  const score = j.rating != null ? `nota ${j.rating}` : j.triage ? `triagem ${j.triage.score}` : "sem triagem";
+  return `${score.padEnd(12)} ${(j.triage?.market ?? "").padEnd(3)} ${cut(j.company, 22).padEnd(22)}  ${cut(j.title, 60)}`;
+}
+
+function refresh() {
+  try {
+    writeDashboard();
+  } catch {
+    /* painel é opcional */
+  }
+}
+
+function printDetails(j: Job) {
+  console.log(`\n${j.title} — ${j.company}\n${j.location} · ${j.source} · status: ${j.status}\n${j.applyUrl ?? j.url}`);
+  if (j.triage) {
+    const t = j.triage;
+    console.log(`\nTriagem: ${t.fit} (${t.score}) → ${t.recommendation} · ${t.market} · ${t.seniority}\n${t.reason}`);
+    if (t.evidence.length) console.log(`Evidências:\n${t.evidence.map((e) => `  + ${e}`).join("\n")}`);
+    if (t.mustHaveGaps.length) console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n")}`);
+    if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
+  }
+  console.log(`\n${j.description.slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
+}
+
+function emailSection(j: Job, heading: string): string | null {
+  if (!j.outputDir) return null;
+  const file = path.join(j.outputDir, "emails.md");
+  if (!fs.existsSync(file)) return null;
+  const md = fs.readFileSync(file, "utf8");
+  const start = md.indexOf(heading);
+  if (start < 0) return null;
+  const next = md.indexOf("\n## ", start + 3);
+  return md.slice(start, next < 0 ? undefined : next).trim();
+}
+
+async function makePackages(jobs: Job[]) {
+  const interview = await confirm({ message: "Gerar também o guia de entrevista?", default: false });
+  for (const [i, j] of jobs.entries()) {
+    console.log(`\n📦 ${i + 1}/${jobs.length}: ${j.company} — ${j.title}`);
+    try {
+      const r = await tailorJob(j.id, { interview });
+      console.log(`   nota ${r.rating} · ATS ${r.ats}% · ${r.pages} pág. → ${r.ready ? "✅ pronto para revisar" : "⚠ baixa aderência"}`);
+    } catch (e) {
+      console.log(`   ❌ ${(e as Error).message}`);
+    }
+  }
+  refresh();
+}
+
+/* ------------------------------ fluxos ------------------------------ */
+
+async function autopilotFlow() {
+  const web = canWebSearch() && (await confirm({ message: "Incluir busca na web com IA (LinkedIn, Gupy, Indeed)? Mais lento.", default: loadPreferences().webSearchByDefault }));
+  const max = (await number({ message: "Quantos pacotes gerar no máximo?", default: 3, min: 0, max: 15 })) ?? 3;
+  const interview = await confirm({ message: "Gerar guia de entrevista em cada pacote?", default: false });
+  const r = await autopilot({ web, maxPackages: max, interview });
+  if (r.results.some((x) => x.ready) && (await confirm({ message: "Abrir o painel no navegador?", default: true })))
+    openExternal(r.dashboard);
+}
+
+async function searchFlow() {
+  const web = canWebSearch() && (await confirm({ message: "Incluir busca na web com IA (LinkedIn, Gupy, Indeed)?", default: loadPreferences().webSearchByDefault }));
+  const s = await searchJobs({ web });
+  console.log(`   ${s.added.length} novas (de ${s.found}; ${s.kept} passaram no filtro)`);
+  s.errors.forEach((e) => console.log(`   ⚠ ${e}`));
+  if (loadJobs().some((j) => j.status === "new")) {
+    console.log("🧠 Triagem...");
+    const t = await triageJobs();
+    console.log(`   ${t.filter((j) => j.status === "shortlisted").length} recomendadas de ${t.length}`);
+  }
+  refresh();
+}
+
+async function recommendedFlow() {
+  for (;;) {
+    const jobs = loadJobs()
+      .filter((j) => j.status === "shortlisted" || j.status === "triaged")
+      .sort((a, b) => (b.triage?.score ?? 0) - (a.triage?.score ?? 0));
+    if (!jobs.length) return console.log("Nenhuma vaga recomendada. Rode a busca primeiro.");
+    const pick = await select({
+      message: "Vagas recomendadas (⭐ = triagem ≥ " + settings.minTriageScore + ")",
+      pageSize: 15,
+      choices: [
+        { name: "📦 Gerar pacotes para várias de uma vez…", value: "__multi__" },
+        { name: "⬅ Voltar", value: BACK },
+        new Separator(),
+        ...jobs.map((j) => ({ name: `${(j.triage?.score ?? 0) >= settings.minTriageScore ? "⭐" : "  "} ${label(j)}`, value: j.id })),
+      ],
+    });
+    if (pick === BACK) return;
+    if (pick === "__multi__") {
+      const ids = await checkbox({
+        message: "Marque com ESPAÇO e confirme com ENTER",
+        pageSize: 15,
+        choices: jobs.map((j) => ({ name: label(j), value: j.id, checked: candidatesForPackage(jobs).slice(0, 3).some((c) => c.id === j.id) })),
+      });
+      if (ids.length) await makePackages(ids.map((id) => findJob(loadJobs(), id)));
+      continue;
+    }
+    const job = findJob(loadJobs(), pick);
+    const action = await select({
+      message: `${job.company} — ${cut(job.title, 60)}`,
+      choices: [
+        { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
+        { name: "🔍 Ver detalhes e lacunas", value: "details" },
+        { name: "🔗 Abrir a vaga no navegador", value: "open" },
+        { name: "🗑 Descartar", value: "discard" },
+        { name: "⬅ Voltar", value: BACK },
+      ],
+    });
+    if (action === "tailor") await makePackages([job]);
+    if (action === "details") printDetails(job);
+    if (action === "open") openExternal(job.applyUrl ?? job.url);
+    if (action === "discard") {
+      setStatus(job.id, "discarded");
+      refresh();
+    }
+  }
+}
+
+async function packagesFlow() {
+  for (;;) {
+    const jobs = loadJobs()
+      .filter((j) => j.status === "tailored" || j.status === "low_fit")
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    if (!jobs.length) return console.log("Nenhum pacote gerado ainda.");
+    const pick = await select({
+      message: `Meus pacotes (✅ nota ≥ ${settings.minRating} · ⚠ baixa aderência)`,
+      pageSize: 15,
+      choices: [
+        { name: "⬅ Voltar", value: BACK },
+        new Separator(),
+        ...jobs.map((j) => ({ name: `${j.status === "tailored" ? "✅" : "⚠ "} ${label(j)}`, value: j.id })),
+      ],
+    });
+    if (pick === BACK) return;
+    const job = findJob(loadJobs(), pick);
+    for (;;) {
+      const action = await select({
+        message: `${job.company} — ${cut(job.title, 50)} (nota ${job.rating ?? "?"})`,
+        choices: [
+          { name: "📄 Abrir currículo (PDF)", value: "pdf" },
+          ...(job.files?.coverLetter ? [{ name: "✉️ Abrir cover letter (PDF)", value: "cover" }] : []),
+          { name: "📧 Mostrar e-mail de candidatura", value: "email" },
+          { name: "💬 Mostrar mensagens de LinkedIn", value: "linkedin" },
+          { name: "🔗 Abrir a vaga para me candidatar", value: "apply" },
+          { name: "📁 Abrir pasta do pacote", value: "folder" },
+          { name: "✅ Marcar como enviado", value: "applied" },
+          { name: "🔄 Gerar de novo", value: "redo" },
+          { name: "🗑 Descartar", value: "discard" },
+          { name: "⬅ Voltar", value: BACK },
+        ],
+      });
+      if (action === BACK) break;
+      if (action === "pdf" && job.files?.resume) openExternal(job.files.resume);
+      if (action === "cover" && job.files?.coverLetter) openExternal(job.files.coverLetter);
+      if (action === "folder" && job.outputDir) openExternal(job.outputDir);
+      if (action === "apply") openExternal(job.applyUrl ?? job.url);
+      if (action === "email") console.log("\n" + (emailSection(job, "## 1.") ?? "emails.md não encontrado") + "\n");
+      if (action === "linkedin")
+        console.log("\n" + [emailSection(job, "## 2."), emailSection(job, "## 3.")].filter(Boolean).join("\n\n") + "\n");
+      if (action === "redo") {
+        await makePackages([job]);
+        break;
+      }
+      if (action === "applied" || action === "discard") {
+        const status: JobStatus = action === "applied" ? "applied" : "discarded";
+        const note = action === "applied" ? await input({ message: "Observação (ex.: 'via Gupy'). Enter para pular:" }) : "";
+        const updated = setStatus(job.id, status, note || undefined);
+        track(updated, status, status === "applied" ? "follow-up em 5–7 dias úteis" : "", note);
+        refresh();
+        console.log(status === "applied" ? "✅ Registrado. Lembre do follow-up em 5–7 dias úteis." : "Descartada.");
+        break;
+      }
+    }
+  }
+}
+
+async function activeFlow() {
+  const jobs = loadJobs()
+    .filter((j) => ["applied", "interview", "offer"].includes(j.status))
+    .sort((a, b) => (b.appliedAt ?? "").localeCompare(a.appliedAt ?? ""));
+  if (!jobs.length) return console.log("Nenhuma candidatura enviada ainda.");
+  const pick = await select({
+    message: "Candidaturas em andamento",
+    pageSize: 15,
+    choices: [
+      { name: "⬅ Voltar", value: BACK },
+      new Separator(),
+      ...jobs.map((j) => {
+        const days = j.appliedAt ? Math.floor((Date.now() - Date.parse(j.appliedAt)) / 86400_000) : null;
+        const flag = j.status === "applied" && days != null && days >= 7 ? " ⏰ follow-up!" : "";
+        return { name: `${j.status.padEnd(10)} ${days != null ? `${days}d` : ""}  ${cut(j.company, 22)} — ${cut(j.title, 50)}${flag}`, value: j.id };
+      }),
+    ],
+  });
+  if (pick === BACK) return;
+  const job = findJob(loadJobs(), pick);
+  const action = await select({
+    message: `${job.company} — ${cut(job.title, 50)}`,
+    choices: [
+      { name: "⏰ Mostrar e-mail de follow-up", value: "followup" },
+      { name: "🙏 Mostrar agradecimento pós-entrevista", value: "thanks" },
+      { name: "🎤 Fui chamado para entrevista", value: "interview" },
+      { name: "🎉 Recebi oferta", value: "offer" },
+      { name: "❌ Fui recusado", value: "rejected" },
+      { name: "📁 Abrir pasta do pacote", value: "folder" },
+      { name: "⬅ Voltar", value: BACK },
+    ],
+  });
+  if (action === "followup") console.log("\n" + (emailSection(job, "## 4.") ?? "emails.md não encontrado") + "\n");
+  if (action === "thanks") console.log("\n" + (emailSection(job, "## 5.") ?? "emails.md não encontrado") + "\n");
+  if (action === "folder" && job.outputDir) openExternal(job.outputDir);
+  if (action === "interview" || action === "offer" || action === "rejected") {
+    const updated = setStatus(job.id, action);
+    track(updated, action);
+    refresh();
+    if (action === "interview" && (await confirm({ message: "Gerar/atualizar o guia de entrevista agora?", default: true })))
+      await tailorJob(job.id, { interview: true });
+  }
+}
+
+async function pasteFlow() {
+  const text = await editor({
+    message: "Vou abrir o editor: cole a descrição completa da vaga, salve e feche.",
+    postfix: ".md",
+    waitForUserInput: false,
+  });
+  if (!text.trim()) return console.log("Nada colado.");
+  const company = await input({ message: "Empresa:", required: true });
+  const title = await input({ message: "Cargo:", required: true });
+  const url = await input({ message: "Link da vaga (Enter para pular):" });
+  const job = await addJob({ text, company, title, url: url || undefined });
+  console.log("🧠 Triagem...");
+  await triageJobs({ ids: [job.id] });
+  const j = findJob(loadJobs(), job.id);
+  printDetails(j);
+  if (await confirm({ message: "Gerar o pacote agora?", default: j.status === "shortlisted" })) await makePackages([j]);
+  refresh();
+}
+
+/* ------------------------------ menu principal ------------------------------ */
+
+export async function mainMenu() {
+  if (!hasProfile()) {
+    console.log("\n👋 Bem-vindo! Primeiro vou montar seu perfil (currículo, LinkedIn, portfólio ou perguntas).");
+    try {
+      await runInit();
+    } catch (e) {
+      if ((e as Error).name === "ExitPromptError") return;
+      console.log(`\n❌ ${(e as Error).message}`);
+    }
+    if (!hasProfile()) return;
+  }
+  refresh();
+  for (;;) {
+    const jobs = loadJobs();
+    const count = (...s: JobStatus[]) => jobs.filter((j) => s.includes(j.status)).length;
+    const due = jobs.filter(
+      (j) => j.status === "applied" && j.appliedAt && Date.now() - Date.parse(j.appliedAt) >= 7 * 86400_000,
+    ).length;
+    console.log("");
+    const choice = await select({
+      message: "auto-job-finder — o que vamos fazer?",
+      pageSize: 14,
+      choices: [
+        { name: "🤖 Piloto automático (buscar → triar → gerar pacotes)", value: "auto" },
+        { name: `⭐ Vagas recomendadas (${count("shortlisted")} + ${count("triaged")} para decidir)`, value: "recommended" },
+        { name: `📦 Meus pacotes (${count("tailored")} prontos, ${count("low_fit")} baixa aderência)`, value: "packages" },
+        { name: `📨 Candidaturas em andamento (${count("applied", "interview", "offer")})${due ? ` — ⏰ ${due} follow-up` : ""}`, value: "active" },
+        { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
+        { name: "🔎 Só buscar e triar vagas novas", value: "search" },
+        { name: "🌐 Abrir painel no navegador", value: "dashboard" },
+        { name: "🔗 Gerar plano de LinkedIn", value: "linkedin" },
+        { name: "🧭 Atualizar meu perfil (novo currículo, LinkedIn, portfólio)", value: "init" },
+        { name: "🤖 Escolher a IA (Claude, ChatGPT/Codex, Gemini, APIs)", value: "ia" },
+        { name: "Sair", value: "exit" },
+      ],
+    });
+    try {
+      if (choice === "exit") return;
+      if (choice === "auto") await autopilotFlow();
+      if (choice === "recommended") await recommendedFlow();
+      if (choice === "packages") await packagesFlow();
+      if (choice === "active") await activeFlow();
+      if (choice === "paste") await pasteFlow();
+      if (choice === "search") await searchFlow();
+      if (choice === "dashboard") openExternal(writeDashboard());
+      if (choice === "linkedin") console.log(`Plano salvo em ${await linkedinPlan({})}`);
+      if (choice === "init") await runInit();
+      if (choice === "ia") {
+        await chooseProvider();
+        printProviders();
+      }
+    } catch (e) {
+      if ((e as Error).name === "ExitPromptError") return;
+      console.log(`\n❌ ${(e as Error).message}`);
+    }
+  }
+}

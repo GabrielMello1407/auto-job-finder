@@ -1,0 +1,13 @@
+{
+  "neverClaim": [
+    { "phrase": "AWS Certified", "message": "afirma 'AWS Certified' (fez só curso livre de AWS)" },
+    {
+      "regex": "\\b(fluent|advanced|full professional)\\s+(english|spoken english)|english:\\s*(fluent|advanced)\\b(?!\\s+technical)",
+      "message": "afirma inglês fluente/avançado (perfil: conversação intermediária)"
+    },
+    {
+      "regex": "ingl[eê]s\\s*(:\\s*)?(fluente|avan[cç]ado)\\b(?!\\s*(na\\s+)?leitura)",
+      "message": "afirma inglês fluente/avançado (perfil: conversação intermediária)"
+    }
+  ]
+}
