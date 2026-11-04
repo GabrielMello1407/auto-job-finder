@@ -1,19 +1,67 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 const IS_WIN = process.platform === "win32";
 
-/** Procura um executável no PATH (sem rodar nada). Devolve o caminho completo ou null. */
-export function which(bin: string): string | null {
-  if (path.isAbsolute(bin) || bin.includes("/") || bin.includes("\\")) return fs.existsSync(bin) ? bin : null;
-  const exts = IS_WIN ? ["", ...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").toLowerCase().split(";"), ".ps1"] : [""];
-  const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
-  // Instalações comuns que nem sempre estão no PATH de terminais já abertos.
+/** Pastas onde as CLIs costumam ficar mesmo quando não estão no PATH deste processo. */
+function commonDirs(): string[] {
+  const env = process.env;
   const home = os.homedir();
-  dirs.push(path.join(home, ".local", "bin"), path.join(home, ".claude", "local"));
-  if (IS_WIN && process.env.APPDATA) dirs.push(path.join(process.env.APPDATA, "npm"));
+  const dirs = [
+    path.dirname(process.execPath), // npm -g com nvm/fnm/volta instala ao lado do node em uso
+    path.join(home, ".local", "bin"), // instalador nativo do Claude Code (Windows, macOS e Linux)
+    path.join(home, ".claude", "local"),
+    path.join(home, ".npm-global", "bin"),
+    path.join(home, ".volta", "bin"),
+    path.join(home, ".bun", "bin"),
+  ];
+  for (const v of [env.NVM_BIN, env.PNPM_HOME]) if (v) dirs.push(v);
+  if (env.npm_config_prefix) dirs.push(IS_WIN ? env.npm_config_prefix : path.join(env.npm_config_prefix, "bin"));
+  if (IS_WIN) {
+    if (env.APPDATA) dirs.push(path.join(env.APPDATA, "npm"));
+    if (env.LOCALAPPDATA) dirs.push(path.join(env.LOCALAPPDATA, "Microsoft", "WinGet", "Links"), path.join(env.LOCALAPPDATA, "pnpm"));
+    if (env.NVM_SYMLINK) dirs.push(env.NVM_SYMLINK);
+  } else {
+    dirs.push("/opt/homebrew/bin", "/usr/local/bin", path.join(home, "Library", "pnpm"), path.join(home, ".local", "share", "pnpm"));
+  }
+  return dirs;
+}
+
+let freshPath: string[] | undefined;
+
+/**
+ * PATH atual do usuário, lido fora deste processo: o terminal (ou a IDE) pode ter sido aberto antes da
+ * instalação, ou não carregar o perfil do shell (nvm, asdf, Homebrew). Roda uma vez e fica em cache.
+ */
+function userPathDirs(): string[] {
+  if (freshPath) return freshPath;
+  freshPath = [];
+  try {
+    if (IS_WIN) {
+      const reg = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "reg.exe");
+      for (const key of ["HKCU\\Environment", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"]) {
+        const r = spawnSync(reg, ["query", key, "/v", "Path"], { encoding: "utf8", timeout: 4000, windowsHide: true });
+        const m = r.stdout?.match(/\bPath\s+REG_(?:EXPAND_)?SZ\s+(.*)/i);
+        if (m) freshPath.push(...m[1].trim().split(";").map((d) => d.replace(/%([^%]+)%/g, (all, v) => process.env[v] ?? all)));
+      }
+    } else {
+      const shell = process.env.SHELL || "/bin/sh";
+      const r = spawnSync(shell, ["-ilc", `printf '__AJF__%s__AJF__' "$PATH"`], { encoding: "utf8", timeout: 4000, stdio: ["ignore", "pipe", "ignore"] });
+      const m = r.stdout?.match(/__AJF__(.*?)__AJF__/s);
+      if (m) freshPath.push(...m[1].split(":"));
+    }
+  } catch {
+    /* sem shell ou sem reg.exe: fica só com o que já foi procurado */
+  }
+  freshPath = freshPath.filter(Boolean);
+  return freshPath;
+}
+
+function findIn(dirs: string[], bin: string): string | null {
+  // No Windows, o arquivo sem extensão que o npm cria é um script sh que o Windows não executa: só serve com extensão.
+  const exts = IS_WIN && !path.extname(bin) ? [...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").toLowerCase().split(";").filter(Boolean), ".ps1"] : [""];
   for (const dir of dirs) {
     for (const ext of exts) {
       const full = path.join(dir, bin + ext);
@@ -25,6 +73,19 @@ export function which(bin: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Procura um executável (sem rodar o executável). Ordem: PATH deste processo, pastas de instalação comuns
+ * e, por último, o PATH atual do usuário (registro do Windows ou shell de login). Devolve o caminho completo ou null.
+ */
+export function which(bin: string): string | null {
+  if (path.isAbsolute(bin) || bin.includes("/") || bin.includes("\\")) {
+    const full = path.resolve(bin);
+    return findIn([path.dirname(full)], path.basename(full));
+  }
+  const envDirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  return findIn([...envDirs, ...commonDirs()], bin) ?? findIn(userPathDirs(), bin);
 }
 
 /**
