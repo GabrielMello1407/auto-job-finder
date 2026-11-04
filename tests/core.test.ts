@@ -5,7 +5,7 @@ import { prefilter } from "../src/jobs/filter.js";
 import { _test } from "../src/jobs/sources/extra.js";
 import type { RawJob } from "../src/jobs/sources/index.js";
 import { loadBaseResume, loadPreferences } from "../src/profile.js";
-import type { Resume, Review } from "../src/schemas.js";
+import type { Job, Resume, Review } from "../src/schemas.js";
 import { atsReport } from "../src/tailor/ats.js";
 import { runGuards } from "../src/tailor/guards.js";
 import { refine } from "../src/tailor/refine.js";
@@ -16,6 +16,9 @@ import { forbiddenPatterns } from "../src/profile.js";
 import { extractJson, strictJsonSchema, structuredViaText } from "../src/providers/jsonText.js";
 import { activeProviderId, normalizeProviderId } from "../src/providers/index.js";
 import { which } from "../src/providers/spawn.js";
+import { isStatus, matchJobs } from "../src/jobs/status.js";
+import { relocatePackage } from "../src/jobs/folders.js";
+import { paths } from "../src/config.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -273,6 +276,36 @@ test("provedores: which acha CLI no PATH, por caminho explícito e ignora atalho
   } finally {
     process.env.PATH = oldPath;
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("status: acha vaga por ID, começo do ID ou parte da empresa/cargo sem acento", () => {
+  const job = (id: string, company: string, title: string) => ({ id, company, title }) as Job;
+  const jobs = [job("a1b2c3d4", "Grupo Boticário", "Pessoa Desenvolvedora Fullstack"), job("ffee0011", "Cogfy", "Full Stack Developer")];
+  assert.deepEqual(matchJobs(jobs, "a1b2").map((j) => j.id), ["a1b2c3d4"]);
+  assert.deepEqual(matchJobs(jobs, "boticario").map((j) => j.id), ["a1b2c3d4"]);
+  assert.deepEqual(matchJobs(jobs, "cogfy full").map((j) => j.id), ["ffee0011"]);
+  assert.equal(matchJobs(jobs, "nubank").length, 0);
+  assert.equal(matchJobs(jobs, "").length, 2);
+  assert.ok(isStatus("applied") && !isStatus("enviada"));
+});
+
+test("pastas: pacote vai para a subpasta do status e os caminhos dos PDFs acompanham", () => {
+  const hadOutput = fs.existsSync(paths.outputDir);
+  const old = path.join(paths.outputDir, `ajf-teste-${process.pid}`);
+  fs.mkdirSync(old, { recursive: true });
+  fs.writeFileSync(path.join(old, "cv.pdf"), "x");
+  const job = { id: "t1", company: "X", status: "applied", outputDir: old, files: { resume: path.join(old, "cv.pdf") } } as Job;
+  try {
+    const moved = relocatePackage(job)!;
+    assert.equal(moved.outputDir, path.join(paths.outputDir, "2-em-andamento", path.basename(old)));
+    assert.ok(fs.existsSync(moved.files!.resume!) && !fs.existsSync(old));
+    assert.equal(relocatePackage({ ...job, ...moved }), null);
+    assert.equal(relocatePackage({ ...job, outputDir: os.tmpdir() }), null); // fora de output/: não mexe
+  } finally {
+    fs.rmSync(old, { recursive: true, force: true });
+    fs.rmSync(path.join(paths.outputDir, "2-em-andamento", path.basename(old)), { recursive: true, force: true });
+    if (!hadOutput) fs.rmSync(paths.outputDir, { recursive: true, force: true }); // pasta criada só pelo teste
   }
 });
 
