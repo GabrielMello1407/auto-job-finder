@@ -1,0 +1,27 @@
+name: 💡 Sugestão
+description: Uma ideia para o agente ficar mais útil.
+labels: [sugestão]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Qual problema isso resolve
+      description: 'Conte a situação real. Ex.: "Na minha área (enfermagem) as vagas saem no site X e o agente não acha."'
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Como você imagina a solução
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas que você considerou
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Combina com o projeto
+      description: O agente serve para qualquer área, nunca inventa fatos sobre a pessoa e nunca envia nada sozinho.
+      options:
+        - label: A ideia funciona para outras áreas e não só para a minha.
+        - label: A ideia não faz o agente inventar fatos nem enviar algo em nome da pessoa.

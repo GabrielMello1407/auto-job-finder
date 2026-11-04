@@ -1,5 +1,7 @@
 # auto-job-finder
 
+[![CI](https://github.com/GabrielMello1407/auto-job-finder/actions/workflows/ci.yml/badge.svg)](https://github.com/GabrielMello1407/auto-job-finder/actions/workflows/ci.yml) [![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
 Agente de IA para candidaturas, **para qualquer área e qualquer vaga**:
 
 1. Monta o seu perfil a partir do que você tiver: currículo (PDF/DOCX), PDF do LinkedIn, portfólio, site, GitHub, texto colado, ou respondendo a perguntas.
@@ -232,3 +234,15 @@ src/
 examples/profile/        perfil fictício (formato de referência; usado nos testes)
 tests/core.test.ts       testes offline: npm test
 ```
+
+## Contribuindo
+
+Contribuições são bem-vindas, principalmente de quem é de **outras áreas**: novas fontes de vagas, ajustes nos textos para a sua profissão, provedores de IA, melhorias na interface.
+
+- Como rodar, testar e as regras do projeto: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Bugs e ideias: [issues](https://github.com/GabrielMello1407/auto-job-finder/issues), sem dados pessoais.
+- Falhas de segurança: em particular, como explica o [SECURITY.md](SECURITY.md).
+
+## Licença
+
+[MIT](LICENSE). Use, modifique e distribua à vontade, mantendo o aviso de autoria. O software é fornecido sem garantia: o agente prepara o material, e cada pessoa revisa e responde pelo que envia.
