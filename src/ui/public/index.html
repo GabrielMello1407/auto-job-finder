@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>auto-job-finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" aria-label="Navegação">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div><b>auto-job-finder</b><span>do achado ao envio</span></div>
+    </div>
+    <nav class="nav" id="nav">
+      <a href="#/vagas" data-route="vagas"><span class="ico">💼</span>Vagas<span class="pill num" id="nav-vagas" hidden></span></a>
+      <a href="#/perfil" data-route="perfil"><span class="ico">🪪</span>Perfil<span class="pill warn num" id="nav-perfil" hidden></span></a>
+      <a href="#/preferencias" data-route="preferencias"><span class="ico">🎯</span>Preferências</a>
+      <a href="#/linkedin" data-route="linkedin"><span class="ico">🔗</span>LinkedIn</a>
+    </nav>
+    <div class="side-foot">
+      <button type="button" class="cmdk" data-act="palette">Buscar ou fazer algo <kbd>Ctrl K</kbd></button>
+      <button type="button" class="ia-chip" data-act="ia" id="ia-chip"><span class="dot"></span><span id="ia-label">IA</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="offline" class="offline" hidden>Sem conexão com o <code>ajf</code>. O terminal foi fechado? Rode <code>ajf</code> de novo.</div>
+    <div id="view" class="view"></div>
+  </main>
+</div>
+
+<div id="drawer-root"></div>
+<div id="dock-root"></div>
+<div id="palette-root"></div>
+<div id="modal-root"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

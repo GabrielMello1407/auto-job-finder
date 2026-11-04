@@ -5,7 +5,7 @@ import { ensureDir, hasProfile, paths } from "../config.js";
 import { DEFAULT_PREFERENCES, loadPreferences, type Preferences } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import { slugify } from "../util/text.js";
-import { buildBaseResume, buildProfile, readIntake, type PreferenceAnswers } from "./build.js";
+import { buildBaseResume, buildProfile, readIntake, type Intake, type PreferenceAnswers } from "./build.js";
 import { chooseProvider } from "./provider.js";
 import { LINKEDIN_EXPORT_HELP, readSource, type SourceDoc } from "./sources.js";
 
@@ -46,41 +46,92 @@ async function addSource(sources: SourceDoc[], value: string) {
   }
 }
 
-/** Entrevista guiada para quem não tem currículo pronto. */
-async function guidedInterview(): Promise<SourceDoc> {
-  console.log("\nVamos montar do zero. Responda com suas palavras; Enter pula a pergunta.\n");
+/** Respostas da entrevista guiada (terminal ou interface) para quem não tem currículo pronto. */
+export interface InterviewAnswers {
+  name?: string;
+  city?: string;
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  portfolio?: string;
+  goal?: string;
+  experiences?: { company?: string; title?: string; start?: string; end?: string; description?: string }[];
+  education?: string;
+  courses?: string;
+  skills?: string;
+  languages?: string;
+  achievements?: string;
+}
+
+const INTERVIEW_LABELS: [keyof InterviewAnswers, string][] = [
+  ["name", "Nome"],
+  ["city", "Cidade"],
+  ["email", "E-mail"],
+  ["phone", "Telefone"],
+  ["linkedin", "LinkedIn"],
+  ["portfolio", "Portfólio/site"],
+  ["goal", "Objetivo"],
+];
+const INTERVIEW_TAIL: [keyof InterviewAnswers, string][] = [
+  ["education", "Formação"],
+  ["courses", "Cursos e certificações"],
+  ["skills", "Ferramentas e competências"],
+  ["languages", "Idiomas"],
+  ["achievements", "Resultados"],
+];
+
+export function interviewSource(a: InterviewAnswers, origin = "ajf init"): SourceDoc {
   const lines: string[] = [];
-  const ask = async (label: string, message: string) => {
-    const v = (await input({ message })).trim();
+  const add = ([key, label]: [keyof InterviewAnswers, string]) => {
+    const v = String(a[key] ?? "").trim();
     if (v) lines.push(`${label}: ${v}`);
   };
-  await ask("Nome", "Nome completo:");
-  await ask("Cidade", "Cidade/UF (ex.: Londrina, PR):");
-  await ask("E-mail", "E-mail profissional:");
-  await ask("Telefone", "Telefone/WhatsApp (opcional):");
-  await ask("LinkedIn", "Link do LinkedIn (opcional):");
-  await ask("Portfólio/site", "Portfólio, site ou GitHub (opcional):");
-  await ask("Objetivo", "Qual cargo/área você quer?");
+  INTERVIEW_LABELS.forEach(add);
+  (a.experiences ?? [])
+    .filter((e) => e.company?.trim() || e.title?.trim())
+    .forEach((e, i) => lines.push(`\nExperiência ${i + 1}: ${e.title ?? ""} — ${e.company ?? ""} (${e.start ?? "?"} – ${e.end ?? "?"})\n${(e.description ?? "").trim()}`));
+  INTERVIEW_TAIL.forEach(add);
+  return { kind: "respostas", label: "Entrevista guiada", origin, text: lines.join("\n") };
+}
 
-  let n = 0;
-  while (await confirm({ message: n ? "Adicionar outra experiência?" : "Adicionar uma experiência profissional (emprego, estágio, freela, voluntariado)?", default: n === 0 })) {
-    n++;
-    const company = await input({ message: "  Empresa/organização:" });
-    const title = await input({ message: "  Cargo:" });
-    const start = await input({ message: "  Início (MM/AAAA):" });
-    const end = await input({ message: "  Fim (MM/AAAA ou 'Atual'):" });
-    const what = await editor({
-      message: "  O que você fazia e quais resultados? (vou abrir o editor; use números reais se tiver; salve e feche)",
-      waitForUserInput: false,
+/** Entrevista guiada no terminal. */
+async function guidedInterview(): Promise<SourceDoc> {
+  console.log("\nVamos montar do zero. Responda com suas palavras; Enter pula a pergunta.\n");
+  const a: InterviewAnswers = { experiences: [] };
+  const ask = async (key: keyof InterviewAnswers, message: string) => {
+    (a as Record<string, unknown>)[key] = (await input({ message })).trim();
+  };
+  await ask("name", "Nome completo:");
+  await ask("city", "Cidade/UF (ex.: Londrina, PR):");
+  await ask("email", "E-mail profissional:");
+  await ask("phone", "Telefone/WhatsApp (opcional):");
+  await ask("linkedin", "Link do LinkedIn (opcional):");
+  await ask("portfolio", "Portfólio, site ou GitHub (opcional):");
+  await ask("goal", "Qual cargo/área você quer?");
+
+  while (
+    await confirm({
+      message: a.experiences!.length ? "Adicionar outra experiência?" : "Adicionar uma experiência profissional (emprego, estágio, freela, voluntariado)?",
+      default: a.experiences!.length === 0,
+    })
+  ) {
+    a.experiences!.push({
+      company: await input({ message: "  Empresa/organização:" }),
+      title: await input({ message: "  Cargo:" }),
+      start: await input({ message: "  Início (MM/AAAA):" }),
+      end: await input({ message: "  Fim (MM/AAAA ou 'Atual'):" }),
+      description: await editor({
+        message: "  O que você fazia e quais resultados? (vou abrir o editor; use números reais se tiver; salve e feche)",
+        waitForUserInput: false,
+      }),
     });
-    lines.push(`\nExperiência ${n}: ${title} — ${company} (${start} – ${end})\n${what.trim()}`);
   }
-  await ask("Formação", "Formação (curso, instituição, período):");
-  await ask("Cursos e certificações", "Cursos e certificações (diga quais são certificações oficiais):");
-  await ask("Ferramentas e competências", "Ferramentas, sistemas e competências que você usa:");
-  await ask("Idiomas", "Idiomas e nível (ex.: inglês intermediário):");
-  await ask("Resultados", "Algum resultado ou conquista que você se orgulha (com números, se tiver)?");
-  return { kind: "respostas", label: "Entrevista guiada", origin: "ajf init", text: lines.join("\n") };
+  await ask("education", "Formação (curso, instituição, período):");
+  await ask("courses", "Cursos e certificações (diga quais são certificações oficiais):");
+  await ask("skills", "Ferramentas, sistemas e competências que você usa:");
+  await ask("languages", "Idiomas e nível (ex.: inglês intermediário):");
+  await ask("achievements", "Algum resultado ou conquista que você se orgulha (com números, se tiver)?");
+  return interviewSource(a);
 }
 
 async function collectSources(prefilled: string[]): Promise<SourceDoc[]> {
@@ -140,11 +191,98 @@ function backupProfile(): string | null {
   return dir;
 }
 
-function saveSources(sources: SourceDoc[]) {
+export function saveSources(sources: SourceDoc[]) {
   ensureDir(paths.sourcesDir);
   sources.forEach((s, i) =>
     fs.writeFileSync(path.join(paths.sourcesDir, `${String(i + 1).padStart(2, "0")}-${s.kind}-${slugify(s.label, 40)}.txt`), `# ${s.label}\n# origem: ${s.origin}\n\n${s.text}\n`),
   );
+}
+
+/** Escolhas da pessoa sobre as vagas que quer (perguntadas no terminal ou na interface). */
+export interface ProfileChoices {
+  targetRoles: string[];
+  seniority: string;
+  /** "remoto" = só remoto; "remoto+regiao" = remoto ou presencial/híbrido nas cidades; "qualquer" = qualquer modalidade nas cidades. */
+  mode: "remoto" | "remoto+regiao" | "qualquer";
+  onsiteCities: string[];
+  country: string;
+  timezone: string;
+  international: boolean;
+}
+
+export const WORK_MODES: Record<ProfileChoices["mode"], string> = {
+  remoto: "só remoto",
+  "remoto+regiao": "remoto, ou híbrido/presencial nas cidades informadas",
+  qualquer: "qualquer modalidade nas cidades informadas",
+};
+
+/**
+ * Monta e grava o perfil: profile_truth.md, currículos-base PT/EN, preferences.json e rules.json.
+ * O perfil anterior vai para um backup. Usado pelo `ajf init` e pela interface.
+ */
+export async function buildAndSaveProfile(p: {
+  sources: SourceDoc[];
+  answers: { question: string; answer: string }[];
+  choices: ProfileChoices;
+  intake: Intake;
+}): Promise<{ backup: string | null }> {
+  const { sources, answers, choices, intake } = p;
+  const onsiteCities = choices.mode === "remoto" ? [] : choices.onsiteCities;
+  const prefsAnswers: PreferenceAnswers = {
+    targetRoles: choices.targetRoles.length ? choices.targetRoles : intake.suggestedTargetRoles,
+    seniority: choices.seniority,
+    workModes: WORK_MODES[choices.mode],
+    onsiteCities,
+    international: choices.international,
+    country: choices.country,
+  };
+
+  console.log("\n🛠  Montando seu perfil (pode levar alguns minutos)...");
+  const built = await buildProfile({ sources, answers, prefs: prefsAnswers, intake });
+  console.log("   currículo-base em português...");
+  const pt = await buildBaseResume(built.profileTruth, "pt-BR");
+  console.log("   currículo-base em inglês...");
+  const en = await buildBaseResume(built.profileTruth, "en", pt);
+
+  const backup = backupProfile();
+  ensureDir(paths.profileDir);
+  const old = fs.existsSync(paths.preferences) ? loadPreferences() : DEFAULT_PREFERENCES;
+  const { country, international, seniority } = choices;
+  const countryRegions = [country.toLowerCase(), ...(/brasil|brazil/i.test(country) ? ["brazil", "brasil"] : [])];
+  const prefs: Preferences = {
+    ...DEFAULT_PREFERENCES,
+    targetRoles: prefsAnswers.targetRoles,
+    area: intake.area,
+    seniority,
+    country,
+    timezone: choices.timezone,
+    queries: built.queries,
+    titleMustInclude: built.titleMustInclude.map((t) => t.toLowerCase()),
+    titleExclude: [...new Set([...DEFAULT_PREFERENCES.titleExclude, ...built.titleExclude.map((t) => t.toLowerCase())])],
+    acceptedRegions: international ? [...new Set([...countryRegions, ...DEFAULT_PREFERENCES.acceptedRegions])] : [...new Set(countryRegions)],
+    onsiteCities,
+    excludedCompanies: old.excludedCompanies,
+    companyBoards: old.companyBoards,
+    defaultSources: intake.isTech ? TECH_SOURCES : GENERAL_SOURCES,
+    webSearchByDefault: !intake.isTech || !international,
+    webSearchHints: `Priorize vagas de ${prefsAnswers.targetRoles.join(", ")} (${seniority}) — ${prefsAnswers.workModes}${onsiteCities.length ? ` (${onsiteCities.join(", ")})` : ""}. Mora em ${country}.${international ? " Aceita empresas de fora que contratam pessoas de " + country + "." : ""}`,
+  };
+
+  fs.writeFileSync(paths.profileTruth, built.profileTruth.trim() + "\n");
+  fs.writeFileSync(paths.baseResume("pt-BR"), JSON.stringify(pt, null, 2) + "\n");
+  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(en, null, 2) + "\n");
+  fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
+  fs.writeFileSync(paths.rules, JSON.stringify({ neverClaim: built.neverClaim }, null, 2) + "\n");
+  if (!fs.existsSync(paths.excluded))
+    fs.writeFileSync(paths.excluded, "# Empresas e vagas que você não quer\n\n<!-- Uma por linha, ex.: - Empresa X — motivo -->\n");
+
+  console.log(`\n✅ Perfil salvo em ${paths.profileDir}${backup ? ` (backup do anterior em ${backup})` : ""}`);
+  try {
+    await renderBaseResumes((m) => console.log(`   ${m}`));
+  } catch (e) {
+    console.log(`   ⚠ Não gerei o PDF de conferência: ${(e as Error).message}`);
+  }
+  return { backup };
 }
 
 export async function runInit(opts: { inputs?: string[] } = {}) {
@@ -180,7 +318,7 @@ export async function runInit(opts: { inputs?: string[] } = {}) {
   const extraRoles = split(await input({ message: "Outros cargos (separados por vírgula; Enter para pular):" }));
   const targetRoles = [...roles, ...extraRoles];
   const seniority = await input({ message: "Senioridade que você busca:", default: intake.seniority });
-  const mode = await select({
+  const mode = await select<ProfileChoices["mode"]>({
     message: "Modalidade:",
     choices: [
       { name: "Só remoto", value: "remoto" },
@@ -193,59 +331,12 @@ export async function runInit(opts: { inputs?: string[] } = {}) {
   const timezone = await input({ message: "Fuso horário:", default: /brasil|brazil/i.test(country) ? "UTC-3" : "" });
   const international = await confirm({ message: "Aceita vagas de empresas de fora do país (processo em inglês)?", default: false });
 
-  const prefsAnswers: PreferenceAnswers = {
-    targetRoles: targetRoles.length ? targetRoles : intake.suggestedTargetRoles,
-    seniority,
-    workModes: mode === "remoto" ? "só remoto" : mode === "remoto+regiao" ? "remoto, ou híbrido/presencial nas cidades informadas" : "qualquer modalidade nas cidades informadas",
-    onsiteCities,
-    international,
-    country,
-  };
-
-  console.log("\n🛠  Montando seu perfil (pode levar alguns minutos)...");
-  const built = await buildProfile({ sources, answers, prefs: prefsAnswers, intake });
-  console.log("   currículo-base em português...");
-  const pt = await buildBaseResume(built.profileTruth, "pt-BR");
-  console.log("   currículo-base em inglês...");
-  const en = await buildBaseResume(built.profileTruth, "en", pt);
-
-  const backup = backupProfile();
-  ensureDir(paths.profileDir);
-  const old = fs.existsSync(paths.preferences) ? loadPreferences() : DEFAULT_PREFERENCES;
-  const countryRegions = [country.toLowerCase(), ...(/brasil|brazil/i.test(country) ? ["brazil", "brasil"] : [])];
-  const prefs: Preferences = {
-    ...DEFAULT_PREFERENCES,
-    targetRoles: prefsAnswers.targetRoles,
-    area: intake.area,
-    seniority,
-    country,
-    timezone,
-    queries: built.queries,
-    titleMustInclude: built.titleMustInclude.map((t) => t.toLowerCase()),
-    titleExclude: [...new Set([...DEFAULT_PREFERENCES.titleExclude, ...built.titleExclude.map((t) => t.toLowerCase())])],
-    acceptedRegions: international ? [...new Set([...countryRegions, ...DEFAULT_PREFERENCES.acceptedRegions])] : [...new Set(countryRegions)],
-    onsiteCities,
-    excludedCompanies: old.excludedCompanies,
-    companyBoards: old.companyBoards,
-    defaultSources: intake.isTech ? TECH_SOURCES : GENERAL_SOURCES,
-    webSearchByDefault: !intake.isTech || !international,
-    webSearchHints: `Priorize vagas de ${prefsAnswers.targetRoles.join(", ")} (${seniority}) — ${prefsAnswers.workModes}${onsiteCities.length ? ` (${onsiteCities.join(", ")})` : ""}. Mora em ${country}.${international ? " Aceita empresas de fora que contratam pessoas de " + country + "." : ""}`,
-  };
-
-  fs.writeFileSync(paths.profileTruth, built.profileTruth.trim() + "\n");
-  fs.writeFileSync(paths.baseResume("pt-BR"), JSON.stringify(pt, null, 2) + "\n");
-  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(en, null, 2) + "\n");
-  fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
-  fs.writeFileSync(paths.rules, JSON.stringify({ neverClaim: built.neverClaim }, null, 2) + "\n");
-  if (!fs.existsSync(paths.excluded))
-    fs.writeFileSync(paths.excluded, "# Empresas e vagas que você não quer\n\n<!-- Uma por linha, ex.: - Empresa X — motivo -->\n");
-
-  console.log(`\n✅ Perfil salvo em ${paths.profileDir}${backup ? ` (backup do anterior em ${backup})` : ""}`);
-  try {
-    await renderBaseResumes((m) => console.log(`   ${m}`));
-  } catch (e) {
-    console.log(`   ⚠ Não gerei o PDF de conferência: ${(e as Error).message}`);
-  }
+  await buildAndSaveProfile({
+    sources,
+    answers,
+    intake,
+    choices: { targetRoles, seniority, mode, onsiteCities, country, timezone, international },
+  });
   console.log(`
 Próximos passos:
   1. Abra profile/profile_truth.md e confira tudo — principalmente "A confirmar". Tudo o que o agente escreve sai dele.
