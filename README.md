@@ -16,7 +16,7 @@ Funciona com a IA que você já tem: **assinatura Claude, ChatGPT (Codex) ou Gem
 ## Começando
 
 Requisitos:
-- Node 20+.
+- Node 22.12 ou mais novo (Node 24 também serve).
 - Chrome, Edge ou Chromium, para gerar os PDFs. Se não for encontrado sozinho, informe o caminho em `CHROME_PATH` no `.env`.
 - **Uma** das IAs abaixo.
 
