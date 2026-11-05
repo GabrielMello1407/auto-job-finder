@@ -277,6 +277,7 @@ const DRAWER_TABS = [
   ["pacote", "Pacote", (d) => Boolean(d.pkg)],
   ["emails", "E-mails e mensagens", (d) => Boolean(d.docs?.emails)],
   ["entrevista", "Entrevista", (d) => Boolean(d.docs?.interview)],
+  ["perguntas", "Perguntas", () => true],
   ["descricao", "Descrição da vaga", () => true],
 ];
 
@@ -315,6 +316,9 @@ export function paintDrawer() {
   const tabs = DRAWER_TABS.filter(([, , ok]) => ok(d));
   if (!tabs.some(([id]) => id === drawer.tab)) drawer.tab = "resumo";
   const scroll = $(".drawer-body")?.scrollTop ?? 0;
+  // O painel é redesenhado quando uma tarefa termina: o que estava digitado nos campos não pode sumir.
+  const kept = Object.fromEntries($$(".drawer [data-keep]").map((el) => [el.dataset.keep, el.value]));
+  const focused = document.activeElement?.dataset?.keep;
   const st = stageOf(d.status);
   $(".drawer").innerHTML = `
   <div class="drawer-head">
@@ -330,6 +334,10 @@ export function paintDrawer() {
       .join("")}</nav>
   </div>
   <div class="drawer-body">${drawerBody(d, job)}</div>`;
+  for (const el of $$(".drawer [data-keep]")) {
+    if (kept[el.dataset.keep]) el.value = kept[el.dataset.keep];
+    if (el.dataset.keep === focused) el.focus();
+  }
   if (scroll) $(".drawer-body").scrollTop = scroll;
 }
 
@@ -344,7 +352,56 @@ function drawerExtras(j) {
   return out.join("");
 }
 
+/* Perguntas do formulário de candidatura: pergunta → resposta, com ajustes. */
+function answersTab(d) {
+  const list = [...(d.answers ?? [])].reverse();
+  return `<div class="panel answer-new">
+    <h3>Pergunta do formulário</h3>
+    <p class="muted">Cole a pergunta que o formulário de candidatura faz, como "Por que você quer trabalhar aqui?" ou "Fale de um projeto de que você se orgulha". A IA responde com o seu perfil e com o que a vaga diz da empresa.</p>
+    <label class="field"><span>Pergunta</span><textarea id="ans-q" data-keep="ans-q" rows="3" placeholder="ex.: Por que você gostaria de trabalhar na ${esc(d.company)}?"></textarea></label>
+    <label class="field"><span>Limite de caracteres <small>(se o formulário tiver)</small></span><input id="ans-limit" data-keep="ans-limit" type="number" min="50" max="20000" step="10" placeholder="ex.: 500" style="max-width:180px"></label>
+    <label class="field"><span>O que só você sabe <small>(opcional)</small></span><small>Motivação, opinião sobre o produto, algo que não está no perfil. Vale só para esta resposta.</small><textarea id="ans-ctx" data-keep="ans-ctx" rows="2" placeholder="ex.: Uso o app deles há um ano e gosto de como resolvem X."></textarea></label>
+    <div class="btn-row">${btn("answer-ask", "✍️ Responder", d.id, "primary")}</div>
+  </div>
+  ${
+    list.length
+      ? list.map(answerCard).join("")
+      : `<p class="faint" style="margin:4px 2px">Nenhuma pergunta respondida ainda. As respostas ficam salvas aqui e em <code>perguntas_e_respostas.md</code>, na pasta do pacote.</p>`
+  }`;
+}
+
+function answerCard(a) {
+  const over = a.limit && a.answer.length > a.limit;
+  return `<section class="panel answer">
+    <h3>${esc(a.question)}</h3>
+    <div class="message">${esc(a.answer)}</div>
+    <div class="status-line" style="margin-top:8px">
+      <span class="chip ${over ? "bad" : ""}">${a.answer.length} caracteres${a.limit ? ` de ${a.limit}` : ""}</span>
+      ${btn("answer-copy", "📋 Copiar", a.id, "small")}${btn("answer-delete", "🗑 Apagar", a.id, "small ghost")}
+    </div>
+    ${a.adjustments?.length ? `<p class="faint answer-history">Ajustes pedidos: ${a.adjustments.map((x) => `“${esc(x)}”`).join(" · ")}</p>` : ""}
+    ${a.warnings?.length ? `<p class="answer-warn">⚠ Confira antes de usar: ${esc(a.warnings.join("; "))}</p>` : ""}
+    ${a.needsYou?.length ? `<div class="answer-needs"><strong>Para ficar com a sua cara, conte:</strong><ul>${a.needsYou.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
+    <div class="answer-refine">
+      <input type="text" data-keep="refine-${esc(a.id)}" maxlength="1000" placeholder="Ajustar: mais curto, cite o projeto X, em inglês… ou responda o que falta acima" aria-label="O que ajustar nesta resposta">
+      ${btn("answer-refine", "Ajustar", a.id, "small")}
+    </div>
+  </section>`;
+}
+
+/** Botão com "escrevendo…" enquanto a IA trabalha (leva de 20 a 60 segundos). */
+async function writingButton(el, run) {
+  const label = el.innerHTML;
+  el.innerHTML = `<span class="spin"></span> Escrevendo…`;
+  try {
+    return await run();
+  } finally {
+    if (el.isConnected) el.innerHTML = label;
+  }
+}
+
 function drawerBody(d, job) {
+  if (drawer.tab === "perguntas") return answersTab(d);
   if (drawer.tab === "pacote") {
     const reports = [
       ["Relatório ATS (palavras-chave da vaga)", d.docs.ats],
@@ -533,6 +590,47 @@ async function ACTIONS_guide(id) {
 }
 action("guide", (id) => ACTIONS_guide(id));
 action("folder", (id) => api(`/api/jobs/${encodeURIComponent(id)}/open-folder`, {}));
+action("answer-ask", async (jobId, _arg, el) => {
+  const question = $("#ans-q").value.trim();
+  if (question.length < 5) return toast("Escreva a pergunta do formulário.", "bad");
+  const limit = Number($("#ans-limit").value) || undefined;
+  const context = $("#ans-ctx").value.trim();
+  await writingButton(el, () => api(`/api/jobs/${encodeURIComponent(jobId)}/answers`, { question, limit, context }));
+  for (const f of ["#ans-q", "#ans-limit", "#ans-ctx"]) if ($(f)) $(f).value = "";
+  toast("✍️ Resposta pronta. Revise antes de colar no formulário.");
+  if (drawer.id === jobId) await reloadDrawer();
+});
+
+action("answer-refine", async (answerId, _arg, el) => {
+  const jobId = drawer.id;
+  const input = el.closest(".answer-refine").querySelector("input");
+  const instruction = input.value.trim();
+  if (!instruction) return input.focus();
+  await writingButton(el, () => api(`/api/jobs/${encodeURIComponent(jobId)}/answers/${encodeURIComponent(answerId)}/refine`, { instruction }));
+  if (input.isConnected) input.value = "";
+  if (drawer.id === jobId) await reloadDrawer();
+});
+
+// Enter no campo "Ajustar" envia o ajuste.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.isComposing || !e.target.matches?.(".answer-refine input")) return;
+  e.preventDefault();
+  e.target.parentElement.querySelector("button")?.click();
+});
+
+action("answer-copy", async (answerId) => {
+  const a = drawer.data?.answers?.find((x) => x.id === answerId);
+  if (a) await copy(a.answer);
+});
+
+action("answer-delete", async (answerId) => {
+  const jobId = drawer.id;
+  const a = drawer.data?.answers?.find((x) => x.id === answerId);
+  if (!a || !(await modal({ title: "Apagar esta resposta?", html: `<p class="muted">${esc(a.question)}</p>`, confirm: "Apagar" }))) return;
+  await api(`/api/jobs/${encodeURIComponent(jobId)}/answers/${encodeURIComponent(answerId)}/delete`, {});
+  if (drawer.id === jobId) await reloadDrawer();
+});
+
 action("copy-email", async (ref) => {
   const e = drawer.data?.docs?.emails;
   if (!e) return;
@@ -619,5 +717,8 @@ export function paletteJobs(query) {
     .flatMap((j) => [
       { group: "Vagas", ico: "💼", text: `${j.company} — ${j.title}`, sub: stageOf(j.status)?.label, run: () => openDrawer(j.id) },
       ...(SENDABLE.includes(j.status) ? [{ group: "Vagas", ico: "✅", text: `Já me candidatei: ${j.company}`, sub: j.title, run: () => markApplied(j.id) }] : []),
+      ...(["discarded", "rejected"].includes(j.status)
+        ? []
+        : [{ group: "Vagas", ico: "📝", text: `Responder pergunta do formulário: ${j.company}`, sub: j.title, run: () => openDrawer(j.id, "perguntas") }]),
     ]);
 }

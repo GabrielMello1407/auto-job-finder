@@ -107,6 +107,26 @@ export interface Job {
   notes?: string;
   /** Pesquisa na web sobre a vaga e a empresa (vagas recebidas sem link ou por indicação). */
   research?: JobResearchSummary;
+  /** Perguntas do formulário de candidatura e as respostas preparadas (src/writers/answers.ts). */
+  answers?: JobAnswer[];
+}
+
+export interface JobAnswer {
+  id: string;
+  question: string;
+  answer: string;
+  /** Limite de caracteres do campo no formulário. */
+  limit?: number;
+  /** O que a pessoa contou para esta resposta (motivação, opinião sobre o produto...). */
+  context?: string;
+  /** Ajustes pedidos depois ("mais curto", "uso o app há um ano"): continuam valendo nos próximos. */
+  adjustments?: string[];
+  /** O que só a pessoa sabe e deixaria a resposta mais forte. */
+  needsYou: string[];
+  /** O que as travas ainda acharam depois da correção (número sem fonte, limite estourado). */
+  warnings?: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface JobResearchSummary {

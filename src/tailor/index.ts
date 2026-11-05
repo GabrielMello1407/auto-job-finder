@@ -10,6 +10,7 @@ import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnaly
 import { track } from "../tracker.js";
 import { jobPageText } from "../jobs/page.js";
 import { slugify, today } from "../util/text.js";
+import { writeAnswersFile } from "../writers/answers.js";
 import { writeCoverLetter, writeEmails, writeInterviewPrep } from "../writers/documents.js";
 import { analyzeJob, condenser, editor, reviewer, strategist } from "./agents.js";
 
@@ -319,6 +320,7 @@ ${mp.notes.map((n) => `> ${n}`).join("\n")}
   };
   // updateJob move a pasta para a subpasta do status (output/1-prontas-para-enviar ou 3-baixa-aderencia).
   const updated = updateJob(job.id, { status, outputDir: dir, rating, atsScore: ats.score, files });
+  writeAnswersFile(updated); // respostas do formulário feitas antes do pacote
   track(updated, status, ready ? "revisar e enviar" : "baixa aderência — não recomendado");
   return { dir: updated.outputDir ?? dir, rating, ready, ats: ats.score, pages, violations: guards.violations };
 }
@@ -355,6 +357,7 @@ export async function interviewGuide(id: string): Promise<string> {
   fs.writeFileSync(path.join(dir, "interview_prep.md"), await writeInterviewPrep({ jd: jobDescription(job), analysis, resume, market: mp }));
   // Vaga sem pacote ganha uma pasta própria (vai para a subpasta do status).
   const final = job.outputDir === dir ? dir : (updateJob(job.id, { outputDir: dir }).outputDir ?? dir);
+  writeAnswersFile(findJob(loadJobs(), job.id));
   return path.join(final, "interview_prep.md");
 }
 

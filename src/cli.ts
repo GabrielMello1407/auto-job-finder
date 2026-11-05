@@ -5,7 +5,7 @@ import { Command, Option } from "commander";
 import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
-import { mainMenu } from "./menu.js";
+import { answerFlow, mainMenu } from "./menu.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
@@ -205,6 +205,18 @@ program
       printJobs([findJob(loadJobs(), updated.id)]);
     }
     console.log(`\nO que foi achado está no fim da descrição da vaga: ajf show ${updated.id}`);
+  });
+
+program
+  .command("responder")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("responde uma pergunta do formulário de candidatura (ex.: por que você quer trabalhar aqui?) com o seu perfil e a vaga")
+  .option("-p, --pergunta <texto>", "a pergunta do formulário (sem ela, pergunta no terminal)")
+  .option("--limite <n>", "limite de caracteres do campo", (v) => Number(v))
+  .option("--contexto <texto>", "algo que só você sabe para esta resposta (motivação, opinião sobre o produto)")
+  .action(async (busca: string[], o) => {
+    const job = await pickJob({ query: busca.join(" "), message: "Para qual vaga?" });
+    await answerFlow(job, o.pergunta ? { question: o.pergunta, limit: o.limite || undefined, context: o.contexto } : undefined);
   });
 
 program

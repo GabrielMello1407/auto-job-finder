@@ -468,3 +468,12 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
   .drawer-head, .drawer-body { padding-left: 16px; padding-right: 16px; }
   .toasts { bottom: 84px; }
 }
+
+/* Perguntas do formulário de candidatura (aba Perguntas da vaga) */
+.answer h3 { margin-bottom: 4px; }
+.answer-history { margin: 8px 0 0; font-size: 13px; }
+.answer-warn { margin: 8px 0 0; color: var(--warn); font-size: 14px; }
+.answer-needs { margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); font-size: 14px; }
+.answer-needs ul { margin: 6px 0 0; padding-left: 18px; }
+.answer-refine { display: flex; gap: 8px; margin-top: 12px; }
+.answer-refine input { flex: 1; min-width: 0; }
