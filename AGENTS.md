@@ -1,6 +1,6 @@
 # auto-job-finder
 
-Job-application agent for anyone, in any field (TypeScript, Node 20+). CLI entry: `npm run ajf -- <command>`, or `ajf <command>` after `npm link` (see README). User-facing text and docs are in Brazilian Portuguese; code identifiers are in English.
+Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI entry: `npm run ajf -- <command>`, or `ajf <command>` after `npm link` (see README). User-facing text and docs are in Brazilian Portuguese; code identifiers are in English.
 
 ## LLM providers
 
