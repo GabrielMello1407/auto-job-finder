@@ -93,7 +93,7 @@ A busca na web com IA traz só um resumo de cada vaga. Antes do pacote, e quando
 1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Gupy, Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
 2. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
 
-Itens de lista vazios (os "-" soltos de menus) e linhas em branco repetidas saem do texto (`util/text.ts#tidyText`), também na hora de mostrar vagas antigas.
+Um marcador de lista sozinho numa linha é juntado ao texto da linha seguinte (feeds RSS mandam `<li><p>texto</p></li>`); marcadores seguidos, de itens vazios de menu, saem. Linhas em branco repetidas também saem (`util/text.ts#tidyText`), inclusive na hora de mostrar vagas antigas.
 
 ### Vaga colada e vaga sem link
 

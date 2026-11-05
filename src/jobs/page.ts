@@ -65,7 +65,7 @@ function postingText(html: string): string | null {
     ["Empresa", nameOf(p.hiringOrganization)],
     ["Local", [remote ? "Remoto" : "", ...locations].filter(Boolean).join(" · ")],
     ["Aceita candidatos de", countries.length > 12 ? `${countries.slice(0, 12).join(", ")} e mais ${countries.length - 12}` : countries.join(", ")],
-    ["Tipo", list(p.employmentType).map(str).filter(Boolean).join(", ")],
+    ["Tipo", list(p.employmentType).map(str).filter((t) => t && t.toUpperCase() !== "OTHER").join(", ")],
     ["Salário", salary(p.baseSalary)],
     ["Experiência", months ? `${months} meses` : str(p.experienceRequirements)],
     ["Publicada em", str(p.datePosted).slice(0, 10)],
