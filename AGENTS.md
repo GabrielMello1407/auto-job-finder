@@ -14,7 +14,8 @@ Job-application agent for anyone, in any field (TypeScript, Node 20+). CLI entry
 
 - Per-person data lives under `AJF_HOME` (default: the repo root) in `profile/`, `data/` and `output/`.
 - All three are gitignored. Never commit personal data.
-- `ajf init` (`src/onboarding/`) builds the profile from a resume, a LinkedIn PDF export, a portfolio, links, pasted text or a guided interview.
+- `ajf init` and the UI wizard (`src/onboarding/`) build the profile from a resume, a LinkedIn PDF export, a portfolio, links, pasted text or a guided interview. UI uploads are saved in `profile/entrada/`.
+- Package folders live in `output/1-prontas-para-enviar`, `2-em-andamento`, `3-baixa-aderencia` or `4-encerradas` by status (`src/jobs/folders.ts`). Change status and paths through `jobs/store.ts#updateJob` (or `jobs/status.ts#changeStatus`), which moves the folder and keeps `outputDir`/`files` in `data/jobs.json` in sync.
 - `examples/profile/` is a fictional profile used by the tests (`tests/setup.ts` sets `AJF_HOME=examples`).
 
 ## Rules that must never be broken
@@ -24,10 +25,12 @@ Job-application agent for anyone, in any field (TypeScript, Node 20+). CLI entry
 - Never submit an application, send an email or change LinkedIn on the user's behalf. The agent prepares material; the user reviews and sends.
 - Keep the section headings when editing or generating `profile_truth.md`. `src/profile.ts#NON_EVIDENCE_HEADING` drops sections whose heading mentions "Lacuna", "Regras de comunicação", "A confirmar" or "Nunca" from the evidence used by the guards.
 - Nothing in `src/` may be specific to one person or one profession. Prompts, sources and labels must work for any field.
+- Never open URLs or paths through a shell (`cmd /c start`, `sh -c`). Job links come from third-party sites; use `src/util/open.ts#openExternal`.
+- The local UI must stay bound to 127.0.0.1 and behind the token cookie. Every user-supplied string rendered in `src/ui/public/` goes through `esc()`, external links must be `http(s)` and files are served only from `output/` via `/files/`.
 
 ## UX
 
-- `ajf` with no args opens the interactive menu (`src/menu.ts`). On first run it starts `ajf init`.
+- `ajf` with no args opens the local web UI (`src/ui/`): `server.ts` (127.0.0.1 only, token cookie, static files, SSE), `routes/` (jobs, profile/onboarding/LinkedIn, preferences), `tasks.ts` (one-at-a-time queue that captures terminal output as the task log) and a no-build page in `src/ui/public/` (ES modules in `js/`). Without a profile the UI opens on the onboarding wizard, which reuses `onboarding/index.ts#buildAndSaveProfile` like `ajf init`. `ajf menu` opens the terminal menu (`src/menu.ts`). Keep the UI and the menu offering the same actions.
 - `ajf auto` runs `src/auto.ts`: search, then triage, then tailor every job with triage score ≥ `AJF_MIN_TRIAGE_SCORE`, then the dashboard. Web search defaults to `preferences.webSearchByDefault`.
 - Packages with a final rating below `AJF_MIN_RATING` (7) get status `low_fit`.
 - The package README (LEIA-ME) includes how to apply, based on `JobAnalysis.applyChannel` (email, linkedin, plataforma, site, whatsapp).
@@ -35,6 +38,7 @@ Job-application agent for anyone, in any field (TypeScript, Node 20+). CLI entry
 
 ## Checks
 
-- `npm run typecheck` and `npm test`. Tests are offline and cover guards, the refine loop, filter, ATS, rules, provider selection and JSON extraction.
+- `npm run typecheck` and `npm test`. Tests are offline and cover guards, the refine loop, filter, ATS, rules, provider selection and CLI detection, JSON extraction, finding jobs by name, package folders by status and the UI parsers (pending items, e-mail sections).
+- After touching `src/ui/public/js/`, run `node --check` on the changed files (they are not type-checked) and open the UI with `ajf ui --no-open` on a copy of the data (`AJF_HOME`).
 - `npm run ajf -- base` renders the base resumes without calling the LLM. Run it after touching `src/render/`.
 - `npm run ajf -- ia --testar` makes one short real call to the active provider.

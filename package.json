@@ -3,11 +3,33 @@
   "version": "0.2.0",
   "private": true,
   "description": "Agente de IA para candidaturas em qualquer área: monta o perfil (currículo, LinkedIn, portfólio), busca vagas, adapta o currículo ATS, cover letter, e-mails e LinkedIn. Funciona com Claude, ChatGPT/Codex, Gemini ou APIs.",
+  "license": "MIT",
+  "author": "Gabriel Mello Moraes",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GabrielMello1407/auto-job-finder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GabrielMello1407/auto-job-finder/issues"
+  },
+  "homepage": "https://github.com/GabrielMello1407/auto-job-finder#readme",
+  "keywords": [
+    "vagas",
+    "curriculo",
+    "ats",
+    "job-search",
+    "resume",
+    "cover-letter",
+    "llm",
+    "claude",
+    "openai",
+    "gemini"
+  ],
   "type": "module",
   "scripts": {
     "ajf": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/core.test.ts"
   },
   "engines": {
     "node": ">=20"
