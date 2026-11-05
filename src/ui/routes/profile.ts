@@ -101,8 +101,9 @@ export function profileRoutes(app: App): Route[] {
           pending: pendingItems(truth),
           nonEvidence: truth
             .split(/^(?=## )/m)
-            .filter((s) => NON_EVIDENCE_HEADING.test(s.split("\n")[0]))
-            .map((s) => s.split("\n")[0].replace(/^## /, "")),
+            .map((s) => s.split("\n")[0].trim()) // trim: arquivos com quebra de linha do Windows (\r\n)
+            .filter((h) => NON_EVIDENCE_HEADING.test(h))
+            .map((h) => h.replace(/^## /, "")),
           basePdfs: basePdfs(),
           linkedinHelp: LINKEDIN_EXPORT_HELP,
           draft: draftView(),
