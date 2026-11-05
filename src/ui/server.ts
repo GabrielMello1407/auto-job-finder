@@ -19,7 +19,7 @@ import { TaskQueue } from "./tasks.js";
  */
 
 const PUBLIC_DIR = fileURLToPath(new URL("./public/", import.meta.url));
-const STATIC = /^\/(app\.css|js\/[\w-]+\.js)$/;
+const STATIC = /^\/(app\.css|logo\.svg|js\/[\w-]+\.js)$/;
 
 const FORBIDDEN_PAGE = `<!doctype html><meta charset="utf-8"><title>auto-job-finder</title>
 <body style="font:16px system-ui;max-width:560px;margin:15vh auto;padding:0 16px">

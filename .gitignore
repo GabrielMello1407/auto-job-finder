@@ -7,5 +7,7 @@ node_modules/
 /profile/
 /data/
 /output/
+# Demonstração com dados fictícios (npm run demo): recriada a cada execução.
+/demo/
 /*.pdf
 /*.docx

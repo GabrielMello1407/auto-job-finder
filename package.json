@@ -28,6 +28,7 @@
   "type": "module",
   "scripts": {
     "ajf": "tsx src/cli.ts",
+    "demo": "tsx scripts/demo.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"tests/*.test.ts\""
   },

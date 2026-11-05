@@ -120,12 +120,7 @@ button:disabled { opacity: 0.5; cursor: default; transform: none; }
   backdrop-filter: blur(12px);
 }
 .brand { display: flex; gap: 10px; align-items: center; padding: 4px 8px 18px; }
-.brand-mark {
-  width: 34px; height: 34px; border-radius: 10px; flex: none;
-  background: conic-gradient(from 210deg, var(--c-decide), var(--c-ready), var(--c-active), var(--c-low), var(--c-decide));
-  display: grid; place-items: center; box-shadow: var(--shadow-sm);
-}
-.brand-mark::after { content: ""; width: 14px; height: 14px; border-radius: 4px; background: var(--surface); }
+.brand-mark { width: 34px; height: 34px; flex: none; border-radius: 9px; box-shadow: var(--shadow-sm); }
 .brand b { display: block; font-size: 15px; letter-spacing: -0.01em; }
 .brand span { font-size: 12px; color: var(--muted); }
 

@@ -39,6 +39,11 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 ## Checks
 
 - `npm run typecheck` and `npm test`. Tests are offline and cover guards, the refine loop, filter, ATS, rules, provider selection and CLI detection, JSON extraction, finding jobs by name, package folders by status and the UI parsers (pending items, e-mail sections).
-- After touching `src/ui/public/js/`, run `node --check` on the changed files (they are not type-checked) and open the UI with `ajf ui --no-open` on a copy of the data (`AJF_HOME`).
+- After touching `src/ui/public/js/`, run `node --check` on the changed files (they are not type-checked) and open the UI with `npm run demo` (fictional profile and jobs in `demo/`, no LLM; `scripts/demo.ts`).
+
+## Docs
+
+- `README.md` is the showcase, `docs/guia-de-uso.md` the user guide (every screen, commands, FAQ) and `docs/como-funciona.md` the internals (pipeline, guards, providers, UI, code map). Update the guide when something users see changes.
+- Screenshots in `docs/images/` come only from `npm run demo`, never from real data. The logo is `src/ui/public/logo.svg` (also the UI favicon).
 - `npm run ajf -- base` renders the base resumes without calling the LLM. Run it after touching `src/render/`.
 - `npm run ajf -- ia --testar` makes one short real call to the active provider.
