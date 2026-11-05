@@ -24,8 +24,8 @@ export const ExperienceSchema = z.object({
   company: z.string(),
   location: z.string(),
   mode: z.string().describe("Remoto / Híbrido / Presencial (ou Remote / Hybrid / On-site). Vazio se desconhecido"),
-  start: z.string().describe("MM/AAAA ou AAAA, igual à fonte"),
-  end: z.string().describe("MM/AAAA, AAAA, 'Atual' ou 'Present'"),
+  start: z.string().describe("MM/AAAA ou AAAA, igual à fonte. Vazio se a fonte não traz (nunca 'A confirmar')"),
+  end: z.string().describe("MM/AAAA, AAAA, 'Atual' ou 'Present'. Vazio se a fonte não traz (nunca 'A confirmar')"),
   bullets: z.array(z.string()),
 });
 
@@ -44,8 +44,8 @@ export const EducationSchema = z.object({
 
 export const CertificationSchema = z.object({
   name: z.string(),
-  issuer: z.string(),
-  date: z.string(),
+  issuer: z.string().describe("Vazio se a fonte não traz"),
+  date: z.string().describe("Vazio se a fonte não traz"),
 });
 
 export const ResumeSchema = z.object({

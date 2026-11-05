@@ -21,7 +21,7 @@ import { relocatePackage } from "../src/jobs/folders.js";
 import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
 import { diffStats, lineDiff } from "../src/util/diff.js";
-import { missingHeadings, truthHash } from "../src/onboarding/update.js";
+import { applyRuleChanges, missingHeadings, truthHash } from "../src/onboarding/update.js";
 import { researchBlock, withoutResearch } from "../src/jobs/research.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
@@ -404,4 +404,26 @@ test("pesquisa da vaga: bloco no fim da descrição, sai inteiro ao pesquisar de
   assert.equal(withoutResearch(received), received);
   // Um "---" do próprio texto da vaga não é confundido com a pesquisa.
   assert.equal(withoutResearch(`a\n\n---\n\nb`), `a\n\n---\n\nb`);
+});
+
+test("atualizar perfil: regras de nunca afirmar saem e entram sem mexer nas outras", () => {
+  const rules = {
+    neverClaim: [
+      { phrase: "ISO 27001", message: "Norma não citada." },
+      { phrase: "inglês fluente", message: "Só TOEIC." },
+      { regex: "certifica(do|ção) PMP", message: "Só curso." },
+    ],
+  };
+  const out = applyRuleChanges(rules, {
+    remove: ["iso 27001", "regra que não existe"],
+    add: [
+      { phrase: "certificação CyberOps", message: "É curso." },
+      { phrase: "Inglês Fluente", message: "Duplicada: já existe." },
+      { phrase: " ", message: "Vazia: ignorada." },
+    ],
+  });
+  assert.deepEqual(
+    out.neverClaim.map((r) => r.phrase ?? r.regex),
+    ["inglês fluente", "certifica(do|ção) PMP", "certificação CyberOps"],
+  );
 });

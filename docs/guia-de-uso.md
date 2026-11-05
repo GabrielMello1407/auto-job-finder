@@ -96,18 +96,18 @@ Fez um projeto novo, mudou de emprego, terminou um curso? Não precisa montar tu
 ![Contar uma novidade](images/contar-novidade.jpg)
 
 1. **Conte com as suas palavras**, com datas e números reais (por exemplo, "Em 10/2026 saí da Empresa A e entrei na Empresa B como Desenvolvedora Pleno"). Também dá para mandar um currículo atualizado, o PDF do LinkedIn ou um link.
-2. **A IA prepara uma proposta.** Ela usa só o que você contou: o que faltar (a data de início, as atividades do cargo novo) vira "a confirmar".
+2. **A IA prepara uma proposta.** Ela usa só o que você contou: o que faltar (a data de início, as atividades do cargo novo) vira "a confirmar". Ela também revisa as frases de **nunca afirmar**: tira a que a novidade derrubou (por exemplo, "ISO 27001" quando você conta que trabalhou com a norma) e acrescenta o que a novidade pede (por exemplo, "certificação AWS" quando você fez só o curso). Essas mudanças aparecem na lista do que muda.
 3. **Você confere o antes e o depois**, linha por linha, antes de salvar:
 
    ![Proposta de atualização com o antes e o depois](images/perfil-atualizar.jpg)
 
-4. **✅ Aplicar e refazer os currículos:** o perfil atual vai para um backup, o `profile_truth.md` é atualizado e os currículos-base em português e inglês são refeitos, mantendo a redação do que não mudou. Leva alguns minutos.
+4. **✅ Aplicar e refazer os currículos:** o perfil atual vai para um backup, o `profile_truth.md` e o `rules.json` são atualizados e os currículos-base em português e inglês são refeitos, mantendo a redação do que não mudou. Leva alguns minutos.
 
 Depois de aplicar:
 - **Pacotes prontos feitos antes da mudança** aparecem com o aviso **"perfil mudou depois"** e o botão **🔄 Gerar de novo**. Candidaturas já enviadas não são marcadas.
 - **O plano do LinkedIn** avisa que ficou desatualizado (veja [LinkedIn](#8-linkedin)).
 
-**Editou o texto do perfil à mão?** Pequenas mudanças (um projeto, um resultado, uma ferramenta) já valem para os próximos pacotes. Mas, se você mexeu numa **experiência** (emprego novo, cargo, datas), clique em **🔄 Refazer currículos-base**: as travas só aceitam experiências que estão nos currículos-base, e eles não mudam sozinhos quando você edita o texto.
+**Editou o texto do perfil à mão?** Pequenas mudanças (um projeto, um resultado, uma ferramenta) já valem para os próximos pacotes. Mas, se você mexeu numa **experiência** (emprego novo, cargo, datas), clique em **🔄 Refazer currículos-base**: as travas só aceitam experiências que estão nos currículos-base, e eles não mudam sozinhos quando você edita o texto. Se uma trava barrar algo que agora é verdade, confira o `profile/rules.json`: editando o texto à mão, as frases de "nunca afirmar" não são revisadas.
 
 > Se você editar o perfil depois de uma proposta pronta, ela não pode mais ser aplicada: descarte e conte a novidade de novo. Assim nada do que você editou à mão se perde.
 
