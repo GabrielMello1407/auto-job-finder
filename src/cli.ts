@@ -6,7 +6,8 @@ import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
 import { mainMenu } from "./menu.js";
-import { runInit } from "./onboarding/index.js";
+import { runInit, runProfileUpdate } from "./onboarding/index.js";
+import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs } from "./jobs/search.js";
@@ -20,7 +21,7 @@ import { closeBrowser } from "./render/pdf.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { rerender, tailorJob } from "./tailor/index.js";
 import { startUi } from "./ui/server.js";
-import { linkedinPlan } from "./writers/linkedin.js";
+import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
 
 const program = new Command();
 program.name("ajf").description("auto-job-finder — seu agente de candidaturas").showHelpAfterError();
@@ -86,10 +87,24 @@ program
   });
 
 program
+  .command("atualizar")
+  .description("atualiza o perfil com uma novidade (projeto, emprego, curso): mostra o antes e o depois e refaz os currículos-base")
+  .argument("[fontes...]", "arquivos (currículo novo, PDF do LinkedIn) ou links com a novidade")
+  .option("--texto <texto>", "a novidade com as suas palavras")
+  .option("--aplicar", "aplica a proposta salva (feita antes aqui ou na interface)")
+  .option("--descartar", "descarta a proposta salva")
+  .option("-y, --sim", "aplica sem perguntar")
+  .action(async (inputs: string[], o) => {
+    await runProfileUpdate({ inputs, text: o.texto, apply: o.aplicar, discard: o.descartar, yes: o.sim });
+  });
+
+program
   .command("base")
-  .description("gera os PDFs dos currículos-base (confere o perfil e o template, não usa IA)")
-  .action(async () => {
-    await renderBaseResumes();
+  .description("gera os PDFs dos currículos-base (sem IA); com --refazer, refaz os currículos-base a partir do profile_truth.md")
+  .option("--refazer", "refaz base_resume.pt/en.json a partir do perfil (usa IA) — depois de editar o profile_truth.md à mão")
+  .action(async (o) => {
+    if (o.refazer) await rebuildBaseResumes();
+    else await renderBaseResumes();
   });
 
 program
@@ -212,10 +227,17 @@ program
 
 program
   .command("linkedin")
-  .description("gera o plano de otimização do LinkedIn (headline, Sobre PT/EN, competências, destaques)")
-  .option("--current <arquivo>", "texto atual do seu perfil (copie e cole num .md) para achar inconsistências")
+  .description("plano de LinkedIn (headline, Sobre PT/EN, competências, destaques); com --conferir, confere o LinkedIn atual")
+  .option("--current <arquivo>", "o seu LinkedIn hoje: o PDF exportado (Mais → Salvar como PDF) ou o texto num .md/.txt")
+  .option("--conferir", "em vez de um plano novo, confere o LinkedIn atual contra o perfil e o último plano (precisa de --current)")
   .option("--families <famílias...>", "famílias de vaga-alvo")
   .action(async (o) => {
+    if (o.conferir) {
+      if (!o.current) throw new Error("Para conferir, informe o LinkedIn atual: --current perfil_linkedin.pdf");
+      const file = await linkedinCheck(await readLinkedinFile(o.current));
+      console.log(`Conferência salva em ${file}`);
+      return;
+    }
     const file = await linkedinPlan({ currentProfileFile: o.current, families: o.families });
     console.log(`Plano salvo em ${file}`);
   });

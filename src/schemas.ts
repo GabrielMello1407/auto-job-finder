@@ -206,3 +206,14 @@ export const LinkedinPlanSchema = z.object({
   checklist: z.array(z.string()),
 });
 export type LinkedinPlan = z.infer<typeof LinkedinPlanSchema>;
+
+/** Conferência do LinkedIn atual contra o perfil e o último plano. */
+export const LinkedinCheckSchema = z.object({
+  summary: z.string().describe("1–2 frases: como o LinkedIn está em relação ao perfil e ao último plano"),
+  issues: z
+    .array(z.object({ problem: z.string(), fix: z.string() }))
+    .describe("Inconsistências entre o LinkedIn e o profile_truth (datas, cargos, empresas, números, níveis de idioma, certificações), cada uma com a correção"),
+  pending: z.array(z.string()).describe("O que do último plano ainda não aparece no LinkedIn; vazio se não houver plano"),
+  ok: z.array(z.string()).describe("O que já está certo ou já foi aplicado do plano"),
+});
+export type LinkedinCheck = z.infer<typeof LinkedinCheckSchema>;

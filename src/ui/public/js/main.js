@@ -213,6 +213,8 @@ const COMMANDS = [
     },
   })),
   { ico: "🪪", text: "Abrir meu perfil", run: () => app.go("perfil") },
+  { ico: "🆕", text: "Atualizar o perfil com uma novidade", sub: "projeto, emprego, curso", run: () => ACTIONS["update-news"]() },
+  { ico: "✅", text: "Conferir meu LinkedIn", run: () => app.go("linkedin") },
   { ico: "🎯", text: "Preferências de busca", run: () => app.go("preferencias") },
   { ico: "🔗", text: "Plano de LinkedIn", run: () => app.go("linkedin") },
   { ico: "📄", text: "Gerar PDFs do currículo-base", run: () => ACTIONS["render-base"]() },

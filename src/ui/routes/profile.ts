@@ -4,19 +4,52 @@ import { ensureDir, hasProfile, paths } from "../../config.js";
 import { buildAndSaveProfile, interviewSource, saveSources, type InterviewAnswers, type ProfileChoices } from "../../onboarding/index.js";
 import { readIntake, type Intake } from "../../onboarding/build.js";
 import { LINKEDIN_EXPORT_HELP, readFileSource, readUrlSource, type SourceDoc } from "../../onboarding/sources.js";
+import {
+  applyProposal,
+  discardProposal,
+  loadProposal,
+  proposalDiff,
+  proposalOutdated,
+  proposeProfileUpdate,
+  rebuildBaseResumes,
+} from "../../onboarding/update.js";
 import { NON_EVIDENCE_HEADING } from "../../profile.js";
 import { renderBaseResumes } from "../../render/base.js";
 import { closeBrowser } from "../../render/pdf.js";
-import { linkedinPlan } from "../../writers/linkedin.js";
-import { fileUrl, HttpError, str, strList, type App, type Route } from "../http.js";
+import { diffStats } from "../../util/diff.js";
+import { fileUrl, HttpError, str, strList, type App, type Ctx, type Route } from "../http.js";
+import type { TaskKind } from "../tasks.js";
 
 /**
- * Perfil pela interface: montar (fontes → leitura pela IA → perguntas → montagem), conferir o
- * profile_truth.md, gerar os PDFs de conferência e o plano de LinkedIn.
+ * Perfil pela interface: montar (fontes → leitura pela IA → perguntas → montagem), atualizar com uma
+ * novidade (proposta → antes e depois → aplicar), conferir e editar o profile_truth.md, refazer os
+ * currículos-base e gerar os PDFs de conferência.
  */
 
 const UPLOAD_LIMIT = 15_000_000;
 const UPLOAD_EXT = /\.(pdf|docx|txt|md)$/i;
+
+/** Salva um arquivo enviado pela interface em profile/entrada/ e devolve o caminho. */
+export async function saveUpload(c: Ctx): Promise<string> {
+  const name = path.basename(str(c.url.searchParams.get("name"), 160)).replace(/[^\w.\- ()À-ÿ]/g, "_");
+  if (!UPLOAD_EXT.test(name)) throw new HttpError(400, "Use PDF, DOCX, TXT ou MD.");
+  const buf = await c.raw(UPLOAD_LIMIT);
+  if (!buf.length) throw new HttpError(400, "Arquivo vazio.");
+  const dir = path.join(paths.profileDir, "entrada");
+  ensureDir(dir);
+  const file = path.join(dir, name);
+  fs.writeFileSync(file, buf);
+  return file;
+}
+
+async function readUploaded(c: Ctx): Promise<SourceDoc> {
+  const file = await saveUpload(c);
+  try {
+    return await readFileSource(file);
+  } catch (e) {
+    throw new HttpError(400, (e as Error).message);
+  }
+}
 
 /** Rascunho do cadastro: fica na memória até o perfil ser montado. */
 interface Draft {
@@ -48,19 +81,6 @@ function basePdfs() {
     .map((f) => ({ name: f, url: fileUrl(path.join(dir, f))! }));
 }
 
-function latestLinkedinPlan(): { file: string; markdown: string; date: string } | null {
-  const dir = path.join(paths.outputDir, "linkedin");
-  if (!fs.existsSync(dir)) return null;
-  const md = fs
-    .readdirSync(dir)
-    .filter((f) => /^plano_linkedin_.*\.md$/i.test(f))
-    .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
-    .sort((a, b) => b.t - a.t)[0];
-  if (!md) return null;
-  const file = path.join(dir, md.f);
-  return { file: fileUrl(file)!, markdown: fs.readFileSync(file, "utf8"), date: new Date(md.t).toISOString() };
-}
-
 /** Seções obrigatórias: sem elas as travas perdem a base (ex.: "A confirmar", "Lacunas"). */
 function checkTruth(text: string) {
   if (text.length < 200) throw new HttpError(400, "O texto ficou curto demais para ser o seu perfil.");
@@ -81,7 +101,31 @@ export function profileRoutes(app: App): Route[] {
     return draftView();
   };
   const busy = () => {
-    if (queue.has("profile-read") || queue.has("profile-build")) throw new HttpError(409, "O perfil já está sendo montado.");
+    if ((["profile-read", "profile-build", "profile-update", "profile-apply", "rebuild-base"] as TaskKind[]).some((k) => queue.has(k)))
+      throw new HttpError(409, "O perfil já está sendo montado ou atualizado.");
+  };
+
+  /** Novidades para atualizar o perfil: ficam na memória até a proposta ser gerada. */
+  let updateSources: SourceDoc[] = [];
+  const updateView = () => {
+    const p = loadProposal();
+    const diff = p ? proposalDiff(p) : [];
+    return {
+      sources: updateSources.map((s, i) => ({ index: i, kind: s.kind, label: s.label, chars: s.text.length })),
+      proposal: p && {
+        createdAt: p.createdAt,
+        sources: p.sources,
+        changes: p.changes,
+        toConfirm: p.toConfirm,
+        outdated: proposalOutdated(p),
+        stats: diffStats(diff),
+        diff,
+      },
+    };
+  };
+  const addUpdateSource = (doc: SourceDoc) => {
+    updateSources.push(doc);
+    return updateView();
   };
 
   return [
@@ -107,29 +151,12 @@ export function profileRoutes(app: App): Route[] {
           basePdfs: basePdfs(),
           linkedinHelp: LINKEDIN_EXPORT_HELP,
           draft: draftView(),
+          update: exists ? updateView() : null,
         };
       },
     ],
 
-    [
-      "POST",
-      /^\/api\/profile\/upload$/,
-      async (c) => {
-        const name = path.basename(str(c.url.searchParams.get("name"), 160)).replace(/[^\w.\- ()À-ÿ]/g, "_");
-        if (!UPLOAD_EXT.test(name)) throw new HttpError(400, "Use PDF, DOCX, TXT ou MD.");
-        const buf = await c.raw(UPLOAD_LIMIT);
-        if (!buf.length) throw new HttpError(400, "Arquivo vazio.");
-        const dir = path.join(paths.profileDir, "entrada");
-        ensureDir(dir);
-        const file = path.join(dir, name);
-        fs.writeFileSync(file, buf);
-        try {
-          return addSource(await readFileSource(file));
-        } catch (e) {
-          throw new HttpError(400, (e as Error).message);
-        }
-      },
-    ],
+    ["POST", /^\/api\/profile\/upload$/, async (c) => addSource(await readUploaded(c))],
     [
       "POST",
       /^\/api\/profile\/sources$/,
@@ -262,26 +289,99 @@ export function profileRoutes(app: App): Route[] {
       },
     ],
 
-    ["GET", /^\/api\/linkedin$/, () => ({ plan: latestLinkedinPlan() })],
+    /* ------------------------------------------------ atualizar com uma novidade */
+
     [
       "POST",
-      /^\/api\/linkedin$/,
+      /^\/api\/profile\/update\/reset$/,
+      () => {
+        updateSources = [];
+        return updateView();
+      },
+    ],
+    ["POST", /^\/api\/profile\/update\/upload$/, async (c) => addUpdateSource(await readUploaded(c))],
+    [
+      "POST",
+      /^\/api\/profile\/update\/sources$/,
       async (c) => {
-        if (!hasProfile()) throw new HttpError(409, "Monte o seu perfil primeiro.");
-        if (queue.has("linkedin")) throw new HttpError(409, "O plano já está sendo gerado.");
-        const current = str((await c.body()).current, 40_000);
-        return {
-          task: queue.add("linkedin", "Plano de LinkedIn", async () => {
-            let currentProfileFile: string | undefined;
-            if (current.length > 40) {
-              const dir = path.join(paths.profileDir, "entrada");
-              ensureDir(dir);
-              currentProfileFile = path.join(dir, "linkedin_atual.md");
-              fs.writeFileSync(currentProfileFile, current);
+        const body = await c.body();
+        try {
+          if (body.type === "link") {
+            try {
+              return addUpdateSource(await readUrlSource(str(body.url, 1000)));
+            } finally {
+              if (!queue.running) await closeBrowser().catch(() => {});
             }
-            await linkedinPlan({ currentProfileFile });
+          }
+          if (body.type === "text") {
+            const text = str(body.text, 40_000);
+            if (text.length < 15) throw new Error("Conte a novidade com um pouco mais de detalhe.");
+            return addUpdateSource({ kind: "respostas", label: "Novidade contada", origin: "interface", text });
+          }
+        } catch (e) {
+          throw new HttpError(400, (e as Error).message);
+        }
+        throw new HttpError(400, "Tipo de fonte desconhecido.");
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/update\/propose$/,
+      () => {
+        if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
+        busy();
+        if (!updateSources.length) throw new HttpError(400, "Conte a novidade: escreva, mande um arquivo ou um link.");
+        const news = updateSources;
+        updateSources = [];
+        return {
+          task: queue.add("profile-update", "Preparando a atualização do perfil", async () => {
+            const p = await proposeProfileUpdate(news);
             app.broadcast("profile", {});
-            return "plano pronto";
+            return `${p.changes.length} mudança(s) para você conferir`;
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/update\/apply$/,
+      () => {
+        busy();
+        const p = loadProposal();
+        if (!p) throw new HttpError(404, "Não há proposta de atualização.");
+        if (proposalOutdated(p)) throw new HttpError(409, "Você editou o perfil depois da proposta. Descarte e gere de novo.");
+        return {
+          task: queue.add("profile-apply", "Atualizando o perfil e os currículos-base", async () => {
+            await applyProposal();
+            app.broadcast("profile", {});
+            app.jobsChanged();
+            return "perfil e currículos-base atualizados";
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/update\/discard$/,
+      () => {
+        discardProposal();
+        app.broadcast("profile", {});
+        return updateView();
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/rebuild-base$/,
+      () => {
+        if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
+        busy();
+        if (queue.has("rebuild-base")) throw new HttpError(409, "Os currículos-base já estão sendo refeitos.");
+        return {
+          task: queue.add("rebuild-base", "Refazendo os currículos-base", async () => {
+            await rebuildBaseResumes();
+            app.broadcast("profile", {});
+            app.jobsChanged();
+            return "currículos-base refeitos a partir do perfil";
           }),
         };
       },

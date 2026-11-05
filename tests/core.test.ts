@@ -20,6 +20,8 @@ import { isStatus, matchJobs } from "../src/jobs/status.js";
 import { relocatePackage } from "../src/jobs/folders.js";
 import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
+import { diffStats, lineDiff } from "../src/util/diff.js";
+import { missingHeadings, truthHash } from "../src/onboarding/update.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -327,6 +329,25 @@ test("interface: pontos a confirmar e e-mails separados para copiar", () => {
   assert.equal(emails.sections[0].message, "Olá, [Nome],\nMensagem.");
   assert.deepEqual(emails.sections[1].subjects, ["Assunto C"]);
   assert.equal(emails.sections[1].message, "Oi de novo.");
+});
+
+test("atualizar perfil: antes e depois linha a linha e seções que não podem sumir", () => {
+  const before = "# Perfil\n## Experiência\n- A\n## Projetos\n- P1\n## A confirmar\n- (nada)\n";
+  const after = "# Perfil\n## Experiência\n- B\n- A\n## Projetos\n- P1\n- P2\n## A confirmar\n- (nada)\n";
+  const diff = lineDiff(before, after);
+  assert.deepEqual(
+    diff.filter((l) => l.type !== "same").map((l) => `${l.type}:${l.text}`),
+    ["add:- B", "add:- P2"],
+  );
+  assert.deepEqual(diffStats(diff), { added: 2, removed: 0 });
+  assert.deepEqual(lineDiff("a\nb\n", "a\nc\n").filter((l) => l.type !== "same").map((l) => l.type), ["del", "add"]);
+  // Quebras de linha do Windows não contam como mudança.
+  assert.equal(lineDiff("a\r\nb", "a\nb").every((l) => l.type === "same"), true);
+
+  assert.deepEqual(missingHeadings(before, after), []);
+  assert.deepEqual(missingHeadings(before, "# Perfil\n## Experiência\n- A\n"), ["## Projetos", "## A confirmar"]);
+  assert.equal(truthHash("x\r\ny\n"), truthHash("x\ny"));
+  assert.notEqual(truthHash("x"), truthHash("y"));
 });
 
 test("JSON: extrai de resposta com cercas e valida com nova tentativa", async () => {

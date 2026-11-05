@@ -8,6 +8,7 @@
  *   npm run demo                # gera os dados e abre a interface
  *   npm run demo -- --no-open   # só mostra o link
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,6 +58,8 @@ interface DemoJob {
   appliedDays?: number;
   notes?: string;
   interviewGuide?: boolean;
+  /** Pacote feito antes da última mudança no perfil. */
+  outdated?: boolean;
 }
 
 const EVID_FULLSTACK = [
@@ -113,6 +116,7 @@ Como se candidatar: pela página de vagas, com currículo em PDF.`,
     days: 3,
     rating: 7.8,
     ats: 88,
+    outdated: true,
     triage: {
       fit: "media",
       score: 79,
@@ -521,6 +525,119 @@ const interviewPrep = (j: DemoJob) => `# Guia de entrevista — ${j.title}
 > Dados de demonstração.
 `;
 
+/* --------------------------------------------- atualização do perfil e LinkedIn */
+
+/** Uma proposta de atualização pronta (como se a Ana tivesse contado um projeto novo). */
+function seedProfileUpdate(truth: string) {
+  const updated = truth
+    .replace(
+      "- Orbita — painel open source",
+      "- Orbita Mobile — app em React Native do Orbita, publicado em 09/2026, com 1.200 downloads. github.com/ana-souza-exemplo/orbita-mobile\n- Orbita — painel open source",
+    )
+    .replace("Socket.io, Jest, Testing Library, LLMs, RAG, Git.", "Socket.io, Jest, Testing Library, LLMs, RAG, Git, React Native (no Orbita Mobile).")
+    .replace(
+      "- [ ] **Telefone:**",
+      "- [ ] **Orbita Mobile:** data de início do projeto não informada.\n- [ ] **Telefone:**",
+    );
+  // Mesmo cálculo de truthHash (src/onboarding/update.ts), sem importar src/ antes de AJF_HOME valer.
+  const norm = (t: string) => t.replace(/\r\n/g, "\n").trim() + "\n";
+  const proposal = {
+    createdAt: new Date().toISOString(),
+    sources: ["Novidade contada"],
+    changes: [
+      "Projeto novo: Orbita Mobile (React Native), publicado em 09/2026, com 1.200 downloads",
+      "React Native entrou nas competências, com evidência no Orbita Mobile",
+    ],
+    toConfirm: ["Orbita Mobile: data de início do projeto"],
+    truth: norm(updated),
+    baseHash: crypto.createHash("sha256").update(norm(truth)).digest("hex").slice(0, 16),
+  };
+  const dir = path.join(DEMO, "profile", "atualizacao");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "proposta.json"), JSON.stringify(proposal, null, 2));
+}
+
+/** Um plano de LinkedIn antigo (feito antes da última mudança no perfil) e uma conferência recente. */
+function seedLinkedin() {
+  const dir = path.join(DEMO, "output", "linkedin");
+  fs.mkdirSync(dir, { recursive: true });
+  const planDay = ago(10).slice(0, 10);
+  const plan = {
+    inconsistencies: ["O LinkedIn diz “AWS Certified”; o perfil tem só o curso livre de Fundamentos de AWS"],
+    headlines: [
+      "Desenvolvedora Full Stack | Node.js · React · TypeScript · PostgreSQL | IA aplicada com LLMs e RAG",
+      "Full Stack (Node.js/React) | APIs, migração de dados e IA aplicada",
+      "Desenvolvedora Full Stack com IA aplicada | Node.js · React · PostgreSQL",
+    ],
+    aboutPt: "Sou desenvolvedora full stack e trabalho com Node.js, TypeScript, React e PostgreSQL...",
+    aboutEn: "I'm a full stack developer working with Node.js, TypeScript, React and PostgreSQL...",
+    experiences: [],
+    topSkills: ["Node.js", "React", "TypeScript", "PostgreSQL", "LLMs"],
+    skills: ["Node.js", "React", "TypeScript", "PostgreSQL", "LLMs", "RAG", "Next.js", "Jest"],
+    featured: [{ title: "Orbita", url: "https://github.com/ana-souza-exemplo/orbita", why: "projeto open source com Next.js e PostgreSQL" }],
+    keywordsByFamily: [{ family: "Full Stack", keywords: ["node.js", "react", "typescript"] }],
+    openToWork: { jobTitles: ["Desenvolvedora Full Stack", "Software Engineer"], locations: ["Remoto (Brasil)", "Londrina"], notes: "Visível só para recrutadores." },
+    checklist: ["Fixar as 5 competências do topo", "Adicionar o Orbita nos Destaques", "Ativar o Open to Work só para recrutadores"],
+  };
+  const planMd = `# Plano de LinkedIn — ${planDay}
+
+> Nada foi alterado no LinkedIn. Revise e aplique você mesmo o que aprovar.
+
+## 1. Inconsistências para corrigir
+- [ ] ${plan.inconsistencies[0]}
+
+## 2. Headline (escolha uma)
+${plan.headlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+## 3. Sobre — Português
+${plan.aboutPt}
+
+## 6. Competências
+**Fixar no topo (5):** ${plan.topSkills.join(" · ")}
+
+## 7. Destaques (Featured)
+- **Orbita** — ${plan.featured[0].url}
+
+## 9. Open to Work
+- Cargos: ${plan.openToWork.jobTitles.join(", ")}
+- Locais: ${plan.openToWork.locations.join(", ")}
+
+## 10. Checklist
+${plan.checklist.map((c) => `- [ ] ${c}`).join("\n")}
+
+> Dados de demonstração.
+`;
+  const checkMd = `# Conferência do LinkedIn — ${ago(0).slice(0, 10)}
+
+> Comparado com o seu perfil e com o plano de ${planDay}. Nada foi alterado no LinkedIn.
+
+A headline e o “Sobre” já seguem o plano. Falta tirar o “AWS Certified” e adicionar o Orbita nos Destaques.
+
+## ⚠️ Para corrigir
+- [ ] **“AWS Certified” na seção de licenças** — troque por “Fundamentos de AWS (curso livre)”: o perfil não tem certificação oficial.
+- [ ] **Inglês “fluente” nos idiomas** — o perfil declara inglês intermediário na conversação.
+
+## ⏳ Do plano, ainda falta
+- [ ] Adicionar o Orbita nos Destaques
+- [ ] Fixar “LLMs” entre as 5 competências do topo
+
+## ✅ Já está certo
+- Headline no espírito da opção 1 do plano
+- “Sobre” atualizado com Node.js, React, TypeScript e IA aplicada
+- Experiências e datas batem com o perfil
+- Open to Work com os cargos do plano
+
+> Dados de demonstração.
+`;
+  const planBase = path.join(dir, `plano_linkedin_${planDay}`);
+  fs.writeFileSync(`${planBase}.json`, JSON.stringify(plan, null, 2));
+  fs.writeFileSync(`${planBase}.md`, planMd);
+  const old = new Date(Date.now() - 10 * DAY);
+  fs.utimesSync(`${planBase}.md`, old, old);
+  fs.utimesSync(`${planBase}.json`, old, old);
+  fs.writeFileSync(path.join(dir, `conferencia_linkedin_${ago(0).slice(0, 10)}.md`), checkMd);
+}
+
 /* ------------------------------------------------------------------- montagem */
 
 async function main() {
@@ -593,6 +710,11 @@ async function main() {
       fs.copyFileSync(path.join(DEMO, "profile", "base_resume.pt.json"), path.join(dir, "resume.json"));
       if (j.interviewGuide) write("interview_prep.md", interviewPrep(j));
       if (basePdf) fs.copyFileSync(basePdf, path.join(dir, pdfName));
+      // Pacote gerado antes da última mudança no perfil: aparece como "perfil mudou depois".
+      if (j.outdated) {
+        const past = new Date(Date.now() - 3 * DAY);
+        fs.utimesSync(path.join(dir, "LEIA-ME.md"), past, past);
+      }
       job.outputDir = dir;
       job.rating = j.rating;
       job.atsScore = j.ats;
@@ -601,6 +723,8 @@ async function main() {
     return job;
   });
   fs.writeFileSync(path.join(DEMO, "data", "jobs.json"), JSON.stringify(jobs, null, 2));
+  seedProfileUpdate(fs.readFileSync(truthFile, "utf8"));
+  seedLinkedin();
   console.log(`✅ Demonstração montada em ${DEMO} (${jobs.length} vagas fictícias, perfil da Ana Souza).`);
 
   const { startUi } = await import("../src/ui/server.js");

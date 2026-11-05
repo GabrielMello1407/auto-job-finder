@@ -4,7 +4,21 @@ import { EventEmitter } from "node:events";
  * Fila de tarefas longas da interface (busca, triagem, pacotes). Roda uma por vez: as tarefas usam a
  * mesma IA, o mesmo Chrome para PDF e o mesmo data/jobs.json. O que elas escrevem no terminal vira o log.
  */
-export type TaskKind = "auto" | "search" | "triage" | "tailor" | "interview" | "render" | "profile-read" | "profile-build" | "render-base" | "linkedin";
+export type TaskKind =
+  | "auto"
+  | "search"
+  | "triage"
+  | "tailor"
+  | "interview"
+  | "render"
+  | "profile-read"
+  | "profile-build"
+  | "profile-update"
+  | "profile-apply"
+  | "rebuild-base"
+  | "render-base"
+  | "linkedin"
+  | "linkedin-check";
 export type TaskStatus = "queued" | "running" | "done" | "error";
 
 export interface PublicTask {

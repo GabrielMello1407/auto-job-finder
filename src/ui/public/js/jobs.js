@@ -55,7 +55,8 @@ function meta(j) {
   const parts = [j.location, j.triage?.market, salary(j.salary)].filter(Boolean).map(esc);
   const flags = j.triage?.scam?.length ? `<span class="chip bad" title="${esc(j.triage.scam.join("; "))}">🚩 sinais de golpe</span>` : "";
   const fresh = j.status === "new" ? `<span class="chip accent">nova · sem triagem</span>` : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${fresh}</div>`;
+  const outdated = j.pkg?.outdated ? `<span class="chip warn" title="O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades.">perfil mudou depois</span>` : "";
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${fresh}${outdated}</div>`;
 }
 
 function statusLine(j) {
@@ -89,7 +90,9 @@ export function actionsFor(j) {
     case "tailored":
       A.push(j.url ? link(j.url, "🔗 Candidatar-se", "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, "✉️ Carta") : "");
       if (j.pkg?.emails) A.push(btn("open:emails", "📧 E-mails", j.id));
-      A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"), btn("discard", "Descartar", j.id, "ghost danger"));
+      A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"));
+      if (j.pkg?.outdated) A.push(btn("tailor", "🔄 Gerar de novo", j.id, "", "O seu perfil mudou depois deste pacote"));
+      A.push(btn("discard", "Descartar", j.id, "ghost danger"));
       break;
     case "low_fit":
       A.push(btn("open:pacote", "🔍 Por que a nota baixa?", j.id), pdf(), btn("tailor", "🔄 Gerar de novo", j.id), btn("applied", "✅ Me candidatei assim mesmo", j.id), btn("discard", "Descartar", j.id, "ghost danger"));

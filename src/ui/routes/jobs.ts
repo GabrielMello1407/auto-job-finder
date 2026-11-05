@@ -10,6 +10,7 @@ import { changeStatus, isStatus, STATUS_LABELS } from "../../jobs/status.js";
 import { findJob, loadJobs } from "../../jobs/store.js";
 import { triageJobs } from "../../jobs/triage.js";
 import type { Job } from "../../schemas.js";
+import { profileChangedAt } from "../../onboarding/update.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
 import { fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
@@ -20,7 +21,17 @@ function packageDir(j: Job): string | undefined {
   return j.outputDir && fs.existsSync(j.outputDir) ? j.outputDir : undefined;
 }
 
-export function jobSummary(j: Job) {
+/** Pacote pronto ou de baixa aderência gerado antes da última mudança no perfil. Enviados não contam. */
+function packageOutdated(j: Job, dir: string | undefined, changedAt: number): boolean {
+  if (!dir || !["tailored", "low_fit"].includes(j.status)) return false;
+  try {
+    return fs.statSync(path.join(dir, "LEIA-ME.md")).mtimeMs < changedAt;
+  } catch {
+    return false;
+  }
+}
+
+export function jobSummary(j: Job, changedAt = profileChangedAt()) {
   const dir = packageDir(j);
   const has = (f: string) => Boolean(dir && fs.existsSync(path.join(dir, f)));
   return {
@@ -56,6 +67,7 @@ export function jobSummary(j: Job) {
           emails: has("emails.md"),
           interview: has("interview_prep.md"),
           folder: path.relative(paths.outputDir, dir).split(path.sep).join("/"),
+          outdated: packageOutdated(j, dir, changedAt),
         }
       : null,
   };
@@ -207,7 +219,10 @@ export function jobRoutes(app: App): Route[] {
       /^\/api\/state$/,
       () => ({
         hasProfile: hasProfile(),
-        jobs: loadJobs().map(jobSummary),
+        jobs: (() => {
+          const changedAt = profileChangedAt();
+          return loadJobs().map((j) => jobSummary(j, changedAt));
+        })(),
         settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore },
         provider: providerState(),
         webSearch: canWebSearch(),
