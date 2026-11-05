@@ -11,7 +11,8 @@ import { runGuards } from "../src/tailor/guards.js";
 import { refine } from "../src/tailor/refine.js";
 import { sourcesText } from "../src/tailor/index.js";
 import { marketProfile } from "../src/market.js";
-import { fixMojibake, htmlToText } from "../src/util/text.js";
+import { fixMojibake, htmlToText, tidyText } from "../src/util/text.js";
+import { jobPageText } from "../src/jobs/page.js";
 import { forbiddenPatterns } from "../src/profile.js";
 import { extractJson, strictJsonSchema, structuredViaText } from "../src/providers/jsonText.js";
 import { activeProviderId, normalizeProviderId } from "../src/providers/index.js";
@@ -21,7 +22,7 @@ import { relocatePackage } from "../src/jobs/folders.js";
 import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
 import { diffStats, lineDiff } from "../src/util/diff.js";
-import { missingHeadings, truthHash } from "../src/onboarding/update.js";
+import { applyRuleChanges, missingHeadings, truthHash } from "../src/onboarding/update.js";
 import { researchBlock, withoutResearch } from "../src/jobs/research.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
@@ -404,4 +405,57 @@ test("pesquisa da vaga: bloco no fim da descrição, sai inteiro ao pesquisar de
   assert.equal(withoutResearch(received), received);
   // Um "---" do próprio texto da vaga não é confundido com a pesquisa.
   assert.equal(withoutResearch(`a\n\n---\n\nb`), `a\n\n---\n\nb`);
+});
+
+test("atualizar perfil: regras de nunca afirmar saem e entram sem mexer nas outras", () => {
+  const rules = {
+    neverClaim: [
+      { phrase: "ISO 27001", message: "Norma não citada." },
+      { phrase: "inglês fluente", message: "Só TOEIC." },
+      { regex: "certifica(do|ção) PMP", message: "Só curso." },
+    ],
+  };
+  const out = applyRuleChanges(rules, {
+    remove: ["iso 27001", "regra que não existe"],
+    add: [
+      { phrase: "certificação CyberOps", message: "É curso." },
+      { phrase: "Inglês Fluente", message: "Duplicada: já existe." },
+      { phrase: " ", message: "Vazia: ignorada." },
+    ],
+  });
+  assert.deepEqual(
+    out.neverClaim.map((r) => r.phrase ?? r.regex),
+    ["inglês fluente", "certifica(do|ção) PMP", "certificação CyberOps"],
+  );
+});
+
+test("página da vaga: usa o JobPosting e deixa de fora menu, rodapé e itens vazios", () => {
+  const description = "<p>Full-time, fully remote.</p><p><strong>What you'll do</strong><br>own the full stack<br>ship, measure, iterate</p>" + "<p>We value calm, async work and good product intuition.</p>".repeat(4);
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "JobPosting",
+    title: "Senior full-stack software engineer",
+    description,
+    hiringOrganization: { "@type": "Organization", name: "Acme" },
+    jobLocationType: "TELECOMMUTE",
+    applicantLocationRequirements: [{ "@type": "Country", name: "Brazil" }, { "@type": "Country", name: "Canada" }],
+    employmentType: "FULL_TIME",
+    baseSalary: { "@type": "MonetaryAmount", currency: "USD", value: { "@type": "QuantitativeValue", unitText: "YEAR", minValue: 120000, maxValue: 160000 } },
+  };
+  const page = `<html><head><title>Vaga | Site</title><script type="application/ld+json">${JSON.stringify(ld)}</script></head>
+<body><nav><ul><li><a href="/"><svg></svg></a></li><li></li><li>Log In</li></ul></nav><main><h1>Vaga</h1></main><footer>Copyright</footer></body></html>`;
+  const text = jobPageText(page);
+  assert.match(text, /^# Senior full-stack software engineer/);
+  assert.match(text, /Empresa: Acme/);
+  assert.match(text, /Local: Remoto/);
+  assert.match(text, /Aceita candidatos de: Brazil, Canada/);
+  assert.match(text, /Salário: USD 120000–160000 por ano/);
+  assert.match(text, /own the full stack/);
+  assert.doesNotMatch(text, /Log In|Copyright/);
+
+  // Sem JobPosting: só o conteúdo principal, sem menu, rodapé e itens de lista vazios.
+  const plain = `<html><head><title>X</title></head><body><header>Logo</header><nav><ul><li></li><li></li><li>Entrar</li></ul></nav>
+<main><h1>Analista de Dados</h1><ul><li></li><li>SQL e Python</li><li> </li></ul></main><footer>Rodapé</footer></body></html>`;
+  assert.equal(jobPageText(plain), "Analista de Dados\n\n- SQL e Python");
+  assert.equal(tidyText("a\n-\n- \n•\n\n\n\nb"), "a\n\nb");
 });

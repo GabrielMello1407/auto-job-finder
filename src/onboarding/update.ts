@@ -4,7 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import { ensureDir, paths } from "../config.js";
 import { structured } from "../llm.js";
-import { loadBaseResume } from "../profile.js";
+import { loadBaseResume, loadRules, type NeverClaimRule, type Rules } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import type { Resume } from "../schemas.js";
 import { lineDiff, type DiffLine } from "../util/diff.js";
@@ -20,13 +20,40 @@ import type { SourceDoc } from "./sources.js";
  *
  * A proposta fica em profile/atualizacao/proposta.json: sobrevive a fechar o `ajf`, e é recusada
  * se o perfil for editado depois dela.
+ *
+ * As regras de "nunca afirmar" (rules.json) acompanham: a novidade pode tornar uma regra falsa
+ * (ex.: barrava "ISO 27001" e agora a pessoa trabalhou com a norma) ou pedir uma nova. A IA só aponta
+ * o que tirar e o que acrescentar; as outras regras, inclusive as escritas à mão, ficam como estão.
  */
 
 export const ProfileUpdateSchema = z.object({
   profileTruth: z.string().describe("O profile_truth.md COMPLETO já com as novidades, com os mesmos títulos de seção do atual"),
   changes: z.array(z.string()).describe("O que mudou no perfil, uma frase curta por mudança, em português"),
   toConfirm: z.array(z.string()).describe("O que ficou em dúvida e foi registrado em 'A confirmar'; vazio se nada"),
+  removeRules: z
+    .array(z.string())
+    .describe("Regras de <regras_nunca_afirmar> que a novidade tornou falsas, copiadas exatamente (o valor de phrase ou de regex). Vazio se nenhuma"),
+  addRules: z
+    .array(z.object({ phrase: z.string().describe("Frase curta e literal"), message: z.string().describe("Por que não pode afirmar isso") }))
+    .describe("Regras novas que a novidade pede (ex.: curso que não é certificação, ferramenta usada só em estudo). Vazio se nenhuma"),
 });
+
+export interface RuleChanges {
+  /** phrase ou regex das regras que saem. */
+  remove: string[];
+  add: NeverClaimRule[];
+}
+
+const ruleKey = (r: NeverClaimRule) => (r.phrase ?? r.regex ?? "").trim().toLowerCase();
+
+/** Aplica as mudanças nas regras: tira só as apontadas, acrescenta as que ainda não existem e mantém o resto. */
+export function applyRuleChanges(rules: Rules, changes: RuleChanges): Rules {
+  const remove = new Set(changes.remove.map((k) => k.trim().toLowerCase()));
+  const kept = rules.neverClaim.filter((r) => !remove.has(ruleKey(r)));
+  const have = new Set(kept.map(ruleKey));
+  const added = changes.add.filter((r) => r.phrase?.trim() && r.message.trim() && !have.has(ruleKey(r)));
+  return { ...rules, neverClaim: [...kept, ...added] };
+}
 
 export interface ProfileUpdateProposal {
   createdAt: string;
@@ -36,6 +63,8 @@ export interface ProfileUpdateProposal {
   truth: string;
   /** Hash do profile_truth.md quando a proposta foi feita. */
   baseHash: string;
+  /** Mudanças nas regras de "nunca afirmar" (rules.json). */
+  rules?: RuleChanges;
 }
 
 const normalize = (t: string) => t.replace(/\r\n/g, "\n").trim() + "\n";
@@ -53,6 +82,7 @@ export function missingHeadings(before: string, after: string): string[] {
 export async function proposeProfileUpdate(news: SourceDoc[]): Promise<ProfileUpdateProposal> {
   if (!news.length) throw new Error("Conte a novidade: escreva, mande um arquivo ou um link.");
   const current = readTruth();
+  const rules = loadRules();
   const r = await structured(ProfileUpdateSchema, {
     label: "profile:update",
     effort: "high",
@@ -61,6 +91,10 @@ export async function proposeProfileUpdate(news: SourceDoc[]): Promise<ProfileUp
     user: `<profile_truth_atual>
 ${current}
 </profile_truth_atual>
+
+<regras_nunca_afirmar>
+${JSON.stringify(rules.neverClaim, null, 2)}
+</regras_nunca_afirmar>
 
 <novidades>
 ${sourcesBlock(news)}
@@ -75,18 +109,33 @@ Hoje é ${today()}. A pessoa contou novidades sobre a carreira. Devolva o profil
 - Se a novidade contradiz o perfil, use a novidade (é mais recente) e registre a divergência em "A confirmar".
 - Se a novidade resolve um item de "A confirmar", marque-o como resolvido ("- [x]"). Se ela cobre uma lacuna com evidência, atualize "Lacunas conhecidas".
 - Se o perfil tiver uma seção de adendos/histórico de alterações, registre ali a data de hoje e o que mudou.
-As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação" não são evidência: não coloque fatos novos nelas.`,
+As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação" não são evidência: não coloque fatos novos nelas.
+
+Regras de "nunca afirmar" (<regras_nunca_afirmar>), usadas pelas travas para barrar o currículo:
+- removeRules: só as regras que a novidade torna falsas, porque agora há evidência (ex.: a regra "ISO 27001" quando a pessoa conta que trabalhou com a norma). Copie o phrase ou o regex exatamente. Na dúvida, não remova.
+- addRules: o que a novidade pede para nunca afirmar (ex.: curso que não é certificação, ferramenta usada só em laboratório, projeto que não foi concluído). Frases curtas e literais.`,
   });
 
   const missing = missingHeadings(current, r.profileTruth);
   if (missing.length) throw new Error(`A proposta tirou seções do perfil (${missing.join(", ")}). Tente de novo.`);
+  // Só remove regra que existe; só acrescenta regra que ainda não existe.
+  const existing = new Set(rules.neverClaim.map(ruleKey));
+  const ruleChanges: RuleChanges = {
+    remove: [...new Set(r.removeRules.map((k) => k.trim()))].filter((k) => existing.has(k.toLowerCase())),
+    add: r.addRules.filter((x) => x.phrase.trim() && !existing.has(x.phrase.trim().toLowerCase())),
+  };
   const proposal: ProfileUpdateProposal = {
     createdAt: new Date().toISOString(),
     sources: news.map((s) => s.label),
-    changes: r.changes,
+    changes: [
+      ...r.changes,
+      ...ruleChanges.remove.map((k) => `Nunca afirmar: a regra "${k}" sai, porque a novidade traz evidência.`),
+      ...ruleChanges.add.map((x) => `Nunca afirmar: regra nova "${x.phrase}" (${x.message}).`),
+    ],
     toConfirm: r.toConfirm,
     truth: normalize(r.profileTruth),
     baseHash: truthHash(current),
+    rules: ruleChanges,
   };
   ensureDir(path.dirname(proposalFile()));
   fs.writeFileSync(proposalFile(), JSON.stringify(proposal, null, 2));
@@ -119,6 +168,8 @@ export async function applyProposal(): Promise<{ backup: string | null }> {
   if (proposalOutdated(p)) throw new Error("O perfil foi editado depois da proposta. Descarte e gere de novo.");
   const backup = backupProfile();
   fs.writeFileSync(paths.profileTruth, p.truth);
+  if (p.rules && (p.rules.remove.length || p.rules.add.length))
+    fs.writeFileSync(paths.rules, JSON.stringify(applyRuleChanges(loadRules(), p.rules), null, 2) + "\n");
   console.log(`✅ Perfil atualizado${backup ? ` (o anterior está em ${backup})` : ""}.`);
   discardProposal();
   await rebuildBaseResumes({ backup: false });

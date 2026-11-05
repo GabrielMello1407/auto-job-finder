@@ -60,6 +60,8 @@ interface DemoJob {
   interviewGuide?: boolean;
   /** Pacote feito antes da última mudança no perfil. */
   outdated?: boolean;
+  /** E-mail de candidatura que aparece na vaga. */
+  contactEmail?: string;
   /** Vaga recebida sem link (indicação, e-mail, WhatsApp) e pesquisada na web. */
   research?: {
     verdict: "confirmada" | "nao_encontrada" | "suspeita";
@@ -88,6 +90,7 @@ const JOBS: DemoJob[] = [
     salary: "R$ 9.000–11.000 (CLT)",
     status: "tailored",
     days: 2,
+    contactEmail: "vagas@clinicabemestar.example.com",
     rating: 8.6,
     ats: 94,
     triage: {
@@ -446,9 +449,22 @@ ${ready ? `✅ **Pronto para revisar e enviar** (nota ${j.rating} ≥ 7).` : `�
 }
 
 function emails(j: DemoJob, pdf: string) {
+  // Igual ao pacote de verdade (src/tailor/index.ts): com e-mail na vaga, sai o link do rascunho.
+  const enc = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  const subject = `${j.title} — Ana Souza`;
+  const body = `Olá,
+
+Sou Ana Souza e me candidato à vaga de ${j.title}. Envio meu currículo em anexo.
+
+Atenciosamente,
+Ana Souza`;
+  const to = j.contactEmail
+    ? `**Destinatário encontrado na vaga:** ${j.contactEmail}  
+[Abrir rascunho no seu e-mail](mailto:${j.contactEmail}?subject=${enc(subject)}&body=${enc(body)}) (anexe os arquivos manualmente)`
+    : "_Nenhum e-mail de contato na vaga. Procure o recrutador no LinkedIn._";
   return `# E-mails e mensagens para o recrutador
 
-_Nenhum e-mail de contato na vaga. Procure o recrutador no LinkedIn._
+${to}
 
 **Anexos:** ${pdf}
 

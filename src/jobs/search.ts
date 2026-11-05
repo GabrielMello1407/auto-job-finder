@@ -3,7 +3,8 @@ import { settings } from "../config.js";
 import { loadPreferences } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import type { Job } from "../schemas.js";
-import { fixMojibake, htmlToText } from "../util/text.js";
+import { fixMojibake } from "../util/text.js";
+import { jobPageText } from "./page.js";
 import { prefilter } from "./filter.js";
 import { SOURCES, type RawJob } from "./sources/index.js";
 import { webSearchJobs } from "./sources/websearch.js";
@@ -68,7 +69,7 @@ export async function addJob(input: { url?: string; file?: string; text?: string
     const res = await fetch(input.url, { headers: { "User-Agent": settings.userAgent } });
     if (!res.ok) throw new Error(`Não consegui abrir a vaga (${res.status}). Cole o texto num arquivo e use --file.`);
     const html = await res.text();
-    description = htmlToText(html);
+    description = jobPageText(html);
     if (description.length < 400)
       throw new Error("A página veio quase vazia (site com login/JS, ex.: LinkedIn). Cole o texto num arquivo e use --file.");
   }

@@ -8,7 +8,8 @@ import { coverLetterHtml, resumeHtml } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
 import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type Resume } from "../schemas.js";
 import { track } from "../tracker.js";
-import { htmlToText, slugify, today } from "../util/text.js";
+import { jobPageText } from "../jobs/page.js";
+import { slugify, today } from "../util/text.js";
 import { writeCoverLetter, writeEmails, writeInterviewPrep } from "../writers/documents.js";
 import { analyzeJob, condenser, editor, reviewer, strategist } from "./agents.js";
 
@@ -56,7 +57,7 @@ async function ensureFullDescription(job: Job): Promise<Job> {
   try {
     const res = await fetch(job.url, { headers: { "User-Agent": settings.userAgent } });
     if (res.ok) {
-      const text = htmlToText(await res.text());
+      const text = jobPageText(await res.text());
       if (text.length > 1500) return updateJob(job.id, { description: text.slice(0, 20000) });
     }
   } catch {
@@ -109,9 +110,9 @@ ${analysis.mustHave.map((m) => `- ${m}`).join("\n")}
 
 function emailsMarkdown(e: EmailPack, analysis: JobAnalysis, attachments: string[]): string {
   const to = analysis.recruiterEmail;
-  const mailto = to
-    ? `mailto:${to}?subject=${encodeURIComponent(e.application.subjectOptions[0])}&body=${encodeURIComponent(e.application.body)}`
-    : "";
+  // Codifica também ( ) ! ' *, que o encodeURIComponent deixa passar e quebrariam o link em Markdown.
+  const enc = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  const mailto = to ? `mailto:${to}?subject=${enc(e.application.subjectOptions[0])}&body=${enc(e.application.body)}` : "";
   const note = e.linkedinConnectionNote;
   return `# E-mails e mensagens para o recrutador
 

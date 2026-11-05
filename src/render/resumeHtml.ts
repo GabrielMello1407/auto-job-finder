@@ -75,13 +75,16 @@ export function resumeHtml(r: Resume, paper: "A4" | "Letter"): string {
     c.availability && esc(c.availability),
   ].filter(Boolean);
 
+  // Data desconhecida fica de fora: nada de "– Atual" solto ou de um traço sozinho.
+  const period = (start: string, end: string) => [start, end].map((d) => d?.trim()).filter(Boolean).join(" – ");
+
   const skills = r.skills
     .map((g) => `<p><strong>${esc(g.category)}:</strong> ${esc(g.items.join(", "))}</p>`)
     .join("\n");
 
   const experience = r.experience
     .map((e) => {
-      const meta = [e.company, e.location, e.mode, `${e.start} – ${e.end}`].filter(Boolean).map(esc).join(" | ");
+      const meta = [e.company, e.location, e.mode, period(e.start, e.end)].filter(Boolean).map(esc).join(" | ");
       return `<div class="job">
   <div class="job-title">${esc(e.title)}</div>
   <div class="job-meta">${meta}</div>
@@ -114,7 +117,7 @@ export function resumeHtml(r: Resume, paper: "A4" | "Letter"): string {
   const certs = r.certifications.length
     ? `<h2>${L.certifications}</h2>
 <ul>${r.certifications
-        .map((c) => `<li>${esc(c.name)} – ${esc(c.issuer)}${c.date ? ` (${esc(c.date)})` : ""}</li>`)
+        .map((c) => `<li>${esc([c.name, c.issuer].filter((x) => x?.trim()).join(" – "))}${c.date?.trim() ? ` (${esc(c.date)})` : ""}</li>`)
         .join("")}</ul>`
     : "";
 

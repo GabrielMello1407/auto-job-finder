@@ -69,6 +69,7 @@ flowchart LR
   - curso não vira certificação;
   - o que faltar vai para "A confirmar";
   - uma proposta que tire alguma seção do perfil é recusada.
+- **Regras de "nunca afirmar":** uma novidade pode tornar uma regra falsa (barrava "ISO 27001" e agora há evidência) ou pedir uma nova (curso que não é certificação). A IA só aponta o que tirar, copiando a regra exata, e o que acrescentar; `applyRuleChanges` aplica isso no `rules.json` ao aplicar a proposta, e as outras regras, inclusive as escritas à mão, ficam como estão. As mudanças entram na lista do que muda.
 - **Por que refazer os currículos-base:** as travas só aceitam experiências que estão nos currículos-base. Um emprego novo só no `profile_truth.md` faria o pacote sair com violação. O `rebuildBaseResumes` passa o currículo-base atual para a IA atualizar, em vez de escrever do zero; também dá para chamar sozinho, depois de editar o perfil à mão.
 - **Pacote desatualizado:** um pacote pronto ou de baixa aderência é marcado quando o perfil ou os currículos-base mudaram depois que ele foi gerado. A comparação é entre as datas de modificação dos arquivos.
 
@@ -84,6 +85,15 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 - remota, mas restrita a países que você não aceitou.
 
 As vagas que passam vão para `data/jobs.json` com status `new`. Vagas repetidas (mesmo link, ou mesma empresa e cargo) são ignoradas.
+
+### Texto da página da vaga
+
+A busca na web com IA traz só um resumo de cada vaga. Antes do pacote, e quando você cola só o link, o agente baixa a página e tira dela o texto da vaga (`src/jobs/page.ts#jobPageText`):
+
+1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Gupy, Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
+2. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
+
+Itens de lista vazios (os "-" soltos de menus) e linhas em branco repetidas saem do texto (`util/text.ts#tidyText`), também na hora de mostrar vagas antigas.
 
 ### Vaga colada e vaga sem link
 
@@ -251,6 +261,7 @@ src/
   jobs/
     sources/             fontes de vagas (APIs públicas, páginas de carreira, web com IA)
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
+    page.ts              texto da vaga a partir da página (JobPosting ou conteúdo principal)
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json
