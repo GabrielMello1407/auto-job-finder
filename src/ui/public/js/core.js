@@ -276,6 +276,9 @@ function inline(s) {
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[\s(])_([^_]+)_(?=[\s.,;:)!?]|$)/g, "$1<em>$2</em>")
+    // Rascunho de e-mail (mailto:): abre o programa de e-mail com o texto pronto; quem envia é a pessoa.
+    // Vai até o ")" seguido de espaço ou fim: pacotes antigos têm "(" e ")" sem codificar no texto do e-mail.
+    .replace(/\[([^\]]+)\]\((mailto:[^\s"<>]+?)\)(?=\s|$)/g, '<a class="btn small" href="$2">✉️ $1</a>')
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
 }

@@ -86,6 +86,15 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 
 As vagas que passam vão para `data/jobs.json` com status `new`. Vagas repetidas (mesmo link, ou mesma empresa e cargo) são ignoradas.
 
+### Texto da página da vaga
+
+A busca na web com IA traz só um resumo de cada vaga. Antes do pacote, e quando você cola só o link, o agente baixa a página e tira dela o texto da vaga (`src/jobs/page.ts#jobPageText`):
+
+1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Gupy, Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
+2. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
+
+Itens de lista vazios (os "-" soltos de menus) e linhas em branco repetidas saem do texto (`util/text.ts#tidyText`), também na hora de mostrar vagas antigas.
+
 ### Vaga colada e vaga sem link
 
 Uma vaga colada (`src/jobs/search.ts#addJob`) entra direto, sem o filtro: você já decidiu que ela interessa. Quando ela chega sem link (indicação, e-mail, WhatsApp), `src/jobs/research.ts#researchJob` pode pesquisá-la antes da triagem. Precisa de uma IA com busca na web (`llm.ts#canWebSearch`).
@@ -252,6 +261,7 @@ src/
   jobs/
     sources/             fontes de vagas (APIs públicas, páginas de carreira, web com IA)
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
+    page.ts              texto da vaga a partir da página (JobPosting ou conteúdo principal)
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json

@@ -25,15 +25,20 @@ export function decodeEntities(s: string): string {
 export function htmlToText(html: string): string {
   let s = decodeEntities(html); // algumas APIs mandam HTML escapado
   s = s
-    .replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<li[^>]*>/gi, "\n- ")
     .replace(/<\/(p|div|h[1-6]|li|ul|ol|section|article|tr)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, " ");
-  s = decodeEntities(s);
-  return s
+  return tidyText(decodeEntities(s));
+}
+
+/** Espaços normalizados, sem linhas que são só um marcador de lista (item vazio de menu) e sem linhas em branco seguidas. */
+export function tidyText(text: string): string {
+  return text
     .split("\n")
     .map((l) => l.replace(/[ \t ]+/g, " ").trim())
+    .filter((l) => !/^[-•·*–]$/.test(l))
     .filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""))
     .join("\n")
     .trim();

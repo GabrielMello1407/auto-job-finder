@@ -14,6 +14,7 @@ import { profileChangedAt } from "../../onboarding/update.js";
 import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
+import { tidyText } from "../../util/text.js";
 import { fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
 
 /** Vagas, tarefas longas (busca, triagem, pacotes) e escolha da IA. */
@@ -122,7 +123,8 @@ function jobDetail(j: Job) {
     : [];
   return {
     ...jobSummary(j),
-    description: j.description,
+    // Vagas antigas guardaram a página inteira: limpa os itens vazios de menu na hora de mostrar.
+    description: tidyText(j.description),
     evidence: j.triage?.evidence ?? [],
     gaps: j.triage?.mustHaveGaps ?? [],
     files,

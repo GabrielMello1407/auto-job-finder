@@ -193,7 +193,7 @@ Clique no título de uma vaga para abrir os detalhes.
 
 - **Resumo:** a avaliação da IA, o que você já tem (com evidência no perfil), as lacunas e a descrição.
 - **Pacote:** os arquivos, o LEIA-ME com o passo a passo de candidatura e os relatórios (ATS, nota do recrutador e conferência com o perfil).
-- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar.
+- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar. Se a vaga traz um e-mail de contato, **✉️ Abrir rascunho no seu e-mail** abre o seu programa de e-mail com destinatário, assunto e texto preenchidos; você anexa o currículo e envia.
 - **Entrevista:** o guia, quando existir.
 
 ![Detalhes: e-mails](images/detalhes-emails.jpg)
