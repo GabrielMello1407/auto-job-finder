@@ -26,22 +26,47 @@ export function htmlToText(html: string): string {
   let s = decodeEntities(html); // algumas APIs mandam HTML escapado
   s = s
     .replace(/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<li[^>]*>/gi, "\n- ")
+    // <li><p>texto</p></li> (comum em feeds RSS): o marcador fica na mesma linha do texto.
+    .replace(/<li[^>]*>\s*(<p[^>]*>)?/gi, "\n- ")
     .replace(/<\/(p|div|h[1-6]|li|ul|ol|section|article|tr)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, " ");
   return tidyText(decodeEntities(s));
 }
 
-/** Espaços normalizados, sem linhas que são só um marcador de lista (item vazio de menu) e sem linhas em branco seguidas. */
+const MARKER = /^[-•·*–]$/;
+const STARTS_WITH_MARKER = /^[-•·*–](\s|$)/;
+
+/**
+ * Espaços normalizados e sem linhas em branco seguidas. Um marcador de lista sozinho na linha é juntado
+ * ao texto que vem logo depois ("-" / "SQL" vira "- SQL"); se depois vier outro marcador, é um item
+ * vazio (menu de site) e sai.
+ */
 export function tidyText(text: string): string {
-  return text
-    .split("\n")
-    .map((l) => l.replace(/[ \t ]+/g, " ").trim())
-    .filter((l) => !/^[-•·*–]$/.test(l))
+  const lines = normalizeLines(text);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!MARKER.test(lines[i])) {
+      out.push(lines[i]);
+      continue;
+    }
+    let next = i + 1;
+    while (next < lines.length && lines[next] === "") next++;
+    if (next < lines.length && !STARTS_WITH_MARKER.test(lines[next])) {
+      lines[next] = `- ${lines[next]}`;
+      i = next - 1; // pula as linhas em branco entre o marcador e o texto
+    }
+  }
+  return out
     .filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""))
     .join("\n")
     .trim();
+}
+
+function normalizeLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/[ \t ]+/g, " ").trim());
 }
 
 export function slugify(text: string, max = 60): string {

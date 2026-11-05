@@ -457,5 +457,9 @@ test("página da vaga: usa o JobPosting e deixa de fora menu, rodapé e itens va
   const plain = `<html><head><title>X</title></head><body><header>Logo</header><nav><ul><li></li><li></li><li>Entrar</li></ul></nav>
 <main><h1>Analista de Dados</h1><ul><li></li><li>SQL e Python</li><li> </li></ul></main><footer>Rodapé</footer></body></html>`;
   assert.equal(jobPageText(plain), "Analista de Dados\n\n- SQL e Python");
-  assert.equal(tidyText("a\n-\n- \n•\n\n\n\nb"), "a\n\nb");
+  // Itens vazios seguidos (menu) saem; o último marcador fica com o texto que vem depois.
+  assert.equal(tidyText("Menu\n-\n- \n•\n\n\n\nb"), "Menu\n- b");
+  // <li><p>…</p></li> de feeds: marcador numa linha, texto na outra.
+  assert.equal(tidyText("Requisitos:\n\n-\n5+ anos\n\n-\n\nNode.js\n-\n- SQL"), "Requisitos:\n\n- 5+ anos\n\n- Node.js\n- SQL");
+  assert.equal(htmlToText("<p>Requisitos:</p><ul><li>\n<p>SQL</p></li><li> <p>Python</p></li></ul>"), "Requisitos:\n\n- SQL\n\n- Python");
 });
