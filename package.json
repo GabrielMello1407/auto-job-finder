@@ -29,10 +29,10 @@
   "scripts": {
     "ajf": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/core.test.ts"
+    "test": "tsx --test \"tests/*.test.ts\""
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^1.1.1",
