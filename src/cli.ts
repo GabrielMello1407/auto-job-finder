@@ -10,14 +10,16 @@ import { runInit } from "./onboarding/index.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs } from "./jobs/search.js";
-import { findJob, loadJobs, setStatus } from "./jobs/store.js";
+import { select } from "@inquirer/prompts";
+import { findJob, loadJobs } from "./jobs/store.js";
+import { changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import { getProvider } from "./providers/index.js";
 import { renderBaseResumes } from "./render/base.js";
 import { closeBrowser } from "./render/pdf.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { rerender, tailorJob } from "./tailor/index.js";
-import { track } from "./tracker.js";
+import { startUi } from "./ui/server.js";
 import { linkedinPlan } from "./writers/linkedin.js";
 
 const program = new Command();
@@ -197,10 +199,12 @@ program
   });
 
 program
-  .command("render <pasta>")
+  .command("render <pasta-ou-id>")
   .description("gera de novo os PDFs depois de editar resume.json / cover_letter.json à mão")
-  .action(async (dir) => {
-    const r = await rerender(path.resolve(dir));
+  .action(async (arg: string) => {
+    const dir = fs.existsSync(arg) ? path.resolve(arg) : findJob(loadJobs(), arg).outputDir;
+    if (!dir) throw new Error(`A vaga '${arg}' não tem pacote gerado.`);
+    const r = await rerender(dir);
     console.log(`PDF gerado (${r.pages} pág.). Violações: ${r.guards.violations.length}`);
     r.guards.violations.forEach((v) => console.log(`   ❌ ${v}`));
     r.guards.warnings.forEach((v) => console.log(`   ⚠ ${v}`));
@@ -217,14 +221,35 @@ program
   });
 
 program
-  .command("status <id> <status>")
-  .description("atualiza o status (applied, interview, rejected, offer, discarded...) e registra no tracker.csv")
+  .command("enviei")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("marca que você se candidatou a uma vaga. Ex.: ajf enviei boticario")
+  .option("--note <texto>", "observação, ex.: 'via Gupy'")
+  .action(async (busca: string[], o) => {
+    await markApplied(busca.join(" "), o.note);
+  });
+
+program
+  .command("status")
+  .argument("[busca]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .argument("[status]", Object.keys(STATUS_LABELS).join(", "))
+  .description("atualiza o status de uma vaga e registra no tracker.csv. Ex.: ajf status boticario interview")
   .option("--note <texto>")
   .option("--next <texto>", "próximo passo")
-  .action((id, status: JobStatus, o) => {
-    const job = setStatus(id, status, o.note);
-    track(job, status, o.next ?? "", o.note ?? "");
-    console.log(`${job.id} → ${status} (registrado em ${path.relative(paths.root, paths.tracker)})`);
+  .action(async (busca: string | undefined, status: string | undefined, o) => {
+    // "ajf status interview": só o status, escolhe a vaga na lista.
+    if (isStatus(busca) && !status) [busca, status] = [undefined, busca];
+    if (status && !isStatus(status)) throw new Error(`Status '${status}' não existe. Opções: ${Object.keys(STATUS_LABELS).join(", ")}`);
+    const job = await pickJob({ query: busca, message: "Qual vaga?" });
+    const given = isStatus(status) ? status : undefined;
+    const next: JobStatus =
+      given ??
+      (await select({
+        message: `${job.company} — ${job.title} (agora: ${STATUS_LABELS[job.status]})`,
+        choices: Object.entries(STATUS_LABELS).map(([value, name]) => ({ name, value: value as JobStatus })),
+      }));
+    const updated = changeStatus(job, next, o.note ?? "", o.next);
+    console.log(`${updated.company} — ${updated.title} → ${STATUS_LABELS[next]} (registrado em ${path.relative(paths.root, paths.tracker)})`);
   });
 
 program
@@ -252,8 +277,19 @@ program
   });
 
 program
-  .command("menu", { isDefault: true })
-  .description("menu interativo (padrão quando você roda só 'ajf')")
+  .command("ui", { isDefault: true })
+  .alias("interface")
+  .description("abre a interface no navegador para gerenciar tudo (padrão quando você roda só 'ajf')")
+  .option("--port <n>", "porta local (padrão 4317 ou AJF_UI_PORT)", (v) => Number(v))
+  .option("--no-open", "não abre o navegador sozinho (só mostra o link)")
+  .action(async (o) => {
+    // Sem perfil, a própria interface abre no cadastro.
+    await startUi({ port: o.port, open: o.open });
+  });
+
+program
+  .command("menu")
+  .description("menu interativo no terminal")
   .action(async () => {
     await mainMenu();
   });

@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ensureDir, paths, settings } from "./config.js";
-import { loadJobs } from "./jobs/store.js";
+import { SENDABLE } from "./jobs/status.js";
+import { loadJobs, organizePackages } from "./jobs/store.js";
 import type { Job } from "./schemas.js";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -24,6 +25,12 @@ function pkgLinks(j: Job): string {
     .join(" ");
 }
 
+/** ID clicável: copia o comando para marcar como enviada (ou mudar o status, se já foi enviada). */
+function copyCmd(j: Job): string {
+  const cmd = SENDABLE.includes(j.status) ? `ajf enviei ${j.id}` : `ajf status ${j.id}`;
+  return `<button type="button" class="copy" data-cmd="${cmd}" title="Copiar: ${cmd}">📋 ${j.id}</button>`;
+}
+
 function badge(n: number | undefined, good: number, warn: number, suffix = "") {
   if (n == null) return "";
   const cls = n >= good ? "ok" : n >= warn ? "warn" : "bad";
@@ -38,7 +45,7 @@ ${jobs
   .map(
     (j) => `<tr><td><strong>${esc(j.title)}</strong><br><span class="muted">${esc(j.company)} · ${esc(j.location || "")} · ${esc(
       j.triage?.market ?? "",
-    )} · <code>${j.id}</code></span></td>${cols
+    )} · ${copyCmd(j)}</span></td>${cols
       .map((c) => {
         if (c === "score") return `<td>${badge(j.triage?.score, settings.minTriageScore, 50)}</td>`;
         if (c === "rating") return `<td>${badge(j.rating, settings.minRating, 5)}</td>`;
@@ -55,6 +62,8 @@ ${jobs
 
 /** Gera output/painel.html com o estado de todas as vagas. Abre direto no navegador (sem servidor). */
 export function writeDashboard(): string {
+  // Os links do painel apontam para as pastas: organiza antes (move pastas antigas ou que falharam antes).
+  organizePackages();
   const jobs = loadJobs();
   const by = (...s: Job["status"][]) => jobs.filter((j) => s.includes(j.status));
   const byScore = (a: Job, b: Job) => (b.triage?.score ?? 0) - (a.triage?.score ?? 0);
@@ -87,6 +96,8 @@ a { color:var(--accent); text-decoration:none } a:hover { text-decoration:underl
 .ok { color:var(--ok); background:var(--okbg) } .warn { color:var(--warn); background:var(--warnbg) } .bad { color:var(--bad); background:var(--badbg) }
 details summary { cursor:pointer; margin:28px 0 10px; font-weight:600 } code { font-size:12px }
 .tip { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:10px 14px; margin-top:12px }
+.copy { font:12px ui-monospace,monospace; color:var(--muted); background:transparent; border:1px solid var(--line); border-radius:6px; padding:1px 6px; cursor:pointer }
+.copy:hover { color:var(--accent); border-color:var(--accent) } .copy.done { color:var(--ok); border-color:var(--ok) }
 </style></head><body><main>
 <h1>Painel de Vagas</h1>
 <div class="muted">Atualizado em ${new Date().toLocaleString("pt-BR")} · nota mínima ${settings.minRating} · triagem mínima ${settings.minTriageScore}</div>
@@ -96,7 +107,7 @@ details summary { cursor:pointer; margin:28px 0 10px; font-weight:600 } code { f
 <div class="stat"><b>${active.length}</b>em andamento</div>
 <div class="stat"><b>${fresh.length}</b>aguardando triagem</div>
 </div>
-<div class="tip">Para gerar pacotes, enviar ou atualizar status, rode <code>ajf</code> no terminal e use o menu.</div>
+<div class="tip">Já se candidatou? Rode <code>ajf enviei</code> e digite parte do nome da empresa, ou clique no 📋 de uma vaga para copiar o comando e cole no terminal. Para gerar pacotes e o resto, rode <code>ajf</code> e use o menu.</div>
 
 <h2>✅ Prontos para enviar (nota ≥ ${settings.minRating})</h2>
 ${table(ready, ["rating", "ats", "links"])}
@@ -109,7 +120,28 @@ ${table(active, ["rating", "applied", "links"])}
 
 <details><summary>⚠️ Pacotes com baixa aderência (${lowFit.length})</summary>${table(lowFit, ["rating", "links"])}</details>
 <details><summary>🤔 Avaliadas — decidir (${maybe.length})</summary>${table(maybe, ["score", "reason", "links"])}</details>
-</main></body></html>`;
+</main>
+<script>
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".copy");
+  if (!b) return;
+  const cmd = b.dataset.cmd;
+  try {
+    await navigator.clipboard.writeText(cmd);
+  } catch {
+    const t = Object.assign(document.createElement("textarea"), { value: cmd });
+    document.body.append(t);
+    t.select();
+    document.execCommand("copy");
+    t.remove();
+  }
+  const old = b.textContent;
+  b.textContent = "✓ copiado: " + cmd;
+  b.classList.add("done");
+  setTimeout(() => { b.textContent = old; b.classList.remove("done"); }, 1800);
+});
+</script>
+</body></html>`;
 
   ensureDir(paths.outputDir);
   const file = path.join(paths.outputDir, "painel.html");

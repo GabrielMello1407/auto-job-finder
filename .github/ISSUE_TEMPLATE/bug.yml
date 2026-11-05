@@ -1,0 +1,64 @@
+name: 🐛 Algo não funciona
+description: Um erro, uma tela quebrada ou um resultado errado.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar! **Não cole dados pessoais**: currículo, contatos, vagas reais com nomes, o seu `.env` ou chaves de API. Troque por dados fictícios.
+        Falha de segurança? Não abra issue: veja o [SECURITY.md](https://github.com/GabrielMello1407/auto-job-finder/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu
+      description: E o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Rodei `ajf` e abri a aba Vagas
+        2. Cliquei em "Gerar pacote"
+        3. Apareceu o erro ...
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Onde
+      options:
+        - Interface no navegador (ajf)
+        - Menu do terminal (ajf menu)
+        - Comando do terminal (ajf <comando>)
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Sistema
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: ia
+    attributes:
+      label: IA em uso
+      placeholder: "ex.: Claude (CLI claude), Codex, Gemini CLI, API Anthropic"
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Saída do `ajf doctor` e versão do Node (`node -v`)
+      description: Confira se não há nome, e-mail ou caminhos com dados pessoais antes de colar.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidade
+      options:
+        - label: Revisei e não há dados pessoais meus ou de outra pessoa neste relato.
+          required: true

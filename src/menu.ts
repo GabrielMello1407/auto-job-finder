@@ -9,11 +9,11 @@ import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs } from "./jobs/search.js";
-import { findJob, loadJobs, setStatus } from "./jobs/store.js";
+import { findJob, loadJobs } from "./jobs/store.js";
+import { changeStatus, markApplied } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import type { Job, JobStatus } from "./schemas.js";
-import { tailorJob } from "./tailor/index.js";
-import { track } from "./tracker.js";
+import { interviewGuide, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinPlan } from "./writers/linkedin.js";
 
@@ -127,6 +127,7 @@ async function recommendedFlow() {
         { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
+        { name: "✅ Já me candidatei (marcar como enviada)", value: "applied" },
         { name: "🗑 Descartar", value: "discard" },
         { name: "⬅ Voltar", value: BACK },
       ],
@@ -134,8 +135,12 @@ async function recommendedFlow() {
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
     if (action === "open") openExternal(job.applyUrl ?? job.url);
+    if (action === "applied") {
+      await markApplied(job.id);
+      refresh();
+    }
     if (action === "discard") {
-      setStatus(job.id, "discarded");
+      changeStatus(job, "discarded");
       refresh();
     }
   }
@@ -186,13 +191,13 @@ async function packagesFlow() {
         await makePackages([job]);
         break;
       }
+      if (action === "applied") await markApplied(job.id);
+      if (action === "discard") {
+        changeStatus(job, "discarded");
+        console.log("Descartada.");
+      }
       if (action === "applied" || action === "discard") {
-        const status: JobStatus = action === "applied" ? "applied" : "discarded";
-        const note = action === "applied" ? await input({ message: "Observação (ex.: 'via Gupy'). Enter para pular:" }) : "";
-        const updated = setStatus(job.id, status, note || undefined);
-        track(updated, status, status === "applied" ? "follow-up em 5–7 dias úteis" : "", note);
         refresh();
-        console.log(status === "applied" ? "✅ Registrado. Lembre do follow-up em 5–7 dias úteis." : "Descartada.");
         break;
       }
     }
@@ -235,11 +240,10 @@ async function activeFlow() {
   if (action === "thanks") console.log("\n" + (emailSection(job, "## 5.") ?? "emails.md não encontrado") + "\n");
   if (action === "folder" && job.outputDir) openExternal(job.outputDir);
   if (action === "interview" || action === "offer" || action === "rejected") {
-    const updated = setStatus(job.id, action);
-    track(updated, action);
+    changeStatus(job, action);
     refresh();
     if (action === "interview" && (await confirm({ message: "Gerar/atualizar o guia de entrevista agora?", default: true })))
-      await tailorJob(job.id, { interview: true });
+      console.log(`🎤 Guia salvo em ${await interviewGuide(job.id)}`);
   }
 }
 
@@ -290,6 +294,7 @@ export async function mainMenu() {
         { name: "🤖 Piloto automático (buscar → triar → gerar pacotes)", value: "auto" },
         { name: `⭐ Vagas recomendadas (${count("shortlisted")} + ${count("triaged")} para decidir)`, value: "recommended" },
         { name: `📦 Meus pacotes (${count("tailored")} prontos, ${count("low_fit")} baixa aderência)`, value: "packages" },
+        { name: "✅ Já me candidatei a uma vaga (marcar como enviada)", value: "sent" },
         { name: `📨 Candidaturas em andamento (${count("applied", "interview", "offer")})${due ? ` — ⏰ ${due} follow-up` : ""}`, value: "active" },
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
         { name: "🔎 Só buscar e triar vagas novas", value: "search" },
@@ -305,6 +310,10 @@ export async function mainMenu() {
       if (choice === "auto") await autopilotFlow();
       if (choice === "recommended") await recommendedFlow();
       if (choice === "packages") await packagesFlow();
+      if (choice === "sent") {
+        await markApplied();
+        refresh();
+      }
       if (choice === "active") await activeFlow();
       if (choice === "paste") await pasteFlow();
       if (choice === "search") await searchFlow();
