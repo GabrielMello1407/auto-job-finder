@@ -198,6 +198,17 @@ Cada mudança de status:
 - fica registrada em `output/tracker.csv`;
 - move a pasta do pacote para a subpasta da etapa (`src/jobs/folders.ts`), mantendo os caminhos em `data/jobs.json` em sincronia.
 
+## Perguntas do formulário
+
+`src/writers/answers.ts` responde as perguntas que o formulário de candidatura faz ("Por que você quer trabalhar aqui?"):
+
+- **Contexto:** a vaga (com a pesquisa na web, se houver), o currículo enviado para ela (`resume.json` do pacote), o que a pessoa contou para aquela resposta e as outras respostas já dadas na mesma candidatura, para não repetir as mesmas provas.
+- **Saída validada** (`AnswerSchema`): a resposta e `needsYou`, o que só a pessoa sabe e deixaria a resposta mais forte (motivação, opinião sobre o produto, pretensão salarial).
+- **Travas:** número que não está no perfil, na vaga ou no que a pessoa contou, e as frases de `rules.json → neverClaim`. Com limite de caracteres, o tamanho também é conferido. Se algo falha, há uma rodada de correção; o que sobrar aparece como aviso.
+- **Ajustes:** cada pedido ("mais curto", "uso o app há um ano") fica guardado em `adjustments` e continua valendo nos próximos, inclusive como fato contado pela pessoa.
+- **Onde fica:** em `Job.answers` (`data/jobs.json`) e em `perguntas_e_respostas.md` na pasta da vaga, que também é gravado quando o pacote é gerado depois.
+- Na interface, a resposta não entra na fila de tarefas: é uma conversa de segundos, e a fila pode estar ocupada com um pacote de vários minutos. Uma resposta por vaga de cada vez.
+
 ## LinkedIn
 
 `src/writers/linkedin.ts` faz duas coisas, sem nunca acessar o LinkedIn: o LinkedIn bloqueia programas, e o agente não muda nada em nome da pessoa.
@@ -272,7 +283,7 @@ src/
     refine.ts            loop recrutador ⇄ editor
     guards.ts            travas anti-invenção
     ats.ts               relatório ATS
-  writers/               carta, e-mails, guia de entrevista, plano e conferência do LinkedIn
+  writers/               carta, e-mails, guia de entrevista, perguntas do formulário, plano e conferência do LinkedIn
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos

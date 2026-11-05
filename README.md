@@ -31,7 +31,8 @@
    - currículo adaptado no padrão ATS, em PDF;
    - carta de apresentação, quando o mercado pede;
    - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento;
-   - o passo a passo para se candidatar pelo canal certo.
+   - o passo a passo para se candidatar pelo canal certo;
+   - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), que você ajusta conversando.
 4. **Acompanha as candidaturas:** lembra do follow-up, prepara um guia de entrevista e registra oferta ou recusa.
 5. **Cuida do seu LinkedIn:** monta um plano para atrair recrutadores e confere o seu perfil de hoje, mostrando o que já está certo, o que falta e o que corrigir.
 6. **Acompanha a sua carreira:** conte uma novidade (projeto, emprego, curso) e a IA propõe as mudanças no perfil. Você confere o antes e o depois, e os currículos são refeitos.

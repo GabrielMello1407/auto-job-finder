@@ -18,6 +18,8 @@ import type { Job, JobStatus } from "./schemas.js";
 import { interviewGuide, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
+import { ANSWERS_FILE, answerQuestion, refineAnswer } from "./writers/answers.js";
+import type { JobAnswer } from "./schemas.js";
 
 const BACK = "__back__";
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -47,6 +49,31 @@ function printDetails(j: Job) {
   const research = researchLines(j);
   if (research.length) console.log(`\n${research.join("\n")}`);
   console.log(`\n${withoutResearch(j.description).slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
+}
+
+function printAnswer(a: JobAnswer) {
+  console.log(`\n💬 ${a.question}\n\n${a.answer}\n\n(${a.answer.length} caracteres${a.limit ? ` de ${a.limit}` : ""})`);
+  if (a.warnings?.length) console.log(`⚠ Confira: ${a.warnings.join("; ")}`);
+  if (a.needsYou.length) console.log(`Para ficar com a sua cara, conte:\n${a.needsYou.map((n) => `  - ${n}`).join("\n")}`);
+}
+
+/** Pergunta do formulário de candidatura: responde e deixa ajustar até a pessoa dar Enter. Também usado pelo `ajf responder`. */
+export async function answerFlow(job: Job, given?: { question: string; limit?: number; context?: string }) {
+  const question = given?.question ?? (await input({ message: "Pergunta do formulário:", required: true }));
+  const limit = given ? given.limit : Number(await input({ message: "Limite de caracteres (Enter se não tiver):" })) || undefined;
+  const context = given ? given.context : await input({ message: "Algo que só você sabe para esta resposta (motivação, opinião sobre o produto; Enter para pular):" });
+  console.log("✍️ Escrevendo...");
+  let a = await answerQuestion(job.id, { question, limit, context });
+  for (;;) {
+    printAnswer(a);
+    if (!process.stdin.isTTY) break;
+    const instruction = await input({ message: "Ajustar? (ex.: mais curto, cite o projeto X, ou responda o que falta; Enter para terminar)" });
+    if (!instruction.trim()) break;
+    console.log("✍️ Ajustando...");
+    a = await refineAnswer(job.id, a.id, { instruction });
+  }
+  const dir = findJob(loadJobs(), job.id).outputDir;
+  console.log(dir ? `\nSalvo em ${path.join(dir, ANSWERS_FILE)}` : "\nSalvo na vaga. O arquivo entra na pasta da vaga quando o pacote for gerado.");
 }
 
 function emailSection(j: Job, heading: string): string | null {
@@ -130,6 +157,7 @@ async function recommendedFlow() {
       choices: [
         { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
+        { name: "📝 Responder pergunta do formulário", value: "answer" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
         ...(canWebSearch()
           ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
@@ -141,6 +169,7 @@ async function recommendedFlow() {
     });
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
+    if (action === "answer") await answerFlow(job);
     if (action === "research") {
       await researchJob(job.id);
       await triageJobs({ ids: [job.id] });
@@ -183,6 +212,7 @@ async function packagesFlow() {
           ...(job.files?.coverLetter ? [{ name: "✉️ Abrir cover letter (PDF)", value: "cover" }] : []),
           { name: "📧 Mostrar e-mail de candidatura", value: "email" },
           { name: "💬 Mostrar mensagens de LinkedIn", value: "linkedin" },
+          { name: "📝 Responder pergunta do formulário", value: "answer" },
           { name: "🔗 Abrir a vaga para me candidatar", value: "apply" },
           { name: "📁 Abrir pasta do pacote", value: "folder" },
           { name: "✅ Marcar como enviado", value: "applied" },
@@ -196,6 +226,7 @@ async function packagesFlow() {
       if (action === "cover" && job.files?.coverLetter) openExternal(job.files.coverLetter);
       if (action === "folder" && job.outputDir) openExternal(job.outputDir);
       if (action === "apply") openExternal(job.applyUrl ?? job.url);
+      if (action === "answer") await answerFlow(job);
       if (action === "email") console.log("\n" + (emailSection(job, "## 1.") ?? "emails.md não encontrado") + "\n");
       if (action === "linkedin")
         console.log("\n" + [emailSection(job, "## 2."), emailSection(job, "## 3.")].filter(Boolean).join("\n\n") + "\n");
@@ -241,6 +272,7 @@ async function activeFlow() {
     choices: [
       { name: "⏰ Mostrar e-mail de follow-up", value: "followup" },
       { name: "🙏 Mostrar agradecimento pós-entrevista", value: "thanks" },
+      { name: "📝 Responder pergunta do formulário", value: "answer" },
       { name: "🎤 Fui chamado para entrevista", value: "interview" },
       { name: "🎉 Recebi oferta", value: "offer" },
       { name: "❌ Fui recusado", value: "rejected" },
@@ -251,6 +283,7 @@ async function activeFlow() {
   if (action === "followup") console.log("\n" + (emailSection(job, "## 4.") ?? "emails.md não encontrado") + "\n");
   if (action === "thanks") console.log("\n" + (emailSection(job, "## 5.") ?? "emails.md não encontrado") + "\n");
   if (action === "folder" && job.outputDir) openExternal(job.outputDir);
+  if (action === "answer") await answerFlow(job);
   if (action === "interview" || action === "offer" || action === "rejected") {
     changeStatus(job, action);
     refresh();

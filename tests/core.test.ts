@@ -13,6 +13,7 @@ import { sourcesText } from "../src/tailor/index.js";
 import { marketProfile } from "../src/market.js";
 import { fixMojibake, htmlToText, tidyText } from "../src/util/text.js";
 import { jobPageText } from "../src/jobs/page.js";
+import { answersMarkdown, answerViolations } from "../src/writers/answers.js";
 import { forbiddenPatterns } from "../src/profile.js";
 import { extractJson, strictJsonSchema, structuredViaText } from "../src/providers/jsonText.js";
 import { activeProviderId, normalizeProviderId } from "../src/providers/index.js";
@@ -462,4 +463,33 @@ test("página da vaga: usa o JobPosting e deixa de fora menu, rodapé e itens va
   // <li><p>…</p></li> de feeds: marcador numa linha, texto na outra.
   assert.equal(tidyText("Requisitos:\n\n-\n5+ anos\n\n-\n\nNode.js\n-\n- SQL"), "Requisitos:\n\n- 5+ anos\n\n- Node.js\n- SQL");
   assert.equal(htmlToText("<p>Requisitos:</p><ul><li>\n<p>SQL</p></li><li> <p>Python</p></li></ul>"), "Requisitos:\n\n- SQL\n\n- Python");
+});
+
+test("perguntas do formulário: travas do texto e o arquivo .md", () => {
+  const sources = "Reduzi o relatório de 3 horas para menos de 10 minutos. Inglês intermediário.";
+  assert.deepEqual(answerViolations("Reduzi de 3 horas para menos de 10 minutos.", sources), []);
+  assert.match(answerViolations("Aumentei as vendas em 40%.", sources).join(), /números sem fonte: 40/);
+
+  const job = {
+    id: "x1",
+    company: "Acme",
+    title: "Dev",
+    answers: [
+      {
+        id: "a1",
+        question: "Por que a Acme?",
+        answer: "Porque o produto resolve um problema que eu conheço.",
+        limit: 300,
+        needsYou: ["Você já usou o produto?"],
+        warnings: [],
+        createdAt: "2026-11-05T00:00:00Z",
+        updatedAt: "2026-11-05T00:00:00Z",
+      },
+    ],
+  } as unknown as Job;
+  const md = answersMarkdown(job);
+  assert.match(md, /^# Perguntas da candidatura — Acme/);
+  assert.match(md, /## Por que a Acme\?\n\nPorque o produto/);
+  assert.match(md, /_52 caracteres \(limite 300\)_/);
+  assert.match(md, /- Você já usou o produto\?/);
 });

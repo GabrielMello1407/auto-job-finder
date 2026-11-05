@@ -15,7 +15,8 @@ import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
 import { tidyText } from "../../util/text.js";
-import { fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
+import { answerQuestion, deleteAnswer, refineAnswer } from "../../writers/answers.js";
+import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
 
 /** Vagas, tarefas longas (busca, triagem, pacotes) e escolha da IA. */
 
@@ -127,6 +128,7 @@ function jobDetail(j: Job) {
     description: tidyText(j.description),
     evidence: j.triage?.evidence ?? [],
     gaps: j.triage?.mustHaveGaps ?? [],
+    answers: j.answers ?? [],
     files,
     docs: {
       readme: read("LEIA-ME.md"),
@@ -160,6 +162,18 @@ const jobFrom = (id: string) => {
 
 function requireProfileForTasks() {
   if (!hasProfile()) throw new HttpError(409, "Monte o seu perfil primeiro (aba Perfil).");
+}
+
+/** Vagas com uma resposta de formulário sendo escrita agora (uma por vaga). */
+const writing = new Set<string>();
+async function answering<T>(jobId: string, run: () => Promise<T>): Promise<T> {
+  if (writing.has(jobId)) throw new HttpError(409, "Já estou escrevendo uma resposta para esta vaga.");
+  writing.add(jobId);
+  try {
+    return await run();
+  } finally {
+    writing.delete(jobId);
+  }
 }
 
 const MARKETS = ["BR", "US", "CA", "UK", "EU", "LATAM", "GLOBAL"] as const;
@@ -471,6 +485,43 @@ export function jobRoutes(app: App): Route[] {
             job.id,
           ),
         };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/answers$/,
+      async (c) => {
+        // Pergunta do formulário de candidatura. Fora da fila: é uma conversa, e a fila pode estar
+        // ocupada com um pacote de vários minutos. Uma por vaga de cada vez.
+        requireProfileForTasks();
+        const job = jobFrom(c.params[0]);
+        const body = await c.body();
+        const question = str(body.question, 2000);
+        if (question.length < 5) throw new HttpError(400, "Escreva a pergunta do formulário.");
+        const limit = body.limit ? clamp(body.limit, 50, 20000, 0) || undefined : undefined;
+        return { answer: await answering(job.id, () => answerQuestion(job.id, { question, limit, context: str(body.context, 4000) })) };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/answers\/([\w-]+)\/refine$/,
+      async (c) => {
+        requireProfileForTasks();
+        const job = jobFrom(c.params[0]);
+        const body = await c.body();
+        const instruction = str(body.instruction, 1000);
+        if (!instruction) throw new HttpError(400, "Diga o que ajustar (ex.: mais curto, cite o projeto X).");
+        return { answer: await answering(job.id, () => refineAnswer(job.id, c.params[1], { instruction })) };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/answers\/([\w-]+)\/delete$/,
+      (c) => {
+        const job = jobFrom(c.params[0]);
+        if (writing.has(job.id)) throw new HttpError(409, "Espere a resposta desta vaga terminar.");
+        deleteAnswer(job.id, c.params[1]);
+        return { ok: true };
       },
     ],
     [

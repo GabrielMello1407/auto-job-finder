@@ -170,7 +170,8 @@ Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário 
 Em **Prontas**:
 1. Abra o **📄 Currículo** e confira o PDF inteiro.
 2. Clique em **🔗 Candidatar-se** para abrir a vaga, e use os **📧 E-mails** se o canal for e-mail ou LinkedIn.
-3. Depois de enviar, clique em **✅ Já me candidatei**. Dá para anotar por onde foi ("via Gupy").
+3. O formulário pede algo como "Por que você quer trabalhar aqui?"? Use a aba **Perguntas** da vaga (veja [Perguntas do formulário](#perguntas-do-formulário)).
+4. Depois de enviar, clique em **✅ Já me candidatei**. Dá para anotar por onde foi ("via Gupy").
 
 **O agente nunca envia nada sozinho.** Ele prepara; você revisa e envia.
 
@@ -195,8 +196,24 @@ Clique no título de uma vaga para abrir os detalhes.
 - **Pacote:** os arquivos, o LEIA-ME com o passo a passo de candidatura e os relatórios (ATS, nota do recrutador e conferência com o perfil).
 - **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar. Se a vaga traz um e-mail de contato, **✉️ Abrir rascunho no seu e-mail** abre o seu programa de e-mail com destinatário, assunto e texto preenchidos; você anexa o currículo e envia.
 - **Entrevista:** o guia, quando existir.
+- **Perguntas:** respostas para as perguntas do formulário de candidatura (veja abaixo).
 
 ![Detalhes: e-mails](images/detalhes-emails.jpg)
+
+### Perguntas do formulário
+
+Muitos formulários pedem mais que o currículo: "Por que você quer trabalhar aqui?", "Fale de um projeto de que você se orgulha", "O que você acha do nosso app?". Na aba **Perguntas** da vaga:
+
+1. **Cole a pergunta.** Se o campo tiver limite de caracteres, informe. Se quiser, conte algo que só você sabe (motivação, opinião sobre o produto).
+2. **✍️ Responder.** Em alguns segundos sai a resposta, no idioma da pergunta. Ela usa fatos do seu perfil e o que a vaga diz da empresa, e passa pelas mesmas travas do currículo (número sem fonte, frases de "nunca afirmar").
+3. **Ajuste conversando.** No campo **Ajustar**, peça "mais curto", "cite o projeto X", "em inglês", ou responda o que a IA pediu em **Para ficar com a sua cara, conte**. O que você conta ali vale como fato seu nos próximos ajustes.
+4. **📋 Copiar** e colar no formulário.
+
+![Perguntas do formulário](images/perguntas.jpg)
+
+Quando a pergunta pede algo que só você sabe (por que essa empresa, pretensão salarial, opinião sobre o produto), a IA escreve o que dá com os fatos e diz o que você precisa contar. Ela nunca inventa motivação, experiência com o produto ou valor de salário.
+
+As respostas ficam salvas na vaga e em `perguntas_e_respostas.md`, na pasta do pacote. Também dá para usar no terminal: `ajf responder <empresa>`, ou **📝 Responder pergunta do formulário** no `ajf menu`.
 
 Mais opções nos detalhes:
 - **⚙ Gerar com opções:** escolha idioma, papel (A4 ou Letter), mercado e se quer carta de apresentação.
@@ -333,6 +350,7 @@ Tudo da interface também existe no terminal.
 | `ajf pesquisar [empresa, cargo ou id]` | Pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real |
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover]` | Gera o pacote |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
+| `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
 | `ajf enviei [empresa ou cargo] [--note "via Gupy"]` | Marca que você se candidatou (acha a vaga pelo nome) |
 | `ajf status [empresa, cargo ou id] [status]` | Muda o status (entrevista, oferta, recusa...) |
@@ -370,6 +388,9 @@ Dá. Em **➕ Colar vaga**, cole o que você recebeu, preencha empresa e cargo e
 
 **O plano do LinkedIn mostra coisas que eu já mudei.**
 O plano é um retrato do dia em que foi gerado, e o agente não acessa o LinkedIn. Mande o PDF ou o texto atual do seu LinkedIn e clique em **✅ Conferir meu LinkedIn**: ele mostra o que já está certo e o que ainda falta. Veja [LinkedIn](#8-linkedin).
+
+**O formulário pergunta por que eu quero trabalhar na empresa. O agente ajuda?**
+Ajuda. Na aba **Perguntas** da vaga, cole a pergunta; a IA responde com o seu perfil e o que a vaga diz da empresa, e você ajusta até ficar com a sua cara. Veja [Perguntas do formulário](#perguntas-do-formulário).
 
 **O LinkedIn não é lido.**
 O LinkedIn bloqueia leitura automática. No cadastro, use o PDF do perfil (**Mais → Salvar como PDF**); para vagas, cole o texto.
