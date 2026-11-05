@@ -10,7 +10,7 @@ Obrigado por querer ajudar! O auto-job-finder é um agente de candidaturas para 
 
 ## Rodando o projeto
 
-Requisitos: Node 20+, Chrome/Edge/Chromium (para os PDFs) e uma IA configurada (veja o [README](README.md#qual-ia-o-agente-usa)).
+Requisitos: Node 22.12 ou mais novo (o `.nvmrc` aponta o 22), Chrome/Edge/Chromium (para os PDFs) e uma IA configurada (veja o [README](README.md#qual-ia-o-agente-usa)).
 
 ```bash
 npm install
@@ -45,7 +45,7 @@ O CI roda essas mesmas checagens em Ubuntu, macOS e Windows a cada PR.
 - Mexeu num provedor de IA? Rode `npm run ajf -- ia --testar`.
 - Mexeu na interface? Abra `npm run ajf -- ui` numa pasta de teste e use a tela de verdade, no tema claro e no escuro.
 
-Os testes ficam em `tests/core.test.ts`, rodam offline e não chamam IA. Toda correção de bug deve vir com um teste quando der.
+Os testes ficam em `tests/` (arquivos `*.test.ts`), rodam offline e não chamam IA. Toda correção de bug deve vir com um teste quando der.
 
 ## Regras do projeto
 
