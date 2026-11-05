@@ -8,6 +8,7 @@ export type TaskKind =
   | "auto"
   | "search"
   | "triage"
+  | "research"
   | "tailor"
   | "interview"
   | "render"

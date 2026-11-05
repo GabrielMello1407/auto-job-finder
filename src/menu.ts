@@ -10,6 +10,7 @@ import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs } from "./jobs/search.js";
+import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
 import { changeStatus, markApplied } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
@@ -43,7 +44,9 @@ function printDetails(j: Job) {
     if (t.mustHaveGaps.length) console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n")}`);
     if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
   }
-  console.log(`\n${j.description.slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
+  const research = researchLines(j);
+  if (research.length) console.log(`\n${research.join("\n")}`);
+  console.log(`\n${withoutResearch(j.description).slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
 }
 
 function emailSection(j: Job, heading: string): string | null {
@@ -128,6 +131,9 @@ async function recommendedFlow() {
         { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
+        ...(canWebSearch()
+          ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
+          : []),
         { name: "✅ Já me candidatei (marcar como enviada)", value: "applied" },
         { name: "🗑 Descartar", value: "discard" },
         { name: "⬅ Voltar", value: BACK },
@@ -135,6 +141,11 @@ async function recommendedFlow() {
     });
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
+    if (action === "research") {
+      await researchJob(job.id);
+      await triageJobs({ ids: [job.id] });
+      printDetails(findJob(loadJobs(), job.id));
+    }
     if (action === "open") openExternal(job.applyUrl ?? job.url);
     if (action === "applied") {
       await markApplied(job.id);
@@ -258,7 +269,14 @@ async function pasteFlow() {
   const company = await input({ message: "Empresa:", required: true });
   const title = await input({ message: "Cargo:", required: true });
   const url = await input({ message: "Link da vaga (Enter para pular):" });
+  const research =
+    canWebSearch() &&
+    (await confirm({
+      message: "Pesquisar a vaga e a empresa na web (anúncio oficial, o que faltou no texto, se é real)?",
+      default: !url.trim(),
+    }));
   const job = await addJob({ text, company, title, url: url || undefined });
+  if (research) await researchJob(job.id).catch((e) => console.log(`⚠ Pesquisa na web: ${e instanceof Error ? e.message : e}`));
   console.log("🧠 Triagem...");
   await triageJobs({ ids: [job.id] });
   const j = findJob(loadJobs(), job.id);

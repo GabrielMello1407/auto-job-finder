@@ -22,6 +22,7 @@ import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
 import { diffStats, lineDiff } from "../src/util/diff.js";
 import { missingHeadings, truthHash } from "../src/onboarding/update.js";
+import { researchBlock, withoutResearch } from "../src/jobs/research.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -379,4 +380,28 @@ test("filtro: sem palavras obrigatórias aceita qualquer área", () => {
   const job = (title: string): RawJob => ({ source: "t", title, company: "Acme", location: "", remote: true, url: `https://x/${title}`, tags: [], description: "" });
   const { kept } = prefilter([job("Enfermeira Assistencial"), job("Analista de Marketing Digital")], prefs);
   assert.equal(kept.length, 2);
+});
+
+test("pesquisa da vaga: bloco no fim da descrição, sai inteiro ao pesquisar de novo", () => {
+  const received = "Vaga de Analista Financeiro na Empresa X.\nCurrículo para vagas@empresax.com.br";
+  const block = researchBlock({
+    postingFound: false,
+    postingUrl: "",
+    companySite: "https://empresax.com.br",
+    companySummary: "",
+    extraDetails: [],
+    applyInstructions: "E-mail para vagas@empresax.com.br",
+    officialEmailDomains: ["empresax.com.br"],
+    verdict: "nao_encontrada",
+    notes: ["O e-mail de contato bate com o domínio da empresa."],
+    sources: [],
+  });
+  assert.match(block, /^## Pesquisa na web/);
+  assert.match(block, /anúncio oficial não encontrado/);
+  assert.match(block, /Domínios de e-mail da empresa: empresax\.com\.br/);
+  const description = `${received}\n\n---\n\n${block}`;
+  assert.equal(withoutResearch(description), received);
+  assert.equal(withoutResearch(received), received);
+  // Um "---" do próprio texto da vaga não é confundido com a pesquisa.
+  assert.equal(withoutResearch(`a\n\n---\n\nb`), `a\n\n---\n\nb`);
 });

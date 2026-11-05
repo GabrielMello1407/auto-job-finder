@@ -85,6 +85,27 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 
 As vagas que passam vão para `data/jobs.json` com status `new`. Vagas repetidas (mesmo link, ou mesma empresa e cargo) são ignoradas.
 
+### Vaga colada e vaga sem link
+
+Uma vaga colada (`src/jobs/search.ts#addJob`) entra direto, sem o filtro: você já decidiu que ela interessa. Quando ela chega sem link (indicação, e-mail, WhatsApp), `src/jobs/research.ts#researchJob` pode pesquisá-la antes da triagem. Precisa de uma IA com busca na web (`llm.ts#canWebSearch`).
+
+```mermaid
+flowchart LR
+  A[texto recebido<br/>empresa e cargo] --> B[busca na web<br/>até 6 consultas]
+  B --> C{anúncio oficial?}
+  C -->|achou| D[confirmada<br/>link oficial vira o Ver vaga]
+  C -->|não achou| E[não encontrada<br/>segue com o texto]
+  B --> F{sinais de golpe?}
+  F -->|sim| G[suspeita]
+  D & E & G --> H[bloco 'Pesquisa na web'<br/>no fim da descrição]
+  H --> I[triagem e pacote]
+```
+
+- A IA devolve um objeto validado (`JobResearchSchema`): anúncio oficial, site e resumo da empresa, detalhes que o texto não trazia, como se candidatar, domínios de e-mail da empresa, veredito e observações.
+- O resultado entra no fim da descrição, separado por `---` e com o título `## Pesquisa na web`, avisando que veio da web e não de quem passou a vaga. Pesquisar de novo troca esse bloco (`withoutResearch`) em vez de acumular.
+- O veredito e os links ficam em `Job.research` para a interface mostrar o selo (confirmada, não encontrada, suspeita). Só links `http(s)` são guardados.
+- A pesquisa não inventa: o que não aparece na web fica como "não encontrado", e a vaga segue com o texto recebido. Os fatos sobre você continuam vindo só do perfil.
+
 ## 3. Triagem pela IA
 
 `src/jobs/triage.ts` manda as vagas novas para a IA em lotes de 6, junto com o seu perfil. Para cada uma, ela devolve:
@@ -229,7 +250,8 @@ src/
   prompts.ts · schemas.ts · market.ts
   jobs/
     sources/             fontes de vagas (APIs públicas, páginas de carreira, web com IA)
-    search.ts filter.ts  busca e filtro
+    search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
+    research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json
     status.ts folders.ts mudança de status e pastas por etapa

@@ -26,7 +26,7 @@
 ## O que ele faz
 
 1. **Monta o seu perfil** a partir do que você tiver: currículo (PDF ou DOCX), PDF do LinkedIn, portfólio, GitHub, um texto, ou respondendo a perguntas.
-2. **Busca vagas** em sites de vagas e na web (LinkedIn, Gupy, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas e sinais de golpe.
+2. **Busca vagas** em sites de vagas e na web (LinkedIn, Gupy, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas e sinais de golpe. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
 3. **Prepara o pacote** de cada vaga boa:
    - currículo adaptado no padrão ATS, em PDF;
    - carta de apresentação, quando o mercado pede;
@@ -76,7 +76,7 @@ ajf         # abre a interface no navegador
 
 Na primeira vez, ele abre no **cadastro do perfil**: arraste o seu currículo e responda o que a IA perguntar. Depois é o dia a dia:
 
-1. **🔎 Buscar vagas** ou **🚀 Piloto automático**: busca, avalia e gera os pacotes das melhores.
+1. **🔎 Buscar vagas** ou **🚀 Piloto automático**: busca, avalia e gera os pacotes das melhores. Recebeu uma vaga de alguém? **➕ Colar vaga**, mesmo sem link.
 2. Em **Para decidir**, gere o pacote das vagas que valem a pena.
 3. Em **Prontas**, confira o currículo, candidate-se e clique em **✅ Já me candidatei**.
 4. Em **Em andamento**, mande o follow-up e registre entrevista, oferta ou recusa.
@@ -92,6 +92,8 @@ O passo a passo completo, com cada tela, está no **[guia de uso](docs/guia-de-u
 | **Detalhes da vaga:** o que você já tem, com evidência no seu perfil, e as lacunas | **E-mails e mensagens:** candidatura, LinkedIn e follow-up, com botão de copiar |
 | ![Proposta de atualização do perfil com o antes e o depois](docs/images/perfil-atualizar.jpg) | ![Conferência do LinkedIn](docs/images/linkedin.jpg) |
 | **Atualizar o perfil:** conte uma novidade e confira o antes e o depois antes de salvar | **LinkedIn:** o que corrigir, o que do plano falta e o que já está certo |
+| ![Colar uma vaga recebida sem link](docs/images/colar-vaga-sem-link.jpg) | ![Vaga confirmada pela pesquisa na web](docs/images/vaga-pesquisada.jpg) |
+| **Vaga sem link:** cole o que você recebeu e peça a pesquisa na web | **Pesquisa na web:** anúncio oficial, site da empresa e se a vaga é real |
 | ![Perfil com pontos a confirmar e editor](docs/images/perfil.jpg) | ![Paleta de comandos com Ctrl+K](docs/images/paleta.jpg) |
 | **Perfil:** a fonte única de fatos, com o que falta confirmar | **Ctrl+K:** ache qualquer vaga ou ação digitando |
 

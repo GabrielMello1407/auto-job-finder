@@ -136,6 +136,23 @@ Cada vaga mostra três indicadores:
 - **🚀 Piloto automático:** busca, avalia e já gera os pacotes das melhores vagas (triagem ≥ 70 e sem sinal de golpe). Você escolhe quantos pacotes no máximo.
 - **➕ Colar vaga:** para a vaga que você viu no LinkedIn, num grupo de WhatsApp ou numa indicação. Cole o texto completo ou, se a página abre sem login (Gupy, site da empresa), só o link.
 
+#### Vaga sem link (indicação, e-mail, WhatsApp)
+
+Um amigo mandou "a Empresa X está contratando, manda o currículo para rh@empresax.com.br"? Use **➕ Colar vaga** do mesmo jeito: cole tudo o que você recebeu (requisitos, como é a equipe, e-mail, prazo), preencha empresa e cargo e deixe o link em branco.
+
+![Colar uma vaga sem link](images/colar-vaga-sem-link.jpg)
+
+Com **🔎 Pesquisar a vaga e a empresa na web** ligado (vem ligado quando a IA faz busca na web), antes da triagem o agente:
+- procura o **anúncio oficial** da mesma vaga (site de carreiras, Gupy, LinkedIn…) e o **site da empresa**;
+- acrescenta o que o anúncio traz e o texto recebido não trazia (requisitos, etapas, como se candidatar);
+- **confere se a vaga é real**: e-mail de contato fora do domínio da empresa, empresa que não aparece em lugar nenhum, pedido de taxa ou documentos.
+
+Se achar, a vaga ganha **✓ vaga confirmada na web** e o link oficial vira o **Ver vaga**. Se não achar, ela segue só com o que você colou (**não achada na web**), e a triagem e o pacote funcionam do mesmo jeito. Com sinais de golpe, aparece **🚩 vaga suspeita**.
+
+![Vaga pesquisada na web](images/vaga-pesquisada.jpg)
+
+O que foi achado fica no fim da **Descrição da vaga**, marcado como pesquisa, e passa a valer para a triagem e o pacote; nada é inventado. Nos detalhes de qualquer vaga, **🔎 Pesquisar na web** faz a mesma pesquisa depois (e refaz a triagem se o pacote ainda não foi gerado). Se o canal for e-mail, o pacote já traz o e-mail de candidatura pronto para você enviar.
+
 ### Decidir
 
 ![Vagas para decidir](images/vagas-para-decidir.jpg)
@@ -187,6 +204,7 @@ Mais opções nos detalhes:
   ![Gerar com opções](images/gerar-com-opcoes.jpg)
 
 - **🧠 Avaliar de novo:** refaz a triagem (só antes do pacote).
+- **🔎 Pesquisar na web:** acha o anúncio oficial e o site da empresa e confere se a vaga é real ([vaga sem link](#vaga-sem-link-indicação-e-mail-whatsapp)).
 - **🔄 Gerar o PDF de novo:** depois de editar o `resume.json` da pasta do pacote à mão.
 
 ## 6. Atalhos e paleta de comandos
@@ -311,7 +329,8 @@ Tudo da interface também existe no terminal.
 | `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou) |
 | `ajf triage [--id <ids...>] [-l 10]` | Triagem das vagas novas, ou de novo das indicadas |
 | `ajf jobs [--status shortlisted] [-a]` · `ajf show <id>` | Lista e detalhes |
-| `ajf add --file vaga.md --company X --title Y` · `ajf add --url <link>` | Adiciona uma vaga |
+| `ajf add --file vaga.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` | Adiciona uma vaga. Com `--pesquisar`, pesquisa a vaga e a empresa na web antes da triagem (vaga sem link) |
+| `ajf pesquisar [empresa, cargo ou id]` | Pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real |
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover]` | Gera o pacote |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
@@ -346,6 +365,9 @@ O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminh
 **Fiz um projeto novo ou mudei de emprego. Como atualizo?**
 Em **Perfil → ➕ Contar uma novidade** (ou `ajf atualizar --texto "..."`). Você confere o antes e o depois, e os currículos-base são refeitos. Depois, gere de novo os pacotes prontos marcados com "perfil mudou depois". Veja [Atualizar o perfil depois](#atualizar-o-perfil-depois).
 
+**Recebi uma vaga por indicação, sem link. Dá para usar?**
+Dá. Em **➕ Colar vaga**, cole o que você recebeu, preencha empresa e cargo e deixe **🔎 Pesquisar a vaga e a empresa na web** ligado: o agente procura o anúncio oficial e o site da empresa, completa o que faltar e confere se a vaga é real. Se não achar nada, a vaga segue com o que você colou. Veja [Vaga sem link](#vaga-sem-link-indicação-e-mail-whatsapp).
+
 **O plano do LinkedIn mostra coisas que eu já mudei.**
 O plano é um retrato do dia em que foi gerado, e o agente não acessa o LinkedIn. Mande o PDF ou o texto atual do seu LinkedIn e clique em **✅ Conferir meu LinkedIn**: ele mostra o que já está certo e o que ainda falta. Veja [LinkedIn](#8-linkedin).
 
@@ -365,4 +387,4 @@ Ele é feito para não inventar. Só usa fatos do seu perfil, e travas em códig
 `git pull` e depois `npm install`. Seus dados ficam em `profile/`, `data/` e `output/` e não são afetados.
 
 **Cuidado com golpes.**
-Recuse vaga que peça pagamento, "kit", documentos na candidatura ou para baixar e rodar código num "teste". A triagem marca esses sinais com 🚩.
+Recuse vaga que peça pagamento, "kit", documentos na candidatura ou para baixar e rodar código num "teste". A triagem marca esses sinais com 🚩. Para vaga que chegou por mensagem, use **🔎 Pesquisar na web**: ela confere se o anúncio existe e se o e-mail de contato é mesmo da empresa.

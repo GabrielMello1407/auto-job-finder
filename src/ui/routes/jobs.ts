@@ -11,6 +11,7 @@ import { findJob, loadJobs } from "../../jobs/store.js";
 import { triageJobs } from "../../jobs/triage.js";
 import type { Job } from "../../schemas.js";
 import { profileChangedAt } from "../../onboarding/update.js";
+import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
 import { fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
@@ -59,6 +60,13 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
       seniority: j.triage.seniority,
       recommendation: j.triage.recommendation,
       scam: j.triage.scamSignals,
+    },
+    research: j.research && {
+      verdict: j.research.verdict,
+      postingUrl: isHttp(j.research.postingUrl) ? j.research.postingUrl : undefined,
+      companySite: isHttp(j.research.companySite) ? j.research.companySite : undefined,
+      notes: j.research.notes,
+      at: j.research.at,
     },
     pkg: dir
       ? {
@@ -194,13 +202,21 @@ export function jobRoutes(app: App): Route[] {
     );
   };
 
-  const enqueueTriage = (ids?: string[]) => {
+  const enqueueTriage = (ids?: string[], research = false) => {
     requireProfileForTasks();
     if (!ids && queue.has("triage")) throw new HttpError(409, "A triagem já está na fila.");
     return queue.add(
       "triage",
-      ids?.length === 1 ? "Avaliar a vaga colada" : "Avaliar vagas novas",
+      ids?.length === 1 ? (research ? "Pesquisar e avaliar a vaga colada" : "Avaliar a vaga colada") : "Avaliar vagas novas",
       async () => {
+        // Vaga recebida sem link: primeiro a pesquisa na web, para a triagem já ver o anúncio oficial.
+        if (research && ids?.length === 1) {
+          try {
+            await researchJob(ids[0]);
+          } catch (e) {
+            console.log(`⚠ Pesquisa na web: ${(e as Error).message}`);
+          }
+        }
         const t = await triageJobs(ids ? { ids } : {});
         return `${t.length} avaliada(s) · ${t.filter((j) => j.status === "shortlisted").length} recomendada(s)`;
       },
@@ -354,7 +370,7 @@ export function jobRoutes(app: App): Route[] {
           throw new HttpError(400, (e as Error).message);
         }
         app.jobsChanged(job.id);
-        return { job: jobSummary(job), task: enqueueTriage([job.id]) };
+        return { job: jobSummary(job), task: enqueueTriage([job.id], Boolean(body.research) && canWebSearch()) };
       },
     ],
 
@@ -424,6 +440,31 @@ export function jobRoutes(app: App): Route[] {
             async () => {
               const [t] = await triageJobs({ ids: [job.id] });
               return t?.triage ? `triagem ${t.triage.score} · ${STATUS_LABELS[t.status]}` : "avaliada";
+            },
+            job.id,
+          ),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/research$/,
+      (c) => {
+        // "Pesquisar na web": anúncio oficial, site da empresa, detalhes e verificação de golpe.
+        requireProfileForTasks();
+        if (!canWebSearch()) throw new HttpError(400, "A IA escolhida não faz busca na web.");
+        const job = jobFrom(c.params[0]);
+        if (queue.has("research", job.id) || queue.has("triage", job.id)) throw new HttpError(409, "Essa vaga já está na fila.");
+        return {
+          task: queue.add(
+            "research",
+            `Pesquisar na web: ${job.company || job.title}`,
+            async () => {
+              const updated = await researchJob(job.id);
+              // Antes do pacote, a triagem é refeita com o que foi achado.
+              if (["new", "triaged", "shortlisted"].includes(updated.status)) await triageJobs({ ids: [job.id] });
+              const v = updated.research?.verdict;
+              return v === "confirmada" ? "anúncio oficial encontrado" : v === "suspeita" ? "🚩 sinais de golpe" : "anúncio oficial não encontrado";
             },
             job.id,
           ),

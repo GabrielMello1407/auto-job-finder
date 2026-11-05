@@ -33,6 +33,7 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 ## UX
 
 - `ajf` with no args opens the local web UI (`src/ui/`): `server.ts` (127.0.0.1 only, token cookie, static files, SSE), `routes/` (jobs, profile/onboarding/LinkedIn, preferences), `tasks.ts` (one-at-a-time queue that captures terminal output as the task log) and a no-build page in `src/ui/public/` (ES modules in `js/`). Without a profile the UI opens on the onboarding wizard, which reuses `onboarding/index.ts#buildAndSaveProfile` like `ajf init`. `ajf menu` opens the terminal menu (`src/menu.ts`). Keep the UI and the menu offering the same actions.
+- A pasted job without a link (referral, e-mail, WhatsApp) can be researched on the web before triage: `src/jobs/research.ts#researchJob` (UI paste switch, `ajf add --pesquisar`, `ajf pesquisar`). It appends a `## Pesquisa na web` block to the description (replaced on re-run by `withoutResearch`) and stores the verdict in `Job.research`. Record only what the search found; never invent postings, links or contacts.
 - `ajf auto` runs `src/auto.ts`: search, then triage, then tailor every job with triage score ≥ `AJF_MIN_TRIAGE_SCORE`, then the dashboard. Web search defaults to `preferences.webSearchByDefault`.
 - Packages with a final rating below `AJF_MIN_RATING` (7) get status `low_fit`.
 - The package README (LEIA-ME) includes how to apply, based on `JobAnalysis.applyChannel` (email, linkedin, plataforma, site, whatsapp).

@@ -12,6 +12,7 @@ import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs } from "./jobs/search.js";
 import { select } from "@inquirer/prompts";
+import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
 import { changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
@@ -163,8 +164,11 @@ program
       console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n") || "  (nenhuma)"}`);
       if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
     }
+    const research = researchLines(j);
+    if (research.length) console.log(`\n${research.join("\n")}`);
     if (j.outputDir) console.log(`\nPacote: ${j.outputDir}`);
-    console.log(`\n${j.description.slice(0, 1500)}${j.description.length > 1500 ? "\n[...]" : ""}`);
+    const text = withoutResearch(j.description);
+    console.log(`\n${text.slice(0, 1500)}${text.length > 1500 ? "\n[...]" : ""}`);
   });
 
 program
@@ -175,15 +179,32 @@ program
   .option("--title <título>")
   .option("--company <empresa>")
   .option("--location <local>")
+  .option("--pesquisar", "pesquisa a vaga e a empresa na web antes da triagem (vaga recebida sem link, por indicação ou e-mail)")
   .option("--no-triage", "não rodar a triagem automaticamente")
   .action(async (o) => {
     const job = await addJob(o);
     console.log(`Vaga adicionada: ${job.id} — ${job.title} (${job.company})`);
+    if (o.pesquisar) await researchJob(job.id).catch((e) => console.log(`⚠ Pesquisa na web: ${e instanceof Error ? e.message : e}`));
     if (o.triage) {
       await triageJobs({ ids: [job.id] });
       printJobs([findJob(loadJobs(), job.id)]);
     }
     console.log(`\nPróximo passo: ajf tailor ${job.id}`);
+  });
+
+program
+  .command("pesquisar")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real")
+  .option("--no-triage", "não refazer a triagem com o que foi achado")
+  .action(async (busca: string[], o) => {
+    const job = await pickJob({ query: busca.join(" "), message: "Qual vaga pesquisar?" });
+    const updated = await researchJob(job.id);
+    if (o.triage && ["new", "triaged", "shortlisted"].includes(updated.status)) {
+      await triageJobs({ ids: [updated.id] });
+      printJobs([findJob(loadJobs(), updated.id)]);
+    }
+    console.log(`\nO que foi achado está no fim da descrição da vaga: ajf show ${updated.id}`);
   });
 
 program

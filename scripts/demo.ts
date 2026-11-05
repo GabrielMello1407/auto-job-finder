@@ -60,6 +60,16 @@ interface DemoJob {
   interviewGuide?: boolean;
   /** Pacote feito antes da última mudança no perfil. */
   outdated?: boolean;
+  /** Vaga recebida sem link (indicação, e-mail, WhatsApp) e pesquisada na web. */
+  research?: {
+    verdict: "confirmada" | "nao_encontrada" | "suspeita";
+    postingUrl?: string;
+    companySite?: string;
+    summary?: string;
+    extra?: string[];
+    apply?: string;
+    notes: string[];
+  };
 }
 
 const EVID_FULLSTACK = [
@@ -230,7 +240,17 @@ Requirements
       lang: "pt-BR",
       seniority: "pleno",
     },
-    description: "Empresa de software (fictícia) contrata back-end Node.js para APIs de logística. Node.js, TypeScript, PostgreSQL, filas e tempo real.",
+    description:
+      "Indicação de um amigo: a Nuvem Azul (fictícia) contrata back-end Node.js para o time de APIs de logística. Node.js, TypeScript, PostgreSQL, filas e tempo real. Currículo para talentos@nuvemazul.example.com com o assunto \"Back-end Node\".",
+    research: {
+      verdict: "confirmada",
+      postingUrl: "https://example.com/carreiras/nuvem-azul/backend-node",
+      companySite: "https://example.com/nuvem-azul",
+      summary: "Empresa de software (fictícia) para logística: rastreamento de frotas e roteirização para transportadoras.",
+      extra: ["Experiência com filas (RabbitMQ ou SQS)", "Desejável: Docker", "Etapas: conversa com RH, desafio técnico e entrevista com o time"],
+      apply: "E-mail para talentos@nuvemazul.example.com com o assunto \"Back-end Node\", até o fim do mês.",
+      notes: ["O anúncio oficial no site de carreiras é a mesma vaga, com os mesmos requisitos.", "O e-mail que o seu amigo passou bate com o domínio da empresa."],
+    },
   },
   {
     id: "demo0007",
@@ -293,6 +313,14 @@ Requirements
       seniority: "júnior",
     },
     description: "Vaga (fictícia) com início imediato. Para participar, pague a taxa de cadastro de R$ 49,90 e envie seus documentos pelo WhatsApp.",
+    research: {
+      verdict: "suspeita",
+      notes: [
+        "Nenhum anúncio desta vaga no site ou nas redes da empresa.",
+        "O contato é um WhatsApp pessoal, não um canal da empresa.",
+        "Empresas sérias não cobram taxa para participar de processo seletivo.",
+      ],
+    },
   },
   {
     id: "demo0010",
@@ -664,6 +692,7 @@ async function main() {
     console.log(`⚠ Sem PDFs na demo (${(e as Error).message})`);
   }
 
+  const { researchBlock } = await import("../src/jobs/research.js");
   const jobs = JOBS.map((j) => {
     const job: Record<string, unknown> = {
       id: j.id,
@@ -693,6 +722,26 @@ async function main() {
         seniority: j.triage.seniority,
         reason: j.triage.reason,
       };
+    if (j.research) {
+      const r = j.research;
+      job.source = "manual";
+      job.url = `manual://colada#${j.id}`;
+      if (r.postingUrl) job.applyUrl = r.postingUrl;
+      const block = researchBlock({
+        postingFound: r.verdict === "confirmada",
+        postingUrl: r.postingUrl ?? "",
+        companySite: r.companySite ?? "",
+        companySummary: r.summary ?? "",
+        extraDetails: r.extra ?? [],
+        applyInstructions: r.apply ?? "",
+        officialEmailDomains: [],
+        verdict: r.verdict,
+        notes: r.notes,
+        sources: [r.postingUrl, r.companySite].filter((u): u is string => Boolean(u)),
+      });
+      job.description = `${j.description}\n\n---\n\n${block}`;
+      job.research = { at: ago(j.days, 1), verdict: r.verdict, postingUrl: r.postingUrl, companySite: r.companySite, notes: r.notes };
+    }
     if (j.appliedDays != null) job.appliedAt = ago(j.appliedDays, 3);
     if (j.notes) job.notes = j.notes;
 

@@ -105,6 +105,17 @@ export interface Job {
   files?: { resume?: string; coverLetter?: string };
   appliedAt?: string;
   notes?: string;
+  /** Pesquisa na web sobre a vaga e a empresa (vagas recebidas sem link ou por indicação). */
+  research?: JobResearchSummary;
+}
+
+export interface JobResearchSummary {
+  at: string;
+  /** confirmada = achou o anúncio oficial; nao_encontrada = a empresa existe ou não, mas o anúncio não apareceu; suspeita = sinais de golpe. */
+  verdict: "confirmada" | "nao_encontrada" | "suspeita";
+  postingUrl?: string;
+  companySite?: string;
+  notes: string[];
 }
 
 export const MarketSchema = z.enum(["BR", "US", "CA", "UK", "EU", "LATAM", "GLOBAL"]);
