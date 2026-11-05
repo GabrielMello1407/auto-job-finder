@@ -20,6 +20,9 @@ import { isStatus, matchJobs } from "../src/jobs/status.js";
 import { relocatePackage } from "../src/jobs/folders.js";
 import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
+import { diffStats, lineDiff } from "../src/util/diff.js";
+import { missingHeadings, truthHash } from "../src/onboarding/update.js";
+import { researchBlock, withoutResearch } from "../src/jobs/research.js";
 import { paths } from "../src/config.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -329,6 +332,25 @@ test("interface: pontos a confirmar e e-mails separados para copiar", () => {
   assert.equal(emails.sections[1].message, "Oi de novo.");
 });
 
+test("atualizar perfil: antes e depois linha a linha e seções que não podem sumir", () => {
+  const before = "# Perfil\n## Experiência\n- A\n## Projetos\n- P1\n## A confirmar\n- (nada)\n";
+  const after = "# Perfil\n## Experiência\n- B\n- A\n## Projetos\n- P1\n- P2\n## A confirmar\n- (nada)\n";
+  const diff = lineDiff(before, after);
+  assert.deepEqual(
+    diff.filter((l) => l.type !== "same").map((l) => `${l.type}:${l.text}`),
+    ["add:- B", "add:- P2"],
+  );
+  assert.deepEqual(diffStats(diff), { added: 2, removed: 0 });
+  assert.deepEqual(lineDiff("a\nb\n", "a\nc\n").filter((l) => l.type !== "same").map((l) => l.type), ["del", "add"]);
+  // Quebras de linha do Windows não contam como mudança.
+  assert.equal(lineDiff("a\r\nb", "a\nb").every((l) => l.type === "same"), true);
+
+  assert.deepEqual(missingHeadings(before, after), []);
+  assert.deepEqual(missingHeadings(before, "# Perfil\n## Experiência\n- A\n"), ["## Projetos", "## A confirmar"]);
+  assert.equal(truthHash("x\r\ny\n"), truthHash("x\ny"));
+  assert.notEqual(truthHash("x"), truthHash("y"));
+});
+
 test("JSON: extrai de resposta com cercas e valida com nova tentativa", async () => {
   assert.deepEqual(extractJson('Aqui está:\n```json\n{"a": 1}\n```'), { a: 1 });
   assert.deepEqual(extractJson('texto {"a": {"b": 2}} fim'), { a: { b: 2 } });
@@ -358,4 +380,28 @@ test("filtro: sem palavras obrigatórias aceita qualquer área", () => {
   const job = (title: string): RawJob => ({ source: "t", title, company: "Acme", location: "", remote: true, url: `https://x/${title}`, tags: [], description: "" });
   const { kept } = prefilter([job("Enfermeira Assistencial"), job("Analista de Marketing Digital")], prefs);
   assert.equal(kept.length, 2);
+});
+
+test("pesquisa da vaga: bloco no fim da descrição, sai inteiro ao pesquisar de novo", () => {
+  const received = "Vaga de Analista Financeiro na Empresa X.\nCurrículo para vagas@empresax.com.br";
+  const block = researchBlock({
+    postingFound: false,
+    postingUrl: "",
+    companySite: "https://empresax.com.br",
+    companySummary: "",
+    extraDetails: [],
+    applyInstructions: "E-mail para vagas@empresax.com.br",
+    officialEmailDomains: ["empresax.com.br"],
+    verdict: "nao_encontrada",
+    notes: ["O e-mail de contato bate com o domínio da empresa."],
+    sources: [],
+  });
+  assert.match(block, /^## Pesquisa na web/);
+  assert.match(block, /anúncio oficial não encontrado/);
+  assert.match(block, /Domínios de e-mail da empresa: empresax\.com\.br/);
+  const description = `${received}\n\n---\n\n${block}`;
+  assert.equal(withoutResearch(description), received);
+  assert.equal(withoutResearch(received), received);
+  // Um "---" do próprio texto da vaga não é confundido com a pesquisa.
+  assert.equal(withoutResearch(`a\n\n---\n\nb`), `a\n\n---\n\nb`);
 });

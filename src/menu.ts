@@ -4,18 +4,20 @@ import { checkbox, confirm, editor, input, number, select, Separator } from "@in
 import { autopilot, candidatesForPackage } from "./auto.js";
 import { hasProfile, settings } from "./config.js";
 import { canWebSearch } from "./llm.js";
-import { runInit } from "./onboarding/index.js";
+import { runInit, runProfileUpdate } from "./onboarding/index.js";
+import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs } from "./jobs/search.js";
+import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
 import { changeStatus, markApplied } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { interviewGuide, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
-import { linkedinPlan } from "./writers/linkedin.js";
+import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
 
 const BACK = "__back__";
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -42,7 +44,9 @@ function printDetails(j: Job) {
     if (t.mustHaveGaps.length) console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n")}`);
     if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
   }
-  console.log(`\n${j.description.slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
+  const research = researchLines(j);
+  if (research.length) console.log(`\n${research.join("\n")}`);
+  console.log(`\n${withoutResearch(j.description).slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
 }
 
 function emailSection(j: Job, heading: string): string | null {
@@ -127,6 +131,9 @@ async function recommendedFlow() {
         { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
+        ...(canWebSearch()
+          ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
+          : []),
         { name: "✅ Já me candidatei (marcar como enviada)", value: "applied" },
         { name: "🗑 Descartar", value: "discard" },
         { name: "⬅ Voltar", value: BACK },
@@ -134,6 +141,11 @@ async function recommendedFlow() {
     });
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
+    if (action === "research") {
+      await researchJob(job.id);
+      await triageJobs({ ids: [job.id] });
+      printDetails(findJob(loadJobs(), job.id));
+    }
     if (action === "open") openExternal(job.applyUrl ?? job.url);
     if (action === "applied") {
       await markApplied(job.id);
@@ -257,12 +269,67 @@ async function pasteFlow() {
   const company = await input({ message: "Empresa:", required: true });
   const title = await input({ message: "Cargo:", required: true });
   const url = await input({ message: "Link da vaga (Enter para pular):" });
+  const research =
+    canWebSearch() &&
+    (await confirm({
+      message: "Pesquisar a vaga e a empresa na web (anúncio oficial, o que faltou no texto, se é real)?",
+      default: !url.trim(),
+    }));
   const job = await addJob({ text, company, title, url: url || undefined });
+  if (research) await researchJob(job.id).catch((e) => console.log(`⚠ Pesquisa na web: ${e instanceof Error ? e.message : e}`));
   console.log("🧠 Triagem...");
   await triageJobs({ ids: [job.id] });
   const j = findJob(loadJobs(), job.id);
   printDetails(j);
   if (await confirm({ message: "Gerar o pacote agora?", default: j.status === "shortlisted" })) await makePackages([j]);
+  refresh();
+}
+
+/** O LinkedIn atual: caminho do PDF exportado ou texto colado no editor. */
+async function askCurrentLinkedin(required: boolean): Promise<string> {
+  const how = await select({
+    message: "Como mandar o seu LinkedIn de hoje? (o agente não acessa o LinkedIn)",
+    choices: [
+      { name: "📄 PDF do perfil (no LinkedIn: Mais → Salvar como PDF)", value: "pdf" },
+      { name: "📝 Colar o texto do perfil", value: "text" },
+      ...(required ? [] : [{ name: "Pular", value: "skip" }]),
+    ],
+  });
+  if (how === "skip") return "";
+  if (how === "pdf") return readLinkedinFile((await input({ message: "Caminho do PDF (pode arrastar o arquivo para o terminal):" })).trim().replace(/^["']|["']$/g, ""));
+  return (await editor({ message: "Vou abrir o editor: cole o texto do seu LinkedIn, salve e feche.", waitForUserInput: false })).trim();
+}
+
+async function linkedinFlow() {
+  const action = await select({
+    message: "LinkedIn",
+    choices: [
+      { name: "✅ Conferir meu LinkedIn (o que está certo, o que falta do plano, o que corrigir)", value: "check" },
+      { name: "✨ Gerar um plano novo", value: "plan" },
+      { name: "⬅ Voltar", value: BACK },
+    ],
+  });
+  if (action === BACK) return;
+  if (action === "check") console.log(`Conferência salva em ${await linkedinCheck(await askCurrentLinkedin(true))}`);
+  if (action === "plan") {
+    const current = await askCurrentLinkedin(false);
+    console.log(`Plano salvo em ${await linkedinPlan({ current: current || undefined })}`);
+  }
+}
+
+async function profileFlow() {
+  const action = await select({
+    message: "Atualizar meu perfil",
+    choices: [
+      { name: "➕ Contar uma novidade (projeto, emprego, curso, resultado)", value: "update" },
+      { name: "🔄 Refazer os currículos-base a partir do profile_truth.md (depois de editar à mão)", value: "rebuild" },
+      { name: "🧭 Montar o perfil do zero (novo currículo, LinkedIn, portfólio)", value: "init" },
+      { name: "⬅ Voltar", value: BACK },
+    ],
+  });
+  if (action === "update") await runProfileUpdate({});
+  if (action === "rebuild") await rebuildBaseResumes();
+  if (action === "init") await runInit();
   refresh();
 }
 
@@ -299,8 +366,8 @@ export async function mainMenu() {
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
         { name: "🔎 Só buscar e triar vagas novas", value: "search" },
         { name: "🌐 Abrir painel no navegador", value: "dashboard" },
-        { name: "🔗 Gerar plano de LinkedIn", value: "linkedin" },
-        { name: "🧭 Atualizar meu perfil (novo currículo, LinkedIn, portfólio)", value: "init" },
+        { name: "🔗 LinkedIn: plano ou conferência", value: "linkedin" },
+        { name: "🧭 Atualizar meu perfil (novidade, currículos-base ou do zero)", value: "init" },
         { name: "🤖 Escolher a IA (Claude, ChatGPT/Codex, Gemini, APIs)", value: "ia" },
         { name: "Sair", value: "exit" },
       ],
@@ -318,8 +385,8 @@ export async function mainMenu() {
       if (choice === "paste") await pasteFlow();
       if (choice === "search") await searchFlow();
       if (choice === "dashboard") openExternal(writeDashboard());
-      if (choice === "linkedin") console.log(`Plano salvo em ${await linkedinPlan({})}`);
-      if (choice === "init") await runInit();
+      if (choice === "linkedin") await linkedinFlow();
+      if (choice === "init") await profileFlow();
       if (choice === "ia") {
         await chooseProvider();
         printProviders();

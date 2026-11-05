@@ -5,9 +5,12 @@ import { ensureDir, hasProfile, paths } from "../config.js";
 import { DEFAULT_PREFERENCES, loadPreferences, type Preferences } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import { slugify } from "../util/text.js";
+import type { DiffLine } from "../util/diff.js";
+import { backupProfile } from "./backup.js";
 import { buildBaseResume, buildProfile, readIntake, type Intake, type PreferenceAnswers } from "./build.js";
 import { chooseProvider } from "./provider.js";
 import { LINKEDIN_EXPORT_HELP, readSource, type SourceDoc } from "./sources.js";
+import { applyProposal, discardProposal, loadProposal, proposalDiff, proposalOutdated, proposeProfileUpdate, type ProfileUpdateProposal } from "./update.js";
 
 /**
  * `ajf init`: monta o perfil de QUALQUER pessoa a partir do que ela tiver — currículo (PDF/DOCX),
@@ -180,17 +183,6 @@ async function collectSources(prefilled: string[]): Promise<SourceDoc[]> {
   }
 }
 
-function backupProfile(): string | null {
-  const files = ["profile_truth.md", "base_resume.pt.json", "base_resume.en.json", "preferences.json", "rules.json"]
-    .map((f) => path.join(paths.profileDir, f))
-    .filter((f) => fs.existsSync(f));
-  if (!files.length) return null;
-  const dir = path.join(paths.profileDir, `backup-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`);
-  ensureDir(dir);
-  for (const f of files) fs.copyFileSync(f, path.join(dir, path.basename(f)));
-  return dir;
-}
-
 export function saveSources(sources: SourceDoc[]) {
   ensureDir(paths.sourcesDir);
   sources.forEach((s, i) =>
@@ -342,4 +334,73 @@ Próximos passos:
   1. Abra profile/profile_truth.md e confira tudo — principalmente "A confirmar". Tudo o que o agente escreve sai dele.
   2. Confira o PDF do currículo-base em output/base/.
   3. Rode 'ajf' → "Piloto automático" para buscar vagas e gerar os pacotes.`);
+}
+
+/* ------------------------------------------------ atualizar o perfil (terminal) */
+
+const GREEN = "\x1b[32m";
+const RED = "\x1b[31m";
+const DIM = "\x1b[2m";
+const RESET = "\x1b[0m";
+
+/** Mostra só as linhas que mudaram, com uma linha de contexto em volta. */
+export function printDiff(lines: DiffLine[], context = 1) {
+  const show = lines.map((l, i) => l.type !== "same" || lines.slice(Math.max(0, i - context), i + context + 1).some((x) => x.type !== "same"));
+  let skipped = false;
+  lines.forEach((l, i) => {
+    if (!show[i]) {
+      if (!skipped) console.log(`${DIM}   ⋯${RESET}`);
+      skipped = true;
+      return;
+    }
+    skipped = false;
+    if (l.type === "add") console.log(`${GREEN} + ${l.text}${RESET}`);
+    else if (l.type === "del") console.log(`${RED} - ${l.text}${RESET}`);
+    else console.log(`${DIM}   ${l.text}${RESET}`);
+  });
+}
+
+function printProposal(p: ProfileUpdateProposal) {
+  console.log(`\n📝 Proposta de atualização (${p.sources.join(", ")}):`);
+  p.changes.forEach((c) => console.log(`   ✓ ${c}`));
+  if (p.toConfirm.length) {
+    console.log("\n   Ficou para você confirmar:");
+    p.toConfirm.forEach((c) => console.log(`   ? ${c}`));
+  }
+  console.log("\nO que muda no profile_truth.md:");
+  printDiff(proposalDiff(p));
+}
+
+/**
+ * `ajf atualizar`: conta uma novidade (texto, arquivos ou links), mostra a proposta e, se a pessoa
+ * aprovar, salva o perfil e refaz os currículos-base. A mesma coisa que "Atualizar o perfil" na interface.
+ */
+export async function runProfileUpdate(opts: { inputs?: string[]; text?: string; apply?: boolean; discard?: boolean; yes?: boolean }) {
+  if (!hasProfile()) throw new Error("Ainda não há perfil. Rode 'ajf init' primeiro.");
+  if (opts.discard) {
+    discardProposal();
+    return console.log("Proposta descartada.");
+  }
+
+  let proposal = loadProposal();
+  if (!opts.apply) {
+    const news: SourceDoc[] = [];
+    let text = opts.text?.trim() ?? "";
+    if (!text && !opts.inputs?.length && process.stdin.isTTY)
+      text = (await editor({ message: "Vou abrir o editor: conte a novidade (projeto, emprego, curso, resultado), salve e feche.", waitForUserInput: false })).trim();
+    if (text) news.push({ kind: "respostas", label: "Novidade contada", origin: "terminal", text });
+    for (const v of opts.inputs ?? []) await addSource(news, v);
+    if (!news.length) throw new Error("Conte a novidade: --texto \"...\", um arquivo ou um link.");
+    console.log("\n🧠 Preparando a atualização do perfil...");
+    proposal = await proposeProfileUpdate(news);
+  }
+  if (!proposal) throw new Error("Não há proposta salva. Rode 'ajf atualizar' com a novidade.");
+  if (proposalOutdated(proposal))
+    throw new Error("O perfil foi editado depois da proposta. Descarte com 'ajf atualizar --descartar' e conte a novidade de novo.");
+  printProposal(proposal);
+
+  const ok = opts.yes || (process.stdin.isTTY && (await confirm({ message: "Aplicar e refazer os currículos-base?", default: true })));
+  if (!ok) return console.log("\nA proposta ficou salva: aplique depois com 'ajf atualizar --aplicar' ou pela interface (Perfil).");
+  await applyProposal();
+  console.log("\nPronto. Os próximos pacotes já usam o perfil novo; os pacotes prontos antigos aparecem como desatualizados na interface.");
 }

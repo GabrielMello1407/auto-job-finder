@@ -55,7 +55,19 @@ function meta(j) {
   const parts = [j.location, j.triage?.market, salary(j.salary)].filter(Boolean).map(esc);
   const flags = j.triage?.scam?.length ? `<span class="chip bad" title="${esc(j.triage.scam.join("; "))}">🚩 sinais de golpe</span>` : "";
   const fresh = j.status === "new" ? `<span class="chip accent">nova · sem triagem</span>` : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${fresh}</div>`;
+  const outdated = j.pkg?.outdated ? `<span class="chip warn" title="O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades.">perfil mudou depois</span>` : "";
+  const research = j.research ? researchChip(j.research) : "";
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${fresh}${outdated}</div>`;
+}
+
+const RESEARCH = {
+  confirmada: ["ok", "✓ vaga confirmada na web", "O agente achou o anúncio oficial desta vaga."],
+  nao_encontrada: ["", "não achada na web", "O agente não achou o anúncio oficial. A vaga segue com o que foi informado."],
+  suspeita: ["bad", "🚩 vaga suspeita", "A pesquisa na web achou sinais de golpe. Veja os detalhes."],
+};
+function researchChip(r) {
+  const [cls, text, title] = RESEARCH[r.verdict] ?? RESEARCH.nao_encontrada;
+  return `<span class="chip ${cls}" title="${esc(title)}">${text}</span>`;
 }
 
 function statusLine(j) {
@@ -75,7 +87,9 @@ function statusLine(j) {
 export function actionsFor(j) {
   const task = jobTask(j.id);
   if (task) {
-    const what = { tailor: "Gerando o pacote…", interview: "Preparando o guia de entrevista…", triage: "A IA está avaliando…", render: "Gerando o PDF…" }[task.kind] ?? "Trabalhando…";
+    const what =
+      { tailor: "Gerando o pacote…", interview: "Preparando o guia de entrevista…", triage: "A IA está avaliando…", research: "Pesquisando na web…", render: "Gerando o PDF…" }[task.kind] ??
+      "Trabalhando…";
     return `<span class="busy"><span class="spin"></span>${task.status === "running" ? what : "Na fila…"}</span>`;
   }
   const pdf = (label = "📄 Currículo") => link(j.pkg?.resume, label);
@@ -89,7 +103,9 @@ export function actionsFor(j) {
     case "tailored":
       A.push(j.url ? link(j.url, "🔗 Candidatar-se", "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, "✉️ Carta") : "");
       if (j.pkg?.emails) A.push(btn("open:emails", "📧 E-mails", j.id));
-      A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"), btn("discard", "Descartar", j.id, "ghost danger"));
+      A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"));
+      if (j.pkg?.outdated) A.push(btn("tailor", "🔄 Gerar de novo", j.id, "", "O seu perfil mudou depois deste pacote"));
+      A.push(btn("discard", "Descartar", j.id, "ghost danger"));
       break;
     case "low_fit":
       A.push(btn("open:pacote", "🔍 Por que a nota baixa?", j.id), pdf(), btn("tailor", "🔄 Gerar de novo", j.id), btn("applied", "✅ Me candidatei assim mesmo", j.id), btn("discard", "Descartar", j.id, "ghost danger"));
@@ -323,6 +339,8 @@ function drawerExtras(j) {
   if (!["applied", "interview", "offer", "rejected"].includes(j.status))
     out.push(btn("tailor-options", j.pkg ? "⚙ Gerar de novo com opções" : "⚙ Gerar com opções", j.id, "ghost small"));
   if (["new", "triaged", "shortlisted", "discarded"].includes(j.status)) out.push(btn("retriage", "🧠 Avaliar de novo", j.id, "ghost small"));
+  if (S.webSearch && !["rejected", "discarded"].includes(j.status))
+    out.push(btn("research", j.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar na web", j.id, "ghost small", "Anúncio oficial, site da empresa e se a vaga é real"));
   return out.join("");
 }
 
@@ -361,6 +379,14 @@ function drawerBody(d, job) {
   if (["applied", "interview", "offer", "rejected"].includes(d.status) && (d.appliedAt || d.notes))
     html += `<div class="panel"><h3>Sua candidatura</h3><p>${d.appliedAt ? `Enviada em ${new Date(d.appliedAt).toLocaleDateString("pt-BR")}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
   if (t?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>🚩 Sinais de golpe</h3><p>${esc(t.scam.join("; "))}</p></div>`;
+  if (d.research) {
+    const r = d.research;
+    html += `<div class="panel"${r.verdict === "suspeita" ? ' style="border-color:var(--bad)"' : ""}><h3>🔎 Pesquisa na web <span class="faint" style="font-weight:400">· ${new Date(r.at).toLocaleDateString("pt-BR")}</span></h3>
+      <div class="status-line">${researchChip(r)}</div>
+      <div class="btn-row" style="margin-top:10px">${link(r.postingUrl, "🔗 Anúncio oficial", "small")}${link(r.companySite, "🏢 Site da empresa", "small")}</div>
+      ${r.notes?.length ? `<ul class="${r.verdict === "confirmada" ? "list-ok" : "list-gap"}" style="margin-top:10px">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      <p class="faint" style="margin-top:8px">Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem e o pacote.</p></div>`;
+  }
   if (d.evidence.length) html += `<div class="panel"><h3>O que você já tem</h3><ul class="list-ok">${d.evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
   if (d.gaps.length) html += `<div class="panel"><h3>Lacunas: requisitos sem evidência no seu perfil</h3><ul class="list-gap">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
   html += `<div class="panel"><h3>Descrição</h3><div class="desc">${esc(d.description.slice(0, 1400))}${d.description.length > 1400 ? "…" : ""}</div>
@@ -475,6 +501,11 @@ action("retriage", async (id) => {
   toast("🧠 Avaliando a vaga de novo.");
   await app.refresh();
 });
+action("research", async (id) => {
+  await api(`/api/jobs/${encodeURIComponent(id)}/research`, {});
+  toast("🔎 Pesquisando a vaga e a empresa na web.");
+  await app.refresh();
+});
 action("rerender", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/render`, {});
   toast("🔄 Gerando o PDF de novo.");
@@ -544,11 +575,17 @@ action("paste", async () => {
   const r = await modal({
     title: "Colar uma vaga",
     wide: true,
-    html: `<p class="muted">Para vagas do LinkedIn, Gupy, e-mail, WhatsApp ou indicação. A IA avalia na hora.</p>
-      <label class="field"><span>Texto completo da vaga</span><small>Se a página da vaga abre sem login (Gupy, site da empresa), pode deixar em branco e informar só o link. Do LinkedIn, cole o texto.</small><textarea name="text" rows="9" placeholder="Cole aqui a descrição inteira: requisitos, responsabilidades, como se candidatar…"></textarea></label>
-      <label class="field"><span>Link da vaga</span><input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
+    html: `<p class="muted">Para vagas do LinkedIn, da Gupy, ou que chegaram por indicação, e-mail ou WhatsApp, mesmo sem link. A IA avalia na hora e você gera o pacote como qualquer outra vaga.</p>
+      <label class="field"><span>Texto da vaga</span><small>Cole tudo o que você recebeu: requisitos, como é a equipe, e-mail para enviar o currículo, prazo. Se a página da vaga abre sem login (Gupy, site da empresa), pode informar só o link. Do LinkedIn, cole o texto.</small><textarea name="text" rows="9" placeholder="ex.: A Empresa X está contratando Desenvolvedor Full Stack Pleno para o time de pagamentos. Requisitos: Node.js, React… Currículo para vagas@empresax.com.br até 20/11."></textarea></label>
+      <label class="field"><span>Link da vaga <small>(se tiver)</small></span><input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
       <div class="grid2"><label class="field"><span>Empresa</span><input name="company" autocomplete="off"></label><label class="field"><span>Cargo</span><input name="title" autocomplete="off"></label></div>
-      <label class="field"><span>Local <small>(opcional)</small></span><input name="location" placeholder="ex.: Remoto, Londrina (híbrido)" autocomplete="off"></label>`,
+      <label class="field"><span>Local <small>(opcional)</small></span><input name="location" placeholder="ex.: Remoto, Londrina (híbrido)" autocomplete="off"></label>
+      <label class="switch"><input type="checkbox" name="research"${S.webSearch ? " checked" : " disabled"}>
+        <span>🔎 Pesquisar a vaga e a empresa na web<small>${
+          S.webSearch
+            ? "Acha o anúncio oficial e o site da empresa, completa o que faltar (requisitos, como se candidatar) e confere se a vaga é real — por exemplo, se o e-mail bate com o domínio da empresa."
+            : "A IA escolhida não faz busca na web."
+        }</small></span></label>`,
     confirm: "Adicionar e avaliar",
     onOpen: (form) => {
       // Texto completo, ou só o link (o agente lê a página). Valida antes de fechar a janela, sem perder o que foi colado.
@@ -565,7 +602,7 @@ action("paste", async () => {
   });
   if (!r) return;
   const res = await api("/api/paste", r);
-  toast(`➕ ${res.job.company} adicionada. A IA está avaliando.`);
+  toast(`➕ ${res.job.company} adicionada. ${r.research && S.webSearch ? "A IA vai pesquisar a vaga na web e avaliar." : "A IA está avaliando."}`);
   stage = "decide";
   store.set("ajf.stage", stage);
   app.go("vagas");

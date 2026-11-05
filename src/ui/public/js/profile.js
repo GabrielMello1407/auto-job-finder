@@ -1,5 +1,5 @@
 // Perfil: assistente de cadastro (fontes → leitura pela IA → perguntas → vagas → montagem) e a página do perfil.
-import { $, action, api, app, btn, esc, link, md, modal, mono, on, plural, S, tagsField, tagValues, toast } from "./core.js";
+import { $, action, api, app, btn, diffHtml, esc, link, modal, mono, on, plural, S, tagsField, tagValues, toast, uploadFile } from "./core.js";
 
 let profile = null; // GET /api/profile
 const wiz = { sub: "questions", answers: {}, justBuilt: false };
@@ -124,9 +124,7 @@ async function upload(files) {
   for (const f of files) {
     toast(`Lendo ${f.name}…`);
     try {
-      const res = await fetch(`/api/profile/upload?name=${encodeURIComponent(f.name)}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+      const data = await uploadFile("/api/profile/upload", f);
       profile.draft = data;
       const added = data.sources[data.sources.length - 1];
       toast(`✅ ${added?.kind === "linkedin" ? "Reconheci o PDF do LinkedIn" : `${f.name} lido`}.`);
@@ -343,6 +341,7 @@ function paintProfile() {
     <div><h2>${esc(p.name || "Sem nome")}</h2><p class="muted">${esc(p.headline)}</p><div class="contact">${contact}</div></div>
     <div class="btn-row">${p.basePdfs.map((f) => link(f.url, `📄 ${/_en\.pdf$/i.test(f.name) ? "Inglês" : "Português"}`, "small")).join("")}</div>
   </div>
+  ${updatePanel(p.update)}
   ${
     p.pending.length
       ? `<div class="panel"><h3>⚠️ ${plural(p.pending.length, "ponto a confirmar", "pontos a confirmar")}</h3>
@@ -365,6 +364,103 @@ function paintProfile() {
   });
   paintSaveBar();
 }
+
+/* ------------------------------------------------------ atualizar o perfil */
+
+const UPDATE_TASKS = { "profile-update": "A IA está preparando as mudanças no seu perfil…", "profile-apply": "Atualizando o perfil e refazendo os currículos-base…", "rebuild-base": "Refazendo os currículos-base a partir do perfil…" };
+const updateTask = () => Object.keys(UPDATE_TASKS).map(running).find(Boolean);
+
+function updatePanel(u) {
+  const task = updateTask();
+  if (task)
+    return `<div class="panel update"><span class="busy"><span class="spin"></span>${task.status === "running" ? UPDATE_TASKS[task.kind] : "Na fila…"}</span>
+      <p class="faint">${esc(lastLog(task))}</p></div>`;
+  const prop = u?.proposal;
+  if (prop) {
+    const when = new Date(prop.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    return `<div class="panel update proposal">
+      <div class="section-title" style="margin-top:0"><h2>📝 Proposta de atualização</h2><span class="faint">${esc(when)} · ${esc(prop.sources.join(", "))}</span></div>
+      <p class="muted">Confira antes de aplicar. Nada foi salvo ainda.</p>
+      <h3>O que muda</h3><ul class="list-ok">${prop.changes.map((c) => `<li>${esc(c)}</li>`).join("") || "<li>nenhuma mudança</li>"}</ul>
+      ${prop.toConfirm.length ? `<h3>Ficou para você confirmar</h3><ul class="pending">${prop.toConfirm.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
+      <details class="diff-box"><summary>Ver o texto antes e depois <span class="chip ok">+${prop.stats.added}</span> <span class="chip bad">−${prop.stats.removed}</span></summary>${diffHtml(prop.diff)}</details>
+      ${prop.outdated ? `<p class="status-line warn">⚠️ Você editou o perfil depois desta proposta. Descarte e conte a novidade de novo.</p>` : ""}
+      <div class="btn-row" style="margin-top:14px">
+        <button type="button" class="primary" data-act="update-apply"${prop.outdated ? " disabled" : ""}>✅ Aplicar e refazer os currículos</button>
+        ${btn("update-discard", "Descartar", null, "ghost danger")}
+      </div>
+      <p class="faint" style="margin-top:10px">Ao aplicar, o perfil atual vai para um backup e os currículos-base em português e inglês são refeitos. Leva alguns minutos.</p>
+    </div>`;
+  }
+  return `<div class="panel update">
+    <h3>🆕 Atualizar o perfil</h3>
+    <p class="muted">Projeto novo, emprego novo, curso, certificação, um resultado com número? Conte aqui: a IA propõe as mudanças no perfil e você confere o antes e o depois antes de salvar. Os currículos-base são refeitos junto.</p>
+    <div class="btn-row" style="margin-top:12px">${btn("update-news", "➕ Contar uma novidade", null, "primary")}${btn(
+      "rebuild-base-ask",
+      "🔄 Refazer currículos-base",
+      null,
+      "",
+      "Depois de editar o texto do perfil à mão",
+    )}</div>
+  </div>`;
+}
+
+action("update-news", async () => {
+  let file = null;
+  const r = await modal({
+    title: "Contar uma novidade",
+    wide: true,
+    html: `<p class="muted">A IA usa só o que você contar: o que faltar vira “a confirmar”. Você confere o antes e o depois antes de salvar.</p>
+      <label class="field"><span>O que mudou?</span><small>Com as suas palavras. Inclua datas e números reais, se tiver.</small>
+        <textarea name="text" rows="6" placeholder="ex.: Em 10/2026 saí da Empresa A e entrei na Empresa B como Desenvolvedora Pleno. Terminei o projeto Orbita 2, usado por 200 pessoas."></textarea></label>
+      <label class="field"><span>Ou um arquivo <small>(opcional)</small></span><small>Currículo atualizado ou o PDF do LinkedIn (Mais → Salvar como PDF).</small><input type="file" name="file" accept=".pdf,.docx,.txt,.md"></label>
+      <label class="field"><span>Ou um link <small>(opcional)</small></span><input name="url" type="url" placeholder="https://… (portfólio, GitHub, página do projeto)" autocomplete="off"></label>`,
+    confirm: "Preparar a atualização",
+    onOpen: (form) => {
+      const check = () =>
+        form.elements.text.setCustomValidity(form.elements.text.value.trim() || file || form.elements.url.value.trim() ? "" : "Conte a novidade, mande um arquivo ou um link.");
+      form.elements.file.addEventListener("change", () => {
+        file = form.elements.file.files[0] ?? null;
+        check();
+      });
+      form.addEventListener("input", check);
+      check();
+    },
+  });
+  if (!r) return;
+  await api("/api/profile/update/reset", {});
+  if (file) await uploadFile("/api/profile/update/upload", file);
+  if (r.url.trim()) await api("/api/profile/update/sources", { type: "link", url: r.url.trim() });
+  if (r.text.trim()) await api("/api/profile/update/sources", { type: "text", text: r.text });
+  await api("/api/profile/update/propose", {});
+  toast("📝 Preparando a atualização. Você confere antes de salvar.");
+  await app.refresh();
+  if (location.hash.startsWith("#/perfil")) paintProfile();
+});
+action("update-apply", async () => {
+  await api("/api/profile/update/apply", {});
+  toast("✅ Aplicando. O perfil anterior vai para um backup.");
+  await app.refresh();
+  paintProfile();
+});
+action("update-discard", async () => {
+  await api("/api/profile/update/discard", {});
+  await loadProfile();
+  paintProfile();
+  toast("Proposta descartada.");
+});
+action("rebuild-base-ask", async () => {
+  const ok = await modal({
+    title: "Refazer os currículos-base?",
+    html: `<p>A IA refaz o currículo-base em português e em inglês a partir do <code>profile_truth.md</code> atual, mantendo a redação do que não mudou. Use depois de editar o texto do perfil à mão. Os currículos atuais vão para um backup. Leva alguns minutos.</p>`,
+    confirm: "🔄 Refazer",
+  });
+  if (!ok) return;
+  await api("/api/profile/rebuild-base", {});
+  toast("🔄 Refazendo os currículos-base.");
+  await app.refresh();
+  paintProfile();
+});
 
 function paintSaveBar() {
   const slot = $("#save-slot");
@@ -403,11 +499,18 @@ window.addEventListener("beforeunload", (e) => {
 
 /* ======================================================= atualizações ao vivo */
 
+let profileBusyKey = "";
 on("tasks", () => {
   const route = location.hash.replace(/^#\/?/, "");
   const log = $("#wait-log");
   if (log) log.textContent = lastLog(running("profile-read") ?? running("profile-build"));
-  if (route === "perfil" && !running("render-base") && $(".busy")) paintProfile();
+  if (route !== "perfil") return;
+  // Redesenha quando começa ou termina uma tarefa do perfil (o log muda o tempo todo e não precisa).
+  const key = ["render-base", ...Object.keys(UPDATE_TASKS)].map((k) => `${k}:${running(k)?.status ?? ""}`).join("|");
+  if (key !== profileBusyKey) {
+    profileBusyKey = key;
+    paintProfile();
+  }
 });
 on("profile", async () => {
   await loadProfile();

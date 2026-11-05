@@ -15,6 +15,8 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 - Per-person data lives under `AJF_HOME` (default: the repo root) in `profile/`, `data/` and `output/`.
 - All three are gitignored. Never commit personal data.
 - `ajf init` and the UI wizard (`src/onboarding/`) build the profile from a resume, a LinkedIn PDF export, a portfolio, links, pasted text or a guided interview. UI uploads are saved in `profile/entrada/`.
+- Profile updates go through `src/onboarding/update.ts`: a proposal (`profile/atualizacao/proposta.json`, with the hash of the truth it was based on) that the user approves after seeing a line diff, then `rebuildBaseResumes` updates `base_resume.*.json` from the truth. New experiences must reach the base resumes, because the guards reject experiences missing from them. `ajf atualizar`, `ajf base --refazer` and Perfil → "Atualizar o perfil" in the UI are the entry points.
+- The agent never reads or edits LinkedIn. `src/writers/linkedin.ts` writes plans and checks (`output/linkedin/plano_*` and `conferencia_*`) from the text or PDF export the user provides.
 - Package folders live in `output/1-prontas-para-enviar`, `2-em-andamento`, `3-baixa-aderencia` or `4-encerradas` by status (`src/jobs/folders.ts`). Change status and paths through `jobs/store.ts#updateJob` (or `jobs/status.ts#changeStatus`), which moves the folder and keeps `outputDir`/`files` in `data/jobs.json` in sync.
 - `examples/profile/` is a fictional profile used by the tests (`tests/setup.ts` sets `AJF_HOME=examples`).
 
@@ -31,6 +33,7 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 ## UX
 
 - `ajf` with no args opens the local web UI (`src/ui/`): `server.ts` (127.0.0.1 only, token cookie, static files, SSE), `routes/` (jobs, profile/onboarding/LinkedIn, preferences), `tasks.ts` (one-at-a-time queue that captures terminal output as the task log) and a no-build page in `src/ui/public/` (ES modules in `js/`). Without a profile the UI opens on the onboarding wizard, which reuses `onboarding/index.ts#buildAndSaveProfile` like `ajf init`. `ajf menu` opens the terminal menu (`src/menu.ts`). Keep the UI and the menu offering the same actions.
+- A pasted job without a link (referral, e-mail, WhatsApp) can be researched on the web before triage: `src/jobs/research.ts#researchJob` (UI paste switch, `ajf add --pesquisar`, `ajf pesquisar`). It appends a `## Pesquisa na web` block to the description (replaced on re-run by `withoutResearch`) and stores the verdict in `Job.research`. Record only what the search found; never invent postings, links or contacts.
 - `ajf auto` runs `src/auto.ts`: search, then triage, then tailor every job with triage score ≥ `AJF_MIN_TRIAGE_SCORE`, then the dashboard. Web search defaults to `preferences.webSearchByDefault`.
 - Packages with a final rating below `AJF_MIN_RATING` (7) get status `low_fit`.
 - The package README (LEIA-ME) includes how to apply, based on `JobAnalysis.applyChannel` (email, linkedin, plataforma, site, whatsapp).

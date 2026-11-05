@@ -10,11 +10,11 @@ import type { SourceDoc } from "./sources.js";
  * — nada que não esteja nas fontes.
  */
 
-const SYSTEM = `Você é um especialista em carreira e recrutamento (qualquer área: tecnologia, saúde, educação, vendas, finanças, indústria, direito, design, administração etc.). Sua tarefa é organizar a carreira de uma pessoa a partir das FONTES que ela forneceu.
+export const SYSTEM = `Você é um especialista em carreira e recrutamento (qualquer área: tecnologia, saúde, educação, vendas, finanças, indústria, direito, design, administração etc.). Sua tarefa é organizar a carreira de uma pessoa a partir das FONTES que ela forneceu.
 
 REGRA DE OURO: só registre fatos que estão nas fontes. Nunca invente empresas, cargos, datas, números, ferramentas, certificações ou resultados. Se algo importante está faltando ou ambíguo, registre como pendência ("A confirmar") — não preencha. Se as fontes se contradizem (ex.: datas diferentes no currículo e no LinkedIn), registre a divergência em "A confirmar".`;
 
-function sourcesBlock(sources: SourceDoc[]): string {
+export function sourcesBlock(sources: SourceDoc[]): string {
   return sources.map((s, i) => `<fonte n="${i + 1}" tipo="${s.kind}" origem="${s.label}">\n${s.text}\n</fonte>`).join("\n\n");
 }
 
@@ -124,13 +124,27 @@ As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação
 
 /* ------------------------------ 3. Currículos-base ------------------------------ */
 
-export function buildBaseResume(profileTruth: string, lang: "pt-BR" | "en", ptVersion?: Resume): Promise<Resume> {
+/**
+ * Currículo-base a partir do profile_truth. Em inglês, traduz a versão em português (`ptVersion`).
+ * Com `previous` (o currículo-base atual), só atualiza: mantém a redação do que não mudou no perfil.
+ */
+export function buildBaseResume(profileTruth: string, lang: "pt-BR" | "en", ptVersion?: Resume, previous?: Resume): Promise<Resume> {
   const en = lang === "en";
   return structured(ResumeSchema, {
     label: `init:resume-${lang}`,
     effort: "high",
     system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`],
-    user: en && ptVersion
+    user: !en && previous
+      ? `<curriculo_base_atual>\n${JSON.stringify(previous, null, 2)}\n</curriculo_base_atual>
+
+O profile_truth acima foi atualizado. Atualize este currículo-base em português do Brasil (language "pt-BR") para refletir o perfil atual, no mesmo padrão ATS:
+- Mantenha palavra por palavra o que não mudou no perfil (headline, resumo, bullets, ordem das seções).
+- Inclua o que é novo no perfil (experiência, projeto, certificação, competência, resultado) e ajuste o que mudou (datas, cargos, empresa atual).
+- Retire o que não está mais no perfil.
+- experience: TODAS as posições do perfil, ordem cronológica reversa, cargos e datas exatamente como no perfil.
+- Se o resumo ou a headline ficaram desatualizados por causa das novidades, ajuste o mínimo necessário.
+Mire em 1–2 páginas. Não invente nada.`
+      : en && ptVersion
       ? `<curriculo_pt>\n${JSON.stringify(ptVersion, null, 2)}\n</curriculo_pt>
 
 Traduza este currículo para inglês americano (language "en"), adaptando para o padrão de resume dos EUA: verbos de ação sem pronome, datas MM/YYYY, "Present" no lugar de "Atual", modalidade Remote/Hybrid/On-site. Mesmas posições, datas, números e fatos — nada novo. Cargos: mantenha o original e, se ajudar, acrescente a tradução entre parênteses. Linha de idiomas no mesmo nível declarado (ex.: "Portuguese: native | English: intermediate").`

@@ -8,6 +8,7 @@ import { closeBrowser } from "../render/pdf.js";
 import { openExternal } from "../util/open.js";
 import { CONTENT_TYPES, HttpError, inside, readJson, readRaw, send, sendJson, serveFile, type App, type Ctx, type Route } from "./http.js";
 import { jobRoutes } from "./routes/jobs.js";
+import { linkedinRoutes } from "./routes/linkedin.js";
 import { preferenceRoutes } from "./routes/preferences.js";
 import { profileRoutes } from "./routes/profile.js";
 import { TaskQueue } from "./tasks.js";
@@ -55,7 +56,7 @@ export async function startUi(opts: UiOptions = {}) {
   queue.on("tasks", (list) => app.broadcast("tasks", list));
   queue.on("finished", (_kind, jobId) => app.jobsChanged(jobId));
 
-  const routes: Route[] = [...jobRoutes(app), ...profileRoutes(app), ...preferenceRoutes()];
+  const routes: Route[] = [...jobRoutes(app), ...profileRoutes(app), ...linkedinRoutes(app), ...preferenceRoutes()];
 
   const cookieToken = (req: http.IncomingMessage) =>
     (req.headers.cookie ?? "")

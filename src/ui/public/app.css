@@ -298,6 +298,9 @@ input[type=text], input[type=url], input[type=number], input[type=search]:not(.p
   background: var(--bg); color: var(--ink); font: inherit;
 }
 textarea { resize: vertical; min-height: 90px; }
+input[type=file] { font: inherit; font-size: 13px; color: var(--muted); }
+input[type=file]::file-selector-button { font: inherit; font-size: 13px; font-weight: 550; margin-right: 10px; height: 32px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+input[type=file]::file-selector-button:hover { border-color: var(--accent); }
 textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 14px; cursor: pointer; }
@@ -414,6 +417,26 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 .source-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
 .section-title { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; margin: 26px 0 10px; }
 .section-title h2 { font-size: 17px; }
+
+/* ================================================================ atualização do perfil */
+.update { border-left: 4px solid var(--accent); }
+.update.proposal { border-left-color: var(--c-decide); }
+.update h3 + p { margin-top: 2px; }
+.update h3 { margin-top: 14px; }
+.update .section-title + p + h3 { margin-top: 12px; }
+.diff-box { margin-top: 14px; }
+.diff-box > summary { cursor: pointer; font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.diff { margin-top: 10px; max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); font: 12.5px/1.55 var(--mono); }
+.diff > div { padding: 0 12px; white-space: pre-wrap; word-break: break-word; }
+.d-mark { display: inline-block; width: 18px; color: var(--faint); user-select: none; }
+.d-add { background: var(--ok-soft); color: var(--ok); }
+.d-add .d-mark { color: var(--ok); }
+.d-del { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.d-del .d-mark { color: var(--bad); text-decoration: none; }
+.d-same { color: var(--muted); }
+.d-skip { color: var(--faint); font-style: italic; padding: 4px 12px; background: var(--surface-2); }
+.history { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.history li { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 
 /* ================================================================ celular */
 @media (max-width: 900px) {

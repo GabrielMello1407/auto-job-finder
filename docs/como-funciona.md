@@ -9,6 +9,7 @@ Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar
 - [4. O pacote de cada vaga](#4-o-pacote-de-cada-vaga)
 - [Anti-invenção](#anti-invenção)
 - [O caminho de uma vaga](#o-caminho-de-uma-vaga)
+- [LinkedIn](#linkedin)
 - [As IAs](#as-ias)
 - [A interface local](#a-interface-local)
 - [Organização do código](#organização-do-código)
@@ -47,6 +48,30 @@ Como funciona a montagem:
 
 A instrução para a IA é a mesma em todas as etapas: **só registrar o que está nas fontes**. O que falta ou diverge entre as fontes vira "A confirmar".
 
+### Atualizar sem montar de novo
+
+Quando a carreira muda, `src/onboarding/update.ts` atualiza o perfil a partir de uma novidade:
+
+```mermaid
+flowchart LR
+    A["🆕 Novidade<br/>texto, currículo,<br/>PDF do LinkedIn, link"] --> B["🧠 Proposta<br/>profile_truth.md atualizado<br/>+ o que mudou + a confirmar"]
+    B --> C{"👀 Você confere<br/>o antes e o depois"}
+    C -- descartar --> X["nada muda"]
+    C -- aplicar --> D["💾 Backup do perfil<br/>+ profile_truth.md novo"]
+    D --> E["📄 Currículos-base refeitos<br/>mantendo a redação<br/>do que não mudou"]
+    E --> F["⚠️ Pacotes prontos antigos<br/>marcados como desatualizados"]
+```
+
+- **A proposta** fica salva em `profile/atualizacao/proposta.json`, então dá para fechar o `ajf` e voltar depois. Ela guarda um hash do perfil da hora em que foi feita: se você editar o perfil depois, ela não pode mais ser aplicada, para nada do que você editou à mão se perder.
+- **Regras para a IA:**
+  - mantém os títulos das seções e o texto que não mudou;
+  - experiência nova entra em ordem cronológica;
+  - curso não vira certificação;
+  - o que faltar vai para "A confirmar";
+  - uma proposta que tire alguma seção do perfil é recusada.
+- **Por que refazer os currículos-base:** as travas só aceitam experiências que estão nos currículos-base. Um emprego novo só no `profile_truth.md` faria o pacote sair com violação. O `rebuildBaseResumes` passa o currículo-base atual para a IA atualizar, em vez de escrever do zero; também dá para chamar sozinho, depois de editar o perfil à mão.
+- **Pacote desatualizado:** um pacote pronto ou de baixa aderência é marcado quando o perfil ou os currículos-base mudaram depois que ele foi gerado. A comparação é entre as datas de modificação dos arquivos.
+
 ## 2. Busca e filtro
 
 `src/jobs/search.ts` junta as vagas de todas as fontes ligadas nas preferências (`src/jobs/sources/`) e, se você pedir, da busca na web feita pela IA.
@@ -59,6 +84,27 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 - remota, mas restrita a países que você não aceitou.
 
 As vagas que passam vão para `data/jobs.json` com status `new`. Vagas repetidas (mesmo link, ou mesma empresa e cargo) são ignoradas.
+
+### Vaga colada e vaga sem link
+
+Uma vaga colada (`src/jobs/search.ts#addJob`) entra direto, sem o filtro: você já decidiu que ela interessa. Quando ela chega sem link (indicação, e-mail, WhatsApp), `src/jobs/research.ts#researchJob` pode pesquisá-la antes da triagem. Precisa de uma IA com busca na web (`llm.ts#canWebSearch`).
+
+```mermaid
+flowchart LR
+  A[texto recebido<br/>empresa e cargo] --> B[busca na web<br/>até 6 consultas]
+  B --> C{anúncio oficial?}
+  C -->|achou| D[confirmada<br/>link oficial vira o Ver vaga]
+  C -->|não achou| E[não encontrada<br/>segue com o texto]
+  B --> F{sinais de golpe?}
+  F -->|sim| G[suspeita]
+  D & E & G --> H[bloco 'Pesquisa na web'<br/>no fim da descrição]
+  H --> I[triagem e pacote]
+```
+
+- A IA devolve um objeto validado (`JobResearchSchema`): anúncio oficial, site e resumo da empresa, detalhes que o texto não trazia, como se candidatar, domínios de e-mail da empresa, veredito e observações.
+- O resultado entra no fim da descrição, separado por `---` e com o título `## Pesquisa na web`, avisando que veio da web e não de quem passou a vaga. Pesquisar de novo troca esse bloco (`withoutResearch`) em vez de acumular.
+- O veredito e os links ficam em `Job.research` para a interface mostrar o selo (confirmada, não encontrada, suspeita). Só links `http(s)` são guardados.
+- A pesquisa não inventa: o que não aparece na web fica como "não encontrado", e a vaga segue com o texto recebido. Os fatos sobre você continuam vindo só do perfil.
 
 ## 3. Triagem pela IA
 
@@ -142,6 +188,17 @@ Cada mudança de status:
 - fica registrada em `output/tracker.csv`;
 - move a pasta do pacote para a subpasta da etapa (`src/jobs/folders.ts`), mantendo os caminhos em `data/jobs.json` em sincronia.
 
+## LinkedIn
+
+`src/writers/linkedin.ts` faz duas coisas, sem nunca acessar o LinkedIn: o LinkedIn bloqueia programas, e o agente não muda nada em nome da pessoa.
+- **Plano:** headline, "Sobre" em português e inglês, experiências, competências, destaques, Open to Work e checklist, só com fatos do perfil.
+- **Conferência:** recebe o LinkedIn de hoje (o PDF exportado com "Salvar como PDF", lido como no cadastro, ou o texto) e compara com o `profile_truth.md` e com o último plano. Devolve:
+  - o que **corrigir**, com a correção;
+  - o que **do plano ainda falta**;
+  - o que **já está certo**.
+
+Cada plano e cada conferência vira um arquivo em `output/linkedin/` com a data. A interface mostra os mais recentes, o histórico e avisa quando o perfil mudou depois do plano.
+
 ## As IAs
 
 Todas as chamadas passam por `src/llm.ts`, então os provedores são intercambiáveis. A detecção (`src/providers/index.ts`) procura nesta ordem:
@@ -188,11 +245,13 @@ src/
   llm.ts                 ponto único de acesso à IA
   providers/             cada IA + detecção (spawn.ts acha as CLIs instaladas)
   onboarding/            cadastro: leitura de PDF/DOCX/LinkedIn/sites/GitHub, entrevista, montagem
+    update.ts            atualizar com uma novidade (proposta, aplicar) e refazer os currículos-base
   profile.ts             leitura do perfil, preferências e regras
   prompts.ts · schemas.ts · market.ts
   jobs/
     sources/             fontes de vagas (APIs públicas, páginas de carreira, web com IA)
-    search.ts filter.ts  busca e filtro
+    search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
+    research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json
     status.ts folders.ts mudança de status e pastas por etapa
@@ -202,14 +261,14 @@ src/
     refine.ts            loop recrutador ⇄ editor
     guards.ts            travas anti-invenção
     ats.ts               relatório ATS
-  writers/               carta, e-mails, guia de entrevista, plano de LinkedIn
+  writers/               carta, e-mails, guia de entrevista, plano e conferência do LinkedIn
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos
-    routes/              API: vagas, perfil e cadastro, preferências
+    routes/              API: vagas, perfil (cadastro e atualização), LinkedIn, preferências
     tasks.ts             fila de tarefas
     public/              a página: index.html, app.css, logo.svg, js/
-  util/                  texto, abrir links e pastas (sem shell)
+  util/                  texto, comparação linha a linha (diff), abrir links e pastas (sem shell)
 scripts/demo.ts          npm run demo: dados fictícios para testar a interface
 examples/profile/        perfil fictício (referência de formato e testes)
 tests/                   testes offline (npm test)

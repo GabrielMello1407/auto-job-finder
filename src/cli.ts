@@ -6,11 +6,13 @@ import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
 import { mainMenu } from "./menu.js";
-import { runInit } from "./onboarding/index.js";
+import { runInit, runProfileUpdate } from "./onboarding/index.js";
+import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs } from "./jobs/search.js";
 import { select } from "@inquirer/prompts";
+import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
 import { changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
@@ -20,7 +22,7 @@ import { closeBrowser } from "./render/pdf.js";
 import type { Job, JobStatus } from "./schemas.js";
 import { rerender, tailorJob } from "./tailor/index.js";
 import { startUi } from "./ui/server.js";
-import { linkedinPlan } from "./writers/linkedin.js";
+import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
 
 const program = new Command();
 program.name("ajf").description("auto-job-finder — seu agente de candidaturas").showHelpAfterError();
@@ -86,10 +88,24 @@ program
   });
 
 program
+  .command("atualizar")
+  .description("atualiza o perfil com uma novidade (projeto, emprego, curso): mostra o antes e o depois e refaz os currículos-base")
+  .argument("[fontes...]", "arquivos (currículo novo, PDF do LinkedIn) ou links com a novidade")
+  .option("--texto <texto>", "a novidade com as suas palavras")
+  .option("--aplicar", "aplica a proposta salva (feita antes aqui ou na interface)")
+  .option("--descartar", "descarta a proposta salva")
+  .option("-y, --sim", "aplica sem perguntar")
+  .action(async (inputs: string[], o) => {
+    await runProfileUpdate({ inputs, text: o.texto, apply: o.aplicar, discard: o.descartar, yes: o.sim });
+  });
+
+program
   .command("base")
-  .description("gera os PDFs dos currículos-base (confere o perfil e o template, não usa IA)")
-  .action(async () => {
-    await renderBaseResumes();
+  .description("gera os PDFs dos currículos-base (sem IA); com --refazer, refaz os currículos-base a partir do profile_truth.md")
+  .option("--refazer", "refaz base_resume.pt/en.json a partir do perfil (usa IA) — depois de editar o profile_truth.md à mão")
+  .action(async (o) => {
+    if (o.refazer) await rebuildBaseResumes();
+    else await renderBaseResumes();
   });
 
 program
@@ -148,8 +164,11 @@ program
       console.log(`Lacunas:\n${t.mustHaveGaps.map((e) => `  - ${e}`).join("\n") || "  (nenhuma)"}`);
       if (t.scamSignals.length) console.log(`🚩 ${t.scamSignals.join("; ")}`);
     }
+    const research = researchLines(j);
+    if (research.length) console.log(`\n${research.join("\n")}`);
     if (j.outputDir) console.log(`\nPacote: ${j.outputDir}`);
-    console.log(`\n${j.description.slice(0, 1500)}${j.description.length > 1500 ? "\n[...]" : ""}`);
+    const text = withoutResearch(j.description);
+    console.log(`\n${text.slice(0, 1500)}${text.length > 1500 ? "\n[...]" : ""}`);
   });
 
 program
@@ -160,15 +179,32 @@ program
   .option("--title <título>")
   .option("--company <empresa>")
   .option("--location <local>")
+  .option("--pesquisar", "pesquisa a vaga e a empresa na web antes da triagem (vaga recebida sem link, por indicação ou e-mail)")
   .option("--no-triage", "não rodar a triagem automaticamente")
   .action(async (o) => {
     const job = await addJob(o);
     console.log(`Vaga adicionada: ${job.id} — ${job.title} (${job.company})`);
+    if (o.pesquisar) await researchJob(job.id).catch((e) => console.log(`⚠ Pesquisa na web: ${e instanceof Error ? e.message : e}`));
     if (o.triage) {
       await triageJobs({ ids: [job.id] });
       printJobs([findJob(loadJobs(), job.id)]);
     }
     console.log(`\nPróximo passo: ajf tailor ${job.id}`);
+  });
+
+program
+  .command("pesquisar")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real")
+  .option("--no-triage", "não refazer a triagem com o que foi achado")
+  .action(async (busca: string[], o) => {
+    const job = await pickJob({ query: busca.join(" "), message: "Qual vaga pesquisar?" });
+    const updated = await researchJob(job.id);
+    if (o.triage && ["new", "triaged", "shortlisted"].includes(updated.status)) {
+      await triageJobs({ ids: [updated.id] });
+      printJobs([findJob(loadJobs(), updated.id)]);
+    }
+    console.log(`\nO que foi achado está no fim da descrição da vaga: ajf show ${updated.id}`);
   });
 
 program
@@ -212,10 +248,17 @@ program
 
 program
   .command("linkedin")
-  .description("gera o plano de otimização do LinkedIn (headline, Sobre PT/EN, competências, destaques)")
-  .option("--current <arquivo>", "texto atual do seu perfil (copie e cole num .md) para achar inconsistências")
+  .description("plano de LinkedIn (headline, Sobre PT/EN, competências, destaques); com --conferir, confere o LinkedIn atual")
+  .option("--current <arquivo>", "o seu LinkedIn hoje: o PDF exportado (Mais → Salvar como PDF) ou o texto num .md/.txt")
+  .option("--conferir", "em vez de um plano novo, confere o LinkedIn atual contra o perfil e o último plano (precisa de --current)")
   .option("--families <famílias...>", "famílias de vaga-alvo")
   .action(async (o) => {
+    if (o.conferir) {
+      if (!o.current) throw new Error("Para conferir, informe o LinkedIn atual: --current perfil_linkedin.pdf");
+      const file = await linkedinCheck(await readLinkedinFile(o.current));
+      console.log(`Conferência salva em ${file}`);
+      return;
+    }
     const file = await linkedinPlan({ currentProfileFile: o.current, families: o.families });
     console.log(`Plano salvo em ${file}`);
   });

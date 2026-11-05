@@ -39,6 +39,33 @@ export async function api(path, body, method) {
   return data;
 }
 
+/** Envia um arquivo (corpo bruto) para uma rota de upload e devolve o JSON da resposta. */
+export async function uploadFile(path, file) {
+  const res = await fetch(`${path}?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  return data;
+}
+
+/** Antes e depois de um texto: mostra as linhas que mudaram e resume as iguais. */
+export function diffHtml(lines, context = 2) {
+  const keep = lines.map((l, i) => l.type !== "same" || lines.slice(Math.max(0, i - context), i + context + 1).some((x) => x.type !== "same"));
+  let html = "";
+  let skipped = 0;
+  const flush = () => {
+    if (skipped) html += `<div class="d-skip">⋯ ${plural(skipped, "linha igual", "linhas iguais")}</div>`;
+    skipped = 0;
+  };
+  lines.forEach((l, i) => {
+    if (!keep[i]) return void skipped++;
+    flush();
+    const mark = l.type === "add" ? "+" : l.type === "del" ? "−" : " ";
+    html += `<div class="d-${l.type}"><span class="d-mark">${mark}</span>${esc(l.text) || "&nbsp;"}</div>`;
+  });
+  flush();
+  return `<div class="diff">${html}</div>`;
+}
+
 /* ------------------------------------------------------------ eventos internos */
 
 const listeners = new Map();
