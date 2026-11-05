@@ -19,7 +19,14 @@ npm run ajf -- menu      # menu no terminal
 npm run ajf -- --help    # todos os comandos
 ```
 
-**Use dados de teste, não os seus.** Aponte `AJF_HOME` para outra pasta para não misturar com o seu perfil e as suas vagas:
+**Use dados de teste, não os seus.** O jeito mais fácil é a demonstração:
+
+```bash
+npm run demo              # pasta demo/ com perfil e vagas fictícios, e abre a interface
+npm run demo -- --no-open # só mostra o link
+```
+
+Ela é recriada a cada execução (`scripts/demo.ts`), não usa IA e cobre todas as etapas das vagas. Para testar o fluxo completo com IA sem misturar com o seu perfil, aponte `AJF_HOME` para outra pasta:
 
 ```bash
 # macOS/Linux
@@ -28,7 +35,7 @@ AJF_HOME=/tmp/ajf-teste npm run ajf -- ui --no-open
 $env:AJF_HOME="C:\temp\ajf-teste"; npm run ajf -- ui --no-open
 ```
 
-`examples/profile/` tem um perfil fictício que serve de referência e é usado pelos testes.
+`examples/profile/` tem um perfil fictício que serve de referência, é usado pelos testes e pela demonstração.
 
 ## Checagens antes do PR
 
@@ -43,7 +50,8 @@ O CI roda essas mesmas checagens em Ubuntu, macOS e Windows a cada PR.
 
 - Mexeu em `src/render/`? Rode `npm run ajf -- base` e confira os PDFs em `output/base/`.
 - Mexeu num provedor de IA? Rode `npm run ajf -- ia --testar`.
-- Mexeu na interface? Abra `npm run ajf -- ui` numa pasta de teste e use a tela de verdade, no tema claro e no escuro.
+- Mexeu na interface? Rode `npm run demo` e use a tela de verdade, no tema claro e no escuro.
+- Mudou algo que aparece nos prints da documentação (`docs/images/`)? Tire os prints novos **da demonstração**, nunca com dados reais.
 
 Os testes ficam em `tests/` (arquivos `*.test.ts`), rodam offline e não chamam IA. Toda correção de bug deve vir com um teste quando der.
 
@@ -67,7 +75,7 @@ São as mesmas do [CLAUDE.md](CLAUDE.md), que vale para pessoas e para agentes d
 - **Nova fonte de vagas:** crie um `JobSource` em `src/jobs/sources/` (com `description`) e registre em `SOURCES`.
 - **Interface:** rotas em `src/ui/routes/`, página em `src/ui/public/` (HTML, CSS e módulos JS, sem build). Mantenha a interface e o menu do terminal (`src/menu.ts`) com as mesmas ações.
 
-A estrutura completa está no [README](README.md#código).
+A estrutura completa e o funcionamento de cada parte estão em [docs/como-funciona.md](docs/como-funciona.md). O passo a passo de uso está em [docs/guia-de-uso.md](docs/guia-de-uso.md): atualize-o quando mudar algo que quem usa vê.
 
 ## Commits e PRs
 
