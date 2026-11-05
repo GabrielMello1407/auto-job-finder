@@ -15,6 +15,8 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 - Per-person data lives under `AJF_HOME` (default: the repo root) in `profile/`, `data/` and `output/`.
 - All three are gitignored. Never commit personal data.
 - `ajf init` and the UI wizard (`src/onboarding/`) build the profile from a resume, a LinkedIn PDF export, a portfolio, links, pasted text or a guided interview. UI uploads are saved in `profile/entrada/`.
+- Profile updates go through `src/onboarding/update.ts`: a proposal (`profile/atualizacao/proposta.json`, with the hash of the truth it was based on) that the user approves after seeing a line diff, then `rebuildBaseResumes` updates `base_resume.*.json` from the truth. New experiences must reach the base resumes, because the guards reject experiences missing from them. `ajf atualizar`, `ajf base --refazer` and Perfil → "Atualizar o perfil" in the UI are the entry points.
+- The agent never reads or edits LinkedIn. `src/writers/linkedin.ts` writes plans and checks (`output/linkedin/plano_*` and `conferencia_*`) from the text or PDF export the user provides.
 - Package folders live in `output/1-prontas-para-enviar`, `2-em-andamento`, `3-baixa-aderencia` or `4-encerradas` by status (`src/jobs/folders.ts`). Change status and paths through `jobs/store.ts#updateJob` (or `jobs/status.ts#changeStatus`), which moves the folder and keeps `outputDir`/`files` in `data/jobs.json` in sync.
 - `examples/profile/` is a fictional profile used by the tests (`tests/setup.ts` sets `AJF_HOME=examples`).
 

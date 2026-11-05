@@ -9,6 +9,7 @@ Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar
 - [4. O pacote de cada vaga](#4-o-pacote-de-cada-vaga)
 - [Anti-invenção](#anti-invenção)
 - [O caminho de uma vaga](#o-caminho-de-uma-vaga)
+- [LinkedIn](#linkedin)
 - [As IAs](#as-ias)
 - [A interface local](#a-interface-local)
 - [Organização do código](#organização-do-código)
@@ -46,6 +47,30 @@ Como funciona a montagem:
 3. Escreve os currículos-base (`buildBaseResume`).
 
 A instrução para a IA é a mesma em todas as etapas: **só registrar o que está nas fontes**. O que falta ou diverge entre as fontes vira "A confirmar".
+
+### Atualizar sem montar de novo
+
+Quando a carreira muda, `src/onboarding/update.ts` atualiza o perfil a partir de uma novidade:
+
+```mermaid
+flowchart LR
+    A["🆕 Novidade<br/>texto, currículo,<br/>PDF do LinkedIn, link"] --> B["🧠 Proposta<br/>profile_truth.md atualizado<br/>+ o que mudou + a confirmar"]
+    B --> C{"👀 Você confere<br/>o antes e o depois"}
+    C -- descartar --> X["nada muda"]
+    C -- aplicar --> D["💾 Backup do perfil<br/>+ profile_truth.md novo"]
+    D --> E["📄 Currículos-base refeitos<br/>mantendo a redação<br/>do que não mudou"]
+    E --> F["⚠️ Pacotes prontos antigos<br/>marcados como desatualizados"]
+```
+
+- **A proposta** fica salva em `profile/atualizacao/proposta.json`, então dá para fechar o `ajf` e voltar depois. Ela guarda um hash do perfil da hora em que foi feita: se você editar o perfil depois, ela não pode mais ser aplicada, para nada do que você editou à mão se perder.
+- **Regras para a IA:**
+  - mantém os títulos das seções e o texto que não mudou;
+  - experiência nova entra em ordem cronológica;
+  - curso não vira certificação;
+  - o que faltar vai para "A confirmar";
+  - uma proposta que tire alguma seção do perfil é recusada.
+- **Por que refazer os currículos-base:** as travas só aceitam experiências que estão nos currículos-base. Um emprego novo só no `profile_truth.md` faria o pacote sair com violação. O `rebuildBaseResumes` passa o currículo-base atual para a IA atualizar, em vez de escrever do zero; também dá para chamar sozinho, depois de editar o perfil à mão.
+- **Pacote desatualizado:** um pacote pronto ou de baixa aderência é marcado quando o perfil ou os currículos-base mudaram depois que ele foi gerado. A comparação é entre as datas de modificação dos arquivos.
 
 ## 2. Busca e filtro
 
@@ -142,6 +167,17 @@ Cada mudança de status:
 - fica registrada em `output/tracker.csv`;
 - move a pasta do pacote para a subpasta da etapa (`src/jobs/folders.ts`), mantendo os caminhos em `data/jobs.json` em sincronia.
 
+## LinkedIn
+
+`src/writers/linkedin.ts` faz duas coisas, sem nunca acessar o LinkedIn: o LinkedIn bloqueia programas, e o agente não muda nada em nome da pessoa.
+- **Plano:** headline, "Sobre" em português e inglês, experiências, competências, destaques, Open to Work e checklist, só com fatos do perfil.
+- **Conferência:** recebe o LinkedIn de hoje (o PDF exportado com "Salvar como PDF", lido como no cadastro, ou o texto) e compara com o `profile_truth.md` e com o último plano. Devolve:
+  - o que **corrigir**, com a correção;
+  - o que **do plano ainda falta**;
+  - o que **já está certo**.
+
+Cada plano e cada conferência vira um arquivo em `output/linkedin/` com a data. A interface mostra os mais recentes, o histórico e avisa quando o perfil mudou depois do plano.
+
 ## As IAs
 
 Todas as chamadas passam por `src/llm.ts`, então os provedores são intercambiáveis. A detecção (`src/providers/index.ts`) procura nesta ordem:
@@ -188,6 +224,7 @@ src/
   llm.ts                 ponto único de acesso à IA
   providers/             cada IA + detecção (spawn.ts acha as CLIs instaladas)
   onboarding/            cadastro: leitura de PDF/DOCX/LinkedIn/sites/GitHub, entrevista, montagem
+    update.ts            atualizar com uma novidade (proposta, aplicar) e refazer os currículos-base
   profile.ts             leitura do perfil, preferências e regras
   prompts.ts · schemas.ts · market.ts
   jobs/
@@ -202,14 +239,14 @@ src/
     refine.ts            loop recrutador ⇄ editor
     guards.ts            travas anti-invenção
     ats.ts               relatório ATS
-  writers/               carta, e-mails, guia de entrevista, plano de LinkedIn
+  writers/               carta, e-mails, guia de entrevista, plano e conferência do LinkedIn
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos
-    routes/              API: vagas, perfil e cadastro, preferências
+    routes/              API: vagas, perfil (cadastro e atualização), LinkedIn, preferências
     tasks.ts             fila de tarefas
     public/              a página: index.html, app.css, logo.svg, js/
-  util/                  texto, abrir links e pastas (sem shell)
+  util/                  texto, comparação linha a linha (diff), abrir links e pastas (sem shell)
 scripts/demo.ts          npm run demo: dados fictícios para testar a interface
 examples/profile/        perfil fictício (referência de formato e testes)
 tests/                   testes offline (npm test)

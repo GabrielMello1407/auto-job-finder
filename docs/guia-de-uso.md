@@ -87,7 +87,29 @@ A página **Perfil** é a parte mais importante. **Tudo o que o agente escreve s
 - **Pontos a confirmar:** a IA marca o que estava faltando ou não batia entre as fontes. Corrija no texto e troque `- [ ]` por `- [x]`.
 - **Editor do `profile_truth.md`:** ajuste o que quiser. Mantenha os títulos das seções (linhas com `##`). As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação" **não** contam como prova de nada; elas existem para o agente saber o que você *não* tem. Cada vez que você salva, a versão anterior vai para `profile/backup-edicoes/`.
 - **PDFs de conferência:** o currículo-base em português e em inglês, para ver como fica.
-- **Montar de novo:** refaz o perfil com fontes novas. O atual só é trocado no fim e vai para um backup.
+- **Montar de novo:** refaz o perfil do zero com fontes novas. O atual só é trocado no fim e vai para um backup.
+
+### Atualizar o perfil depois
+
+Fez um projeto novo, mudou de emprego, terminou um curso? Não precisa montar tudo de novo. Em **Perfil → 🆕 Atualizar o perfil**, clique em **➕ Contar uma novidade**:
+
+![Contar uma novidade](images/contar-novidade.jpg)
+
+1. **Conte com as suas palavras**, com datas e números reais (por exemplo, "Em 10/2026 saí da Empresa A e entrei na Empresa B como Desenvolvedora Pleno"). Também dá para mandar um currículo atualizado, o PDF do LinkedIn ou um link.
+2. **A IA prepara uma proposta.** Ela usa só o que você contou: o que faltar (a data de início, as atividades do cargo novo) vira "a confirmar".
+3. **Você confere o antes e o depois**, linha por linha, antes de salvar:
+
+   ![Proposta de atualização com o antes e o depois](images/perfil-atualizar.jpg)
+
+4. **✅ Aplicar e refazer os currículos:** o perfil atual vai para um backup, o `profile_truth.md` é atualizado e os currículos-base em português e inglês são refeitos, mantendo a redação do que não mudou. Leva alguns minutos.
+
+Depois de aplicar:
+- **Pacotes prontos feitos antes da mudança** aparecem com o aviso **"perfil mudou depois"** e o botão **🔄 Gerar de novo**. Candidaturas já enviadas não são marcadas.
+- **O plano do LinkedIn** avisa que ficou desatualizado (veja [LinkedIn](#8-linkedin)).
+
+**Editou o texto do perfil à mão?** Pequenas mudanças (um projeto, um resultado, uma ferramenta) já valem para os próximos pacotes. Mas, se você mexeu numa **experiência** (emprego novo, cargo, datas), clique em **🔄 Refazer currículos-base**: as travas só aceitam experiências que estão nos currículos-base, e eles não mudam sozinhos quando você edita o texto.
+
+> Se você editar o perfil depois de uma proposta pronta, ela não pode mais ser aplicada: descarte e conte a novidade de novo. Assim nada do que você editou à mão se perde.
 
 ## 4. O dia a dia: das vagas à candidatura
 
@@ -203,7 +225,22 @@ Fontes de vagas:
 
 ## 8. LinkedIn
 
-Na página **LinkedIn**, o agente monta um plano para o seu perfil atrair recrutadores das vagas que você quer: headline, "Sobre" em português e inglês, competências, destaques e Open to Work, tudo com fatos do seu perfil. Cole o texto atual do seu LinkedIn para ele apontar o que está inconsistente. **Ele nunca muda o seu LinkedIn**: você copia o que quiser.
+![Conferência do LinkedIn](images/linkedin.jpg)
+
+**O agente nunca acessa nem muda o seu LinkedIn.** O LinkedIn bloqueia programas, e a regra do projeto é você aplicar o que quiser. Por isso, para ele saber como o seu perfil está hoje, mande:
+- o **PDF do perfil**: no LinkedIn, **Mais → Salvar como PDF**, e depois **📄 Enviar o PDF do LinkedIn**; ou
+- o **texto** do perfil, colado na caixa.
+
+Com isso, você tem duas opções:
+
+| | O que faz | Quando usar |
+|---|---|---|
+| **✅ Conferir meu LinkedIn** | Compara o seu LinkedIn de hoje com o seu perfil e com o último plano. Mostra o que **corrigir** (datas, cargos, "certificado" que é curso, nível de idioma), o que **do plano ainda falta** e o que **já está certo** | Depois de mexer no LinkedIn, para ver o seu progresso. É rápido |
+| **✨ Gerar plano novo** | Escreve tudo de novo: headline, "Sobre" em português e inglês, experiências, competências, destaques, Open to Work e checklist | Na primeira vez, ou depois de mudar de objetivo ou de [atualizar o perfil](#atualizar-o-perfil-depois) |
+
+- **Cada plano e cada conferência é um retrato do dia em que foi gerado.** Eles não se atualizam sozinhos.
+- **Se o seu perfil mudar depois do plano,** a página avisa e sugere um plano novo.
+- **Os anteriores** ficam no **Histórico**.
 
 ## 9. A IA: escolher, testar e diagnosticar
 
@@ -226,6 +263,8 @@ profile/                   o seu perfil
   preferences.json         preferências de busca
   rules.json               frases que o agente nunca pode escrever
   sources/  entrada/       o texto lido das suas fontes e os arquivos enviados pela interface
+  atualizacao/             a proposta de atualização, até você aplicar ou descartar
+  backup-*/                versões anteriores do perfil (a cada "montar de novo", atualização ou edição)
 data/
   jobs.json                todas as vagas e o status de cada uma
   usage.jsonl              tokens usados em cada chamada de IA
@@ -234,7 +273,7 @@ output/
   2-em-andamento/          enviada, entrevista ou oferta
   3-baixa-aderencia/       nota abaixo do mínimo
   4-encerradas/            recusada ou descartada
-  base/  linkedin/         PDFs de conferência e planos de LinkedIn
+  base/  linkedin/         PDFs de conferência, planos e conferências do LinkedIn
   painel.html  tracker.csv resumo estático e histórico de status
 ```
 
@@ -264,17 +303,18 @@ Tudo da interface também existe no terminal.
 |---|---|
 | `ajf` · `ajf ui [--port 4317] [--no-open]` | Interface no navegador |
 | `ajf menu` | Menu no terminal |
-| `ajf init [arquivos ou links...]` | Monta ou refaz o perfil |
+| `ajf init [arquivos ou links...]` | Monta o perfil do zero |
+| `ajf atualizar [arquivos ou links...] [--texto "..."]` | Atualiza o perfil com uma novidade: mostra o antes e o depois e, se você aprovar, refaz os currículos-base. `--aplicar` aplica a proposta salva (feita aqui ou na interface), `--descartar` descarta, `-y` aplica sem perguntar |
 | `ajf ia [--escolher] [--testar]` | IAs encontradas e qual usar |
 | `ajf doctor` | Confere IA, navegador e arquivos do perfil |
-| `ajf base` | PDFs do currículo-base (sem IA) |
+| `ajf base [--refazer]` | PDFs do currículo-base (sem IA). Com `--refazer`, refaz os currículos-base a partir do `profile_truth.md` (usa IA) |
 | `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou) |
 | `ajf triage [--id <ids...>] [-l 10]` | Triagem das vagas novas, ou de novo das indicadas |
 | `ajf jobs [--status shortlisted] [-a]` · `ajf show <id>` | Lista e detalhes |
 | `ajf add --file vaga.md --company X --title Y` · `ajf add --url <link>` | Adiciona uma vaga |
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover]` | Gera o pacote |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
-| `ajf linkedin [--current meu_linkedin.md]` | Plano de LinkedIn |
+| `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
 | `ajf enviei [empresa ou cargo] [--note "via Gupy"]` | Marca que você se candidatou (acha a vaga pelo nome) |
 | `ajf status [empresa, cargo ou id] [status]` | Muda o status (entrevista, oferta, recusa...) |
 | `ajf auto [--web/--no-web] [--max 3] [--interview] [--open]` | Piloto automático |
@@ -302,6 +342,12 @@ O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminh
 - Ligue a **busca na web com IA**: as fontes padrão são, em boa parte, de vagas internacionais, e a web traz LinkedIn, Gupy e Indeed.
 - Veja no andamento da busca quantas vagas cada filtro cortou, e afrouxe os **filtros pelo título** em Preferências.
 - Baixe a **triagem mínima** (por exemplo, para 60) e olhe a etapa "Para decidir".
+
+**Fiz um projeto novo ou mudei de emprego. Como atualizo?**
+Em **Perfil → ➕ Contar uma novidade** (ou `ajf atualizar --texto "..."`). Você confere o antes e o depois, e os currículos-base são refeitos. Depois, gere de novo os pacotes prontos marcados com "perfil mudou depois". Veja [Atualizar o perfil depois](#atualizar-o-perfil-depois).
+
+**O plano do LinkedIn mostra coisas que eu já mudei.**
+O plano é um retrato do dia em que foi gerado, e o agente não acessa o LinkedIn. Mande o PDF ou o texto atual do seu LinkedIn e clique em **✅ Conferir meu LinkedIn**: ele mostra o que já está certo e o que ainda falta. Veja [LinkedIn](#8-linkedin).
 
 **O LinkedIn não é lido.**
 O LinkedIn bloqueia leitura automática. No cadastro, use o PDF do perfil (**Mais → Salvar como PDF**); para vagas, cole o texto.
