@@ -77,6 +77,8 @@ flowchart LR
 
 `src/jobs/search.ts` junta as vagas de todas as fontes ligadas nas preferências (`src/jobs/sources/`) e, se você pedir, da busca na web feita pela IA.
 
+A **Gupy** (`sources/gupy.ts`) é o portal de vagas que boa parte das empresas do Brasil usa, em todas as áreas. A página de busca do portal (`portal.gupy.io/job-search/term=...`) já traz as vagas em JSON (`__NEXT_DATA__`), 12 por página; a fonte lê até 3 páginas por termo e pula as vagas com prazo de inscrição vencido ou de página de carreira desativada. Ela só acha vagas com termos em português, por isso o cadastro gera termos no idioma do país e liga a Gupy para quem mora no Brasil.
+
 Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta as vagas que não fazem sentido:
 - título sem nenhum dos cargos-alvo, ou com palavra excluída;
 - empresa que você não quer;
@@ -84,14 +86,54 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 - presencial ou híbrida fora das suas cidades;
 - remota, mas restrita a países que você não aceitou.
 
-As vagas que passam vão para `data/jobs.json` com status `new`. Vagas repetidas (mesmo link, ou mesma empresa e cargo) são ignoradas.
+As vagas que passam vão para `data/jobs.json` com status `new`.
+
+### Vaga repetida
+
+A mesma vaga aparece em vários sites: Remotive e We Work Remotely, dois repositórios do GitHub, a Gupy e um agregador que copiou dela. `src/jobs/dedupe.ts` compara cada vaga achada com todas as salvas, inclusive as que você já enviou, sem IA:
+
+1. **Mesmo link.** O link é reduzido à forma que identifica a vaga (`canonicalUrl`): sem rastreio (`utm_*`, `ref`, `trackingId`...), sem `www.` e sem barra no fim, mantendo os parâmetros que importam, como o `jk` do Indeed. LinkedIn (`/jobs/view/slug-123`, `?currentJobId=123`), Gupy (`/job/<token>` e `/jobs/123`) e Indeed (`jk`, `vjk`) viram uma forma só. O ID da vaga sai desse link (`sources/index.ts#jobId`). Mesmo link é ignorado.
+2. **Mesma vaga em outro link.** As três coisas precisam bater:
+   - **título:** as palavras de um estão todas no outro, ou quase todas batem, sem acento, pontuação, marca de gênero ("Desenvolvedor(a)") e com Sr/Jr/Pl por extenso; "full stack" e "fullstack" contam iguais. **Nível diferente** (júnior × pleno, "Software Engineer" × "Senior Software Engineer", II × III) é sempre outra vaga;
+   - **empresa:** a mesma, sem "Ltda", "Inc.", "Group" e afins. Quando a fonte não informou ("(ver na vaga)", "Confidencial"), a empresa não é comparada e o texto precisa bater mais;
+   - **texto:** pelo menos 60% dos trechos de três palavras da descrição menor aparecem na maior (75% sem empresa conhecida). É o que separa a mesma vaga de vagas diferentes da mesma empresa, que repetem a apresentação da empresa mas não os requisitos.
+
+   Com a mesma empresa e o **mesmo título** (depois de normalizar), o texto não decide em dois casos:
+   - **não dá para comparar:** descrição curta, ou **resumo da busca na web**, que a IA escreve com outras palavras (`page.ts#isWebSummary`);
+   - **você já tratou a outra** (pacote, candidatura, entrevista, oferta ou recusa): repetir uma candidatura custa mais que esconder uma vaga, que dá para reabrir.
+
+   A repetida entra **descartada**, com `duplicateOf` apontando para a original (a primeira, se a achada já era repetida de outra), para não gastar triagem nem virar outro pacote. Reabrir, ou "Não é a mesma vaga", tira a marca e grava `notDuplicate`, para não marcar de novo. Vaga **colada** por você entra normal, só marcada, e o aviso diz qual é a parecida; o piloto automático não gera pacote de vaga marcada.
+   **Vaga reaberta.** Os itens acima só valem dentro de uma janela (`AJF_REPEAT_WINDOW_DAYS`, 90 dias) contada da sua candidatura, ou do dia em que a outra vaga foi salva. Fora dela, ou se a vaga achada foi publicada pelo menos 14 dias depois da sua candidatura, é **outra abertura** da mesma vaga: entra normal, e se você já tinha tratado a antiga ganha `reopenedFrom` e o aviso "📨 vaga reaberta". Mesmo link continua sendo o mesmo anúncio, não importa quando.
+3. **Vagas já salvas.** Depois de cada busca, `store.ts#flagHandledTwins` procura, entre as vagas ainda não enviadas, a mesma de uma que você já tratou (`dedupe.ts#handledTwins`): pega o que escapou e o que foi salvo antes desta checagem. Sem pacote, vai para "Encerradas"; com pacote, só fica marcada. Entre duas com pacote, a mais nova é a repetida. O piloto automático confere de novo antes de cada pacote (`handledTwin`).
+
+Os limites foram calibrados em vagas reais: as repetidas entre sites foram achadas (inclusive três vagas em que a pessoa já tinha se candidatado, que voltaram por outro site via busca na web), e vagas diferentes da mesma empresa com o mesmo texto de apresentação (até 80% de trechos em comum) ficaram separadas pelo título.
+
+### Vaga encerrada
+
+`src/jobs/open.ts` abre o link da vaga e decide (`pageVerdict`, testado offline):
+
+| O que o site responde | Resultado |
+|---|---|
+| Erro 404 ou 410 | encerrada |
+| Link que agora leva para a lista de vagas (`?error=true` do Greenhouse) ou para a página inicial | encerrada |
+| Vaga da Gupy com status diferente de publicada, ou prazo de inscrição vencido | encerrada |
+| `validThrough` do JobPosting no passado | encerrada |
+| Texto visível com "vaga encerrada", "inscrições encerradas", "no longer accepting applications" e afins (em português, inglês e espanhol; texto escondido em script não conta) | encerrada |
+| Issue fechada no GitHub (vagas das comunidades) | encerrada |
+| Erro 403, 429, login, página só com JavaScript, demora | sem confirmação |
+| O resto | aberta |
+
+Sem certeza, nunca bloqueia: "sem confirmação" segue como aberta. O resultado fica em `Job.openCheck`. Quando roda:
+- **antes de cada pacote** (`tailorJob`): encerrada, o pacote não é gerado (`JobClosedError`), a não ser com "Gerar mesmo assim" (`ignoreClosed`, `--mesmo-encerrada`). O piloto automático descarta a vaga e passa para a próxima da lista, sem gastar uma das vagas do limite;
+- **quando você pede** (`ajf conferir`, menu, botão na interface): todas as vagas ainda não enviadas, quatro de cada vez. Encerrada sem pacote vai para "Encerradas"; com pacote, só fica marcada.
 
 ### Texto da página da vaga
 
-A busca na web com IA traz só um resumo de cada vaga. Antes do pacote, e quando você cola só o link, o agente baixa a página e tira dela o texto da vaga (`src/jobs/page.ts#jobPageText`):
+A busca na web com IA traz só um resumo de cada vaga, e a busca da Gupy só a descrição, sem os requisitos. Antes do pacote (na mesma visita da conferência), e quando você cola só o link, o agente baixa a página e tira dela o texto da vaga (`src/jobs/page.ts#jobPageText`):
 
-1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Gupy, Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
-2. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
+1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
+2. **Página de vaga da Gupy**, que não tem JSON-LD: os dados da vaga (`__NEXT_DATA__`) trazem descrição, responsabilidades, requisitos e informações adicionais separados.
+3. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
 
 Um marcador de lista sozinho numa linha é juntado ao texto da linha seguinte (feeds RSS mandam `<li><p>texto</p></li>`); marcadores seguidos, de itens vazios de menu, saem. Linhas em branco repetidas também saem (`util/text.ts#tidyText`), inclusive na hora de mostrar vagas antigas.
 
@@ -129,7 +171,7 @@ flowchart LR
 
 ## 4. O pacote de cada vaga
 
-`src/tailor/index.ts#tailorJob` gera o pacote em 6 passos:
+`src/tailor/index.ts#tailorJob` primeiro confere se a vaga ainda está aberta ([vaga encerrada](#vaga-encerrada)) e completa a descrição com a página, quando ela veio só com resumo. Depois gera o pacote em 6 passos:
 
 ```mermaid
 flowchart TD
@@ -175,9 +217,11 @@ Um pacote com violação nunca fica "pronto". O `coverage_review.md` mostra o qu
 ```mermaid
 stateDiagram-v2
     [*] --> new: busca ou colar vaga
+    [*] --> discarded: repetida de uma vaga salva
     new --> shortlisted: triagem recomenda
     new --> triaged: triagem em dúvida
     new --> discarded: triagem descarta
+    shortlisted --> discarded: vaga encerrada
     shortlisted --> tailored: pacote com nota ≥ 7
     triaged --> tailored
     shortlisted --> low_fit: pacote com nota < 7
@@ -270,9 +314,11 @@ src/
   profile.ts             leitura do perfil, preferências e regras
   prompts.ts · schemas.ts · market.ts
   jobs/
-    sources/             fontes de vagas (APIs públicas, páginas de carreira, web com IA)
+    sources/             fontes de vagas (APIs públicas, Gupy, páginas de carreira, web com IA)
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
-    page.ts              texto da vaga a partir da página (JobPosting ou conteúdo principal)
+    dedupe.ts            vaga repetida: link canônico, título, empresa e texto
+    open.ts              vaga encerrada: confere o link antes do pacote e no ajf conferir
+    page.ts              texto da vaga a partir da página (JobPosting, Gupy ou conteúdo principal)
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json

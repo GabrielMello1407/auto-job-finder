@@ -62,6 +62,13 @@ interface DemoJob {
   outdated?: boolean;
   /** E-mail de candidatura que aparece na vaga. */
   contactEmail?: string;
+  source?: string;
+  /** A mesma vaga de outra (achada em outro site). */
+  duplicateOf?: string;
+  /** A conferência achou a vaga encerrada (o motivo). */
+  closed?: string;
+  /** Igual a uma antiga em que a pessoa já se candidatou: vaga reaberta. */
+  reopenedFrom?: string;
   /** Vaga recebida sem link (indicação, e-mail, WhatsApp) e pesquisada na web. */
   research?: {
     verdict: "confirmada" | "nao_encontrada" | "suspeita";
@@ -294,6 +301,7 @@ Requirements
       seniority: "senior",
     },
     description: "Fictional SaaS company hiring a TypeScript engineer. 5+ years, AWS, on-call rotation.",
+    closed: "a página diz “no longer accepting applications”",
   },
   {
     id: "demo0009",
@@ -400,6 +408,42 @@ Requirements
       seniority: "pleno",
     },
     description: "Healthtech (fictícia) procura full stack para o portal do paciente.",
+  },
+  {
+    // A mesma vaga da demo0006, achada de novo em outro site: entra descartada como repetida.
+    id: "demo0014",
+    company: "Nuvem Azul Tecnologia",
+    title: "Desenvolvedor(a) Back-end Node.js",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "discarded",
+    days: 0,
+    source: "gupy",
+    duplicateOf: "demo0006",
+    description:
+      "A Nuvem Azul (fictícia) contrata back-end Node.js para o time de APIs de logística. Node.js, TypeScript, PostgreSQL, filas e tempo real.",
+  },
+  {
+    // A Saúde Já abriu de novo a vaga em que a Ana foi recusada: entra como vaga nova, com o aviso.
+    id: "demo0015",
+    company: "Saúde Já Exemplo",
+    title: "Desenvolvedora(or) Full Stack",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "shortlisted",
+    days: 0,
+    reopenedFrom: "demo0013",
+    triage: {
+      fit: "alta",
+      score: 81,
+      reason: "A mesma stack da vaga anterior da empresa: Node.js, React e PostgreSQL com evidência direta.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Healthtech (fictícia) reabriu a vaga de full stack para o portal do paciente.",
   },
 ];
 
@@ -760,6 +804,10 @@ async function main() {
     }
     if (j.appliedDays != null) job.appliedAt = ago(j.appliedDays, 3);
     if (j.notes) job.notes = j.notes;
+    if (j.source) job.source = j.source;
+    if (j.duplicateOf) job.duplicateOf = j.duplicateOf;
+    if (j.reopenedFrom) job.reopenedFrom = j.reopenedFrom;
+    if (j.closed) job.openCheck = { at: ago(0, 1), verdict: "encerrada", reason: j.closed };
 
     if (j.rating != null) {
       const dir = path.join(DEMO, "output", FOLDER[j.status], `${ago(j.days).slice(0, 10)}-${slug(j.company, 25)}-${slug(j.title, 35)}`);

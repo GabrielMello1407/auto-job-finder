@@ -34,7 +34,7 @@ function paint() {
     ${section(
       "🔎 Como buscar",
       "",
-      `${tags("Termos de busca", "queries", p.queries, "Cada termo vira uma busca nas fontes de vagas.")}
+      `${tags("Termos de busca", "queries", p.queries, "Cada termo vira uma busca nas fontes de vagas. Para a Gupy e os sites do Brasil, inclua termos em português (ex.: “analista de dados”); para as fontes internacionais, em inglês.")}
       <div class="field"><span>Fontes de vagas</span><div class="source-grid">${data.sources
         .map(
           (s) => `<label class="source-opt"><input type="checkbox" name="defaultSources" data-list value="${esc(s.id)}"${p.defaultSources.includes(s.id) ? " checked" : ""}><span><b>${esc(s.id)}</b><br><small class="muted">${esc(s.description)}</small></span></label>`,

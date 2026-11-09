@@ -9,6 +9,7 @@ export type TaskKind =
   | "search"
   | "triage"
   | "research"
+  | "check"
   | "tailor"
   | "interview"
   | "render"

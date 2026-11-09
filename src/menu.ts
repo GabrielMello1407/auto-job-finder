@@ -9,13 +9,14 @@ import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
-import { addJob, searchJobs } from "./jobs/search.js";
+import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
+import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
-import { findJob, loadJobs } from "./jobs/store.js";
+import { findJob, loadJobs, markNotDuplicate } from "./jobs/store.js";
 import { changeStatus, markApplied } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import type { Job, JobStatus } from "./schemas.js";
-import { interviewGuide, tailorJob } from "./tailor/index.js";
+import { interviewGuide, JobClosedError, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
 import { ANSWERS_FILE, answerQuestion, refineAnswer } from "./writers/answers.js";
@@ -48,6 +49,8 @@ function printDetails(j: Job) {
   }
   const research = researchLines(j);
   if (research.length) console.log(`\n${research.join("\n")}`);
+  const extra = jobFlags(j);
+  if (extra.length) console.log(`\n${extra.join("\n")}`);
   console.log(`\n${withoutResearch(j.description).slice(0, 1200)}${j.description.length > 1200 ? "\n[...]" : ""}\n`);
 }
 
@@ -92,12 +95,29 @@ async function makePackages(jobs: Job[]) {
   for (const [i, j] of jobs.entries()) {
     console.log(`\n📦 ${i + 1}/${jobs.length}: ${j.company} — ${j.title}`);
     try {
-      const r = await tailorJob(j.id, { interview });
+      let r;
+      try {
+        r = await tailorJob(j.id, { interview });
+      } catch (e) {
+        if (!(e instanceof JobClosedError)) throw e;
+        console.log(`   🔒 A vaga parece encerrada: ${e.check.reason}.`);
+        if (!(await confirm({ message: "Ela ainda está aberta? Gerar o pacote mesmo assim?", default: false }))) continue;
+        r = await tailorJob(j.id, { interview, ignoreClosed: true });
+      }
       console.log(`   nota ${r.rating} · ATS ${r.ats}% · ${r.pages} pág. → ${r.ready ? "✅ pronto para revisar" : "⚠ baixa aderência"}`);
     } catch (e) {
       console.log(`   ❌ ${(e as Error).message}`);
     }
   }
+  refresh();
+}
+
+/** Confere uma vaga; sem pacote e encerrada, ela vai para "Encerradas". */
+async function checkOneFlow(job: Job) {
+  console.log("🔒 Conferindo...");
+  const { check } = await checkJobOpen(job);
+  const updated = recordOpenCheck(job, check);
+  console.log(`${OPEN_ICON[check.verdict]} ${check.reason}${updated.status !== job.status ? ' — vaga movida para "Encerradas" (dá para reabrir)' : ""}`);
   refresh();
 }
 
@@ -115,7 +135,7 @@ async function autopilotFlow() {
 async function searchFlow() {
   const web = canWebSearch() && (await confirm({ message: "Incluir busca na web com IA (LinkedIn, Gupy, Indeed)?", default: loadPreferences().webSearchByDefault }));
   const s = await searchJobs({ web });
-  console.log(`   ${s.added.length} novas (de ${s.found}; ${s.kept} passaram no filtro)`);
+  console.log(`   ${searchSummary(s)}`);
   s.errors.forEach((e) => console.log(`   ⚠ ${e}`));
   if (loadJobs().some((j) => j.status === "new")) {
     console.log("🧠 Triagem...");
@@ -159,6 +179,8 @@ async function recommendedFlow() {
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
         { name: "📝 Responder pergunta do formulário", value: "answer" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
+        { name: "🔒 Conferir se a vaga ainda está aberta", value: "check" },
+        ...(job.duplicateOf ? [{ name: "🔁 Não é a mesma vaga (tirar a marca de repetida)", value: "notdup" }] : []),
         ...(canWebSearch()
           ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
           : []),
@@ -176,6 +198,11 @@ async function recommendedFlow() {
       printDetails(findJob(loadJobs(), job.id));
     }
     if (action === "open") openExternal(job.applyUrl ?? job.url);
+    if (action === "check") await checkOneFlow(job);
+    if (action === "notdup") {
+      markNotDuplicate(job.id);
+      console.log("Marca de repetida tirada.");
+    }
     if (action === "applied") {
       await markApplied(job.id);
       refresh();
@@ -214,6 +241,8 @@ async function packagesFlow() {
           { name: "💬 Mostrar mensagens de LinkedIn", value: "linkedin" },
           { name: "📝 Responder pergunta do formulário", value: "answer" },
           { name: "🔗 Abrir a vaga para me candidatar", value: "apply" },
+          { name: "🔒 Conferir se a vaga ainda está aberta", value: "check" },
+          ...(job.duplicateOf ? [{ name: "🔁 Não é a mesma vaga (tirar a marca de repetida)", value: "notdup" }] : []),
           { name: "📁 Abrir pasta do pacote", value: "folder" },
           { name: "✅ Marcar como enviado", value: "applied" },
           { name: "🔄 Gerar de novo", value: "redo" },
@@ -226,6 +255,11 @@ async function packagesFlow() {
       if (action === "cover" && job.files?.coverLetter) openExternal(job.files.coverLetter);
       if (action === "folder" && job.outputDir) openExternal(job.outputDir);
       if (action === "apply") openExternal(job.applyUrl ?? job.url);
+      if (action === "check") await checkOneFlow(job);
+      if (action === "notdup") {
+        Object.assign(job, markNotDuplicate(job.id));
+        console.log("Marca de repetida tirada.");
+      }
       if (action === "answer") await answerFlow(job);
       if (action === "email") console.log("\n" + (emailSection(job, "## 1.") ?? "emails.md não encontrado") + "\n");
       if (action === "linkedin")
@@ -398,6 +432,7 @@ export async function mainMenu() {
         { name: `📨 Candidaturas em andamento (${count("applied", "interview", "offer")})${due ? ` — ⏰ ${due} follow-up` : ""}`, value: "active" },
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
         { name: "🔎 Só buscar e triar vagas novas", value: "search" },
+        { name: "🔒 Conferir se as vagas ainda estão abertas", value: "check" },
         { name: "🌐 Abrir painel no navegador", value: "dashboard" },
         { name: "🔗 LinkedIn: plano ou conferência", value: "linkedin" },
         { name: "🧭 Atualizar meu perfil (novidade, currículos-base ou do zero)", value: "init" },
@@ -417,6 +452,11 @@ export async function mainMenu() {
       if (choice === "active") await activeFlow();
       if (choice === "paste") await pasteFlow();
       if (choice === "search") await searchFlow();
+      if (choice === "check") {
+        console.log("🔒 Conferindo as vagas que você ainda não enviou...");
+        console.log(closedSummary(await checkOpenJobs()));
+        refresh();
+      }
       if (choice === "dashboard") openExternal(writeDashboard());
       if (choice === "linkedin") await linkedinFlow();
       if (choice === "init") await profileFlow();

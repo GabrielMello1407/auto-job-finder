@@ -109,6 +109,21 @@ export interface Job {
   research?: JobResearchSummary;
   /** Perguntas do formulário de candidatura e as respostas preparadas (src/writers/answers.ts). */
   answers?: JobAnswer[];
+  /** A mesma vaga já estava salva com este ID (outro site, outro link). Ver src/jobs/dedupe.ts. */
+  duplicateOf?: string;
+  /** Você reabriu a vaga marcada como repetida: não marcar de novo. */
+  notDuplicate?: boolean;
+  /** Igual a uma que você já tratou há muito tempo (ou publicada depois): vaga reaberta. ID da antiga. */
+  reopenedFrom?: string;
+  /** Última conferência de que a vaga ainda aceita candidaturas (src/jobs/open.ts). */
+  openCheck?: OpenCheck;
+}
+
+export interface OpenCheck {
+  at: string;
+  /** aberta = a página da vaga está no ar; encerrada = o site diz que acabou; sem_confirmacao = não deu para conferir. */
+  verdict: "aberta" | "encerrada" | "sem_confirmacao";
+  reason: string;
 }
 
 export interface JobAnswer {

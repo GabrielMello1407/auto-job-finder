@@ -5,9 +5,10 @@ import { hasProfile, paths, setEnvVar, settings } from "../../config.js";
 import { canWebSearch } from "../../llm.js";
 import { loadPreferences } from "../../profile.js";
 import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, type ProviderId } from "../../providers/index.js";
-import { addJob, searchJobs } from "../../jobs/search.js";
+import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
+import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
 import { changeStatus, isStatus, STATUS_LABELS } from "../../jobs/status.js";
-import { findJob, loadJobs } from "../../jobs/store.js";
+import { findJob, loadJobs, markNotDuplicate } from "../../jobs/store.js";
 import { triageJobs } from "../../jobs/triage.js";
 import type { Job } from "../../schemas.js";
 import { profileChangedAt } from "../../onboarding/update.js";
@@ -80,6 +81,9 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
           outdated: packageOutdated(j, dir, changedAt),
         }
       : null,
+    duplicateOf: j.duplicateOf,
+    reopenedFrom: j.reopenedFrom,
+    openCheck: j.openCheck,
   };
 }
 
@@ -187,6 +191,7 @@ function tailorOptions(b: Record<string, any>): TailorOptions {
     paper: pick(b.paper, ["A4", "Letter"] as const),
     market: pick(b.market, MARKETS),
     cover: b.cover === "sim" ? true : b.cover === "nao" ? false : undefined,
+    ignoreClosed: Boolean(b.ignoreClosed),
   };
 }
 
@@ -255,7 +260,7 @@ export function jobRoutes(app: App): Route[] {
           const changedAt = profileChangedAt();
           return loadJobs().map((j) => jobSummary(j, changedAt));
         })(),
-        settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore },
+        settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore, repeatWindowDays: settings.repeatWindowDays },
         provider: providerState(),
         webSearch: canWebSearch(),
         webDefault: loadPreferences().webSearchByDefault,
@@ -337,7 +342,7 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add("search", web ? "Buscar vagas (sites + web com IA)" : "Buscar vagas", async () => {
             const s = await searchJobs({ web, webHint });
-            console.log(`${s.added.length} novas (de ${s.found} encontradas; ${s.kept} passaram no filtro)`);
+            console.log(searchSummary(s));
             if (s.dropped.length) console.log(`Cortadas pelo filtro das preferências:\n${droppedSummary(s.dropped).join("\n")}`);
             s.errors.forEach((e) => console.log(`⚠ ${e}`));
             const t = await triageJobs();
@@ -456,6 +461,52 @@ export function jobRoutes(app: App): Route[] {
             async () => {
               const [t] = await triageJobs({ ids: [job.id] });
               return t?.triage ? `triagem ${t.triage.score} · ${STATUS_LABELS[t.status]}` : "avaliada";
+            },
+            job.id,
+          ),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/not-duplicate$/,
+      (c) => {
+        // "Não é a mesma vaga": tira a marca de repetida (vaga com pacote ou colada; descartada usa "Reabrir").
+        const job = markNotDuplicate(jobFrom(c.params[0]).id);
+        app.jobsChanged(job.id);
+        return { job: jobSummary(job) };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/check-open$/,
+      () => {
+        // "Conferir se ainda estão abertas" (o `ajf conferir`): todas as vagas que ainda não foram enviadas.
+        if (queue.has("check")) throw new HttpError(409, "A conferência já está na fila.");
+        if (!loadJobs().some((j) => CHECKABLE.includes(j.status))) throw new HttpError(400, "Nenhuma vaga para conferir: todas já foram enviadas ou encerradas.");
+        return {
+          task: queue.add("check", "Conferir se as vagas ainda estão abertas", async () => {
+            const r = await checkOpenJobs();
+            console.log(`\n${closedSummary(r)}`);
+            return `${r.open} aberta(s) · ${r.closed.length} encerrada(s) · ${r.unknown} sem confirmação`;
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/check-open$/,
+      (c) => {
+        const job = jobFrom(c.params[0]);
+        if (queue.has("check", job.id)) throw new HttpError(409, "Essa vaga já está na fila.");
+        return {
+          task: queue.add(
+            "check",
+            `Conferir se está aberta: ${job.company}`,
+            async () => {
+              const { check } = await checkJobOpen(job);
+              const updated = recordOpenCheck(job, check);
+              return `${OPEN_ICON[check.verdict]} ${check.reason}${updated.status !== job.status ? " · movida para Encerradas" : ""}`;
             },
             job.id,
           ),

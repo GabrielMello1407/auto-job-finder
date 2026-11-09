@@ -133,7 +133,9 @@ Cada vaga mostra três indicadores:
 ### Achar vagas
 
 - **🔎 Buscar vagas:** procura nas fontes das suas [preferências](#7-preferências-de-busca), e a IA avalia cada vaga nova. Ligue **busca na web com IA** para incluir LinkedIn, Gupy, Indeed e sites de empresas; dá para acrescentar uma instrução, como "só vagas em Londrina".
-- **🚀 Piloto automático:** busca, avalia e já gera os pacotes das melhores vagas (triagem ≥ 70 e sem sinal de golpe). Você escolhe quantos pacotes no máximo.
+- **🚀 Piloto automático:** busca, avalia e já gera os pacotes das melhores vagas (triagem ≥ 70 e sem sinal de golpe). Você escolhe quantos pacotes no máximo. Vaga que já acabou é descartada e o piloto passa para a próxima, sem gastar um dos pacotes.
+
+A busca não traz a mesma vaga duas vezes: a que aparece de novo em outro site (mesma empresa, mesmo cargo, mesmo texto) entra direto em "Encerradas", marcada com **🔁 repetida**, e não é avaliada nem vira outro pacote. Vale também para vagas em que você já se candidatou: aí basta a mesma empresa e o mesmo cargo. Se o agente errar, abra a vaga e clique em **↩ Reabrir** (ou **Não é a mesma vaga**, se ela já tem pacote).
 - **➕ Colar vaga:** para a vaga que você viu no LinkedIn, num grupo de WhatsApp ou numa indicação. Cole o texto completo ou, se a página abre sem login (Gupy, site da empresa), só o link.
 
 #### Vaga sem link (indicação, e-mail, WhatsApp)
@@ -164,6 +166,10 @@ Em **Para decidir**, as vagas recomendadas aparecem primeiro. Você pode:
 - **Descartar**, com "Desfazer" logo em seguida.
 
 Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário fora da realidade) aparecem marcadas. Desconfie.
+
+**Vaga encerrada.** Antes de gerar o pacote, o agente abre o link da vaga e procura sinais de que ela acabou: página que não existe mais, prazo de inscrição vencido, "vaga encerrada" ou "no longer accepting applications" na página. Se achar, não gasta a IA: a vaga fica com **🔒 vaga encerrada** e o motivo, e o botão vira **📦 Gerar mesmo assim**, para quando você conferiu e ela ainda está aberta. Sem certeza (site que bloqueia robôs ou pede login), segue normalmente.
+
+**🔒 Conferir se ainda estão abertas**, em "Para decidir" e em "Prontas", confere de uma vez todas as vagas que você ainda não enviou. As encerradas sem pacote vão para "Encerradas" (dá para reabrir); as que já têm pacote ficam onde estão, marcadas. Nos detalhes de uma vaga, **🔒 Conferir se está aberta** faz o mesmo só com ela.
 
 ### Candidatar-se
 
@@ -254,9 +260,12 @@ Fontes de vagas:
 | Fonte | Foco |
 |---|---|
 | busca na web com IA | LinkedIn, Gupy, Indeed, Glassdoor, Catho, sites de carreira — **qualquer área** |
+| `gupy` | o portal de vagas da Gupy, que boa parte das empresas do Brasil usa — **qualquer área**, sem gastar IA. Só acha vagas com **termos em português** |
 | `remotive`, `himalayas`, `jobicy`, `arbeitnow` | remoto internacional, várias áreas |
 | `github-br`, `getonbrd`, `remoteok`, `weworkremotely` | tecnologia (Brasil, América Latina, remoto) |
 | `greenhouse`, `lever`, `ashby` | páginas de carreira das empresas que você indicar |
+
+**Termos de busca em dois idiomas.** Cada termo vira uma busca em cada fonte. As fontes internacionais acham vagas com termos em inglês ("data analyst"); a Gupy e os sites do Brasil, com termos em português ("analista de dados"). Se você mora no Brasil e aceita vagas de fora, deixe os dois. Quem montou o perfil antes de a Gupy entrar no agente precisa ligá-la aqui, em **Fontes de vagas**.
 
 ## 8. LinkedIn
 
@@ -343,12 +352,13 @@ Tudo da interface também existe no terminal.
 | `ajf ia [--escolher] [--testar]` | IAs encontradas e qual usar |
 | `ajf doctor` | Confere IA, navegador e arquivos do perfil |
 | `ajf base [--refazer]` | PDFs do currículo-base (sem IA). Com `--refazer`, refaz os currículos-base a partir do `profile_truth.md` (usa IA) |
-| `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou) |
+| `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou e de qual vaga cada repetida é cópia) |
 | `ajf triage [--id <ids...>] [-l 10]` | Triagem das vagas novas, ou de novo das indicadas |
 | `ajf jobs [--status shortlisted] [-a]` · `ajf show <id>` | Lista e detalhes |
 | `ajf add --file vaga.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` | Adiciona uma vaga. Com `--pesquisar`, pesquisa a vaga e a empresa na web antes da triagem (vaga sem link) |
 | `ajf pesquisar [empresa, cargo ou id]` | Pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real |
-| `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover]` | Gera o pacote |
+| `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Gera o pacote. Antes, confere se a vaga ainda está aberta; `--mesmo-encerrada` gera mesmo assim |
+| `ajf conferir [empresa, cargo ou id]` | Confere se as vagas ainda aceitam candidaturas. Sem nada, confere todas que você ainda não enviou |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
 | `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
@@ -359,7 +369,7 @@ Tudo da interface também existe no terminal.
 
 O ID da vaga aceita só o começo (`ajf tailor 78cb`).
 
-Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
+Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), por quantos dias a mesma vaga em outro site conta como repetida (`AJF_REPEAT_WINDOW_DAYS`, 90), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
 
 ## 12. Dúvidas e problemas
 
@@ -376,9 +386,19 @@ Abra o botão da IA e veja o diagnóstico. Confira se você já entrou na conta 
 O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminho do navegador em `CHROME_PATH` no `.env`.
 
 **Aparecem poucas vagas boas.**
+- Mora no Brasil? Ligue a fonte **`gupy`** em Preferências e confira se há **termos de busca em português**.
 - Ligue a **busca na web com IA**: as fontes padrão são, em boa parte, de vagas internacionais, e a web traz LinkedIn, Gupy e Indeed.
 - Veja no andamento da busca quantas vagas cada filtro cortou, e afrouxe os **filtros pelo título** em Preferências.
 - Baixe a **triagem mínima** (por exemplo, para 60) e olhe a etapa "Para decidir".
+
+**A mesma vaga aparece duas vezes?**
+Não deveria. O agente compara cada vaga nova com todas as salvas, inclusive as que você já enviou: mesmo link, ou mesma empresa, mesmo cargo e mesmo texto em outro site. Se você já se candidatou ou já tem pacote de uma vaga com a mesma empresa e o mesmo cargo, a nova conta como repetida mesmo que o texto venha diferente (a busca na web traz um resumo com outras palavras). A cada busca, ele também confere as vagas que já estavam salvas. A repetida vai para "Encerradas" com **🔁 repetida**, e os detalhes dizem de qual vaga ela é cópia; se ela já tinha pacote, fica onde está, só marcada. Errou? Clique em **↩ Reabrir** ou, numa vaga com pacote, em **Não é a mesma vaga**: o agente não marca essa vaga de novo. Vagas de níveis diferentes (júnior e pleno, "Engineer" e "Senior Engineer") nunca contam como repetidas.
+
+**A empresa abriu de novo uma vaga em que eu já me candidatei.**
+Depois de 90 dias da sua candidatura, ou se o anúncio novo foi publicado depois dela, o agente entende que é **outra abertura**: a vaga entra normal, com **📨 vaga reaberta**, e os detalhes mostram quando você se candidatou à antiga e como ela terminou. Assim você decide se vale tentar de novo. Para mudar o prazo, use `AJF_REPEAT_WINDOW_DAYS` no `.env`.
+
+**Gerei o pacote e a vaga já tinha acabado.**
+Agora o agente confere antes: se a página diz que a vaga acabou, o pacote não é gerado e a vaga ganha **🔒 vaga encerrada**. Se você tem certeza de que ela está aberta, use **📦 Gerar mesmo assim**. Para limpar a lista de uma vez, use **🔒 Conferir se ainda estão abertas**. Alguns sites (Himalayas, We Work Remotely) não deixam conferir; essas ficam "sem confirmação" e seguem normalmente.
 
 **Fiz um projeto novo ou mudei de emprego. Como atualizo?**
 Em **Perfil → ➕ Contar uma novidade** (ou `ajf atualizar --texto "..."`). Você confere o antes e o depois, e os currículos-base são refeitos. Depois, gere de novo os pacotes prontos marcados com "perfil mudou depois". Veja [Atualizar o perfil depois](#atualizar-o-perfil-depois).

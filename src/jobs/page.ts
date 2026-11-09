@@ -7,8 +7,75 @@ import { htmlToText } from "../util/text.js";
  *    Lever, Workday, Wellfound, Indeed...). Traz a descrição limpa, a empresa, o local e o salário.
  * 2. Sem isso, o conteúdo principal da página (<main>, ou <article>), sem cabeçalho, menu, rodapé e formulários.
  */
+/** Primeira linha da descrição das vagas da busca na web: o texto é um resumo escrito pela IA, não o da vaga. */
+export const WEB_SUMMARY_HEADER = "[Resumo da busca web — confira a vaga completa no link]";
+export const isWebSummary = (description: string) => description.startsWith("[Resumo da busca web");
+
 export function jobPageText(html: string): string {
-  return postingText(html) ?? htmlToText(mainContent(html));
+  return postingText(html) ?? gupyText(html) ?? htmlToText(mainContent(html));
+}
+
+/** Dados que páginas feitas em Next.js mandam junto (`<script id="__NEXT_DATA__">`). */
+export function nextData(html: string): any {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[1]);
+  } catch {
+    return null;
+  }
+}
+
+/** A vaga da página de uma vaga da Gupy (`empresa.gupy.io/jobs/123`), se for uma. */
+export function gupyJobData(html: string): Obj | null {
+  const job = nextData(html)?.props?.pageProps?.job;
+  return isObj(job) && str(job.name) ? job : null;
+}
+
+export const GUPY_WORKPLACE: Record<string, string> = { remote: "Remoto", hybrid: "Híbrido", "on-site": "Presencial" };
+export const GUPY_JOB_TYPE: Record<string, string> = {
+  vacancy_type_effective: "Efetivo (CLT)",
+  vacancy_legal_entity: "PJ",
+  vacancy_type_internship: "Estágio",
+  vacancy_type_temporary: "Temporário",
+  vacancy_type_apprentice: "Jovem aprendiz",
+  vacancy_type_trainee: "Trainee",
+  vacancy_type_talent_pool: "Banco de talentos (não é uma vaga aberta agora)",
+};
+
+/** Página de vaga da Gupy: não tem JSON-LD; a descrição, as responsabilidades e os requisitos vêm separados. */
+function gupyText(html: string): string | null {
+  const job = gupyJobData(html);
+  if (!job) return null;
+  const career = isObj(job.careerPage) ? str(job.careerPage.name) : "";
+  const place = [str(job.addressCity), str(job.addressState), str(job.addressCountry)].filter(Boolean).join(", ");
+  const meta = [
+    ["Empresa", career],
+    ["Local", [GUPY_WORKPLACE[str(job.workplaceType)] ?? "", place].filter(Boolean).join(" · ")],
+    ["Tipo", GUPY_JOB_TYPE[str(job.jobType)] ?? ""],
+    ["Inscrições até", str(job.registerEndDate).slice(0, 10)],
+  ].filter(([, v]) => v);
+  const sections = [
+    ["Descrição", job.description],
+    ["Responsabilidades e atribuições", job.responsibilities],
+    ["Requisitos e qualificações", job.prerequisites],
+    ["Informações adicionais", job.relevantExperiences],
+  ]
+    .map(([h, v]) => [h, htmlToText(str(v))])
+    .filter(([, v]) => v)
+    .map(([h, v]) => `## ${h}\n\n${v}`);
+  if (!sections.length) return null;
+  return [`# ${str(job.name)}`, meta.map(([k, v]) => `${k}: ${v}`).join("\n"), ...sections].filter(Boolean).join("\n\n");
+}
+
+/** O bloco JobPosting (JSON-LD) da página, se houver. */
+export function jobPostingLd(html: string): Obj | null {
+  return ldObjects(html).find((o) => list(o["@type"]).some((t) => str(t).toLowerCase() === "jobposting")) ?? null;
+}
+
+/** Texto visível do conteúdo principal da página (sem scripts, menu e rodapé). */
+export function visibleText(html: string): string {
+  return htmlToText(mainContent(html));
 }
 
 type Obj = Record<string, unknown>;

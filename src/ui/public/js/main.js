@@ -203,6 +203,13 @@ const COMMANDS = [
   { ico: "🚀", text: "Piloto automático", sub: "buscar, avaliar e gerar pacotes", run: () => ACTIONS.auto() },
   { ico: "➕", text: "Colar uma vaga", run: () => ACTIONS.paste() },
   { ico: "🧠", text: "Avaliar vagas novas", when: () => S.jobs.some((j) => j.status === "new"), run: () => ACTIONS.triage() },
+  {
+    ico: "🔒",
+    text: "Conferir se as vagas ainda estão abertas",
+    sub: "marca as encerradas antes de você gastar tempo com elas",
+    when: () => S.jobs.some((j) => ["new", "triaged", "shortlisted", "tailored", "low_fit"].includes(j.status)),
+    run: () => ACTIONS["check-open"](),
+  },
   ...STAGES.map((s) => ({
     ico: "💼",
     text: `Ver: ${s.label}`,
