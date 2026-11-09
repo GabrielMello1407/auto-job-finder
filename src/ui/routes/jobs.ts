@@ -7,7 +7,7 @@ import { loadPreferences } from "../../profile.js";
 import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, type ProviderId } from "../../providers/index.js";
 import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
-import { changeStatus, isStatus, STATUS_LABELS } from "../../jobs/status.js";
+import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
 import { findJob, loadJobs, markNotDuplicate } from "../../jobs/store.js";
 import { triageJobs } from "../../jobs/triage.js";
 import type { Job } from "../../schemas.js";
@@ -17,6 +17,8 @@ import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../t
 import { openExternal } from "../../util/open.js";
 import { tidyText } from "../../util/text.js";
 import { answerQuestion, deleteAnswer, refineAnswer } from "../../writers/answers.js";
+import { applicationSheet } from "../../writers/applicationSheet.js";
+import { applicationDraft, DRAFT_FILE, gmailComposeUrl, parseEmails, writeApplicationDraft } from "../../writers/emailDraft.js";
 import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
 
 /** Vagas, tarefas longas (busca, triagem, pacotes) e escolha da IA. */
@@ -52,6 +54,10 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
     postedAt: j.postedAt,
     addedAt: j.addedAt,
     appliedAt: j.appliedAt,
+    appliedVia: j.appliedVia,
+    appliedViaLabel: j.appliedVia ? APPLY_CHANNELS[j.appliedVia] : undefined,
+    // Canal provável, para já vir marcado no "Já me candidatei".
+    applyGuess: SENDABLE.includes(j.status) ? guessApplyVia(j) : undefined,
     notes: j.notes,
     rating: j.rating,
     atsScore: j.atsScore,
@@ -87,35 +93,8 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
   };
 }
 
-interface EmailSection {
-  title: string;
-  subjects: string[];
-  message: string;
-  notes: string;
-}
-
-/** Separa emails.md em seções (candidatura, LinkedIn, follow-up...) com assunto e mensagem prontos para copiar. */
-export function parseEmails(md: string | null): { intro: string; sections: EmailSection[] } | null {
-  if (!md) return null;
-  const [head, ...parts] = md.replace(/\r/g, "").split(/^## /m);
-  const sections = parts.map((part): EmailSection => {
-    const [titleLine, ...rest] = part.split("\n");
-    const body = rest.join("\n");
-    const code = body.match(/```[a-z]*\n([\s\S]*?)```/);
-    const before = (code ? body.slice(0, code.index) : body).trim();
-    const subjects: string[] = [];
-    const inlineSubject = before.match(/\*\*Assunto[^*]*\*\*:?[ \t]*(.*)/);
-    if (inlineSubject?.[1]?.trim()) subjects.push(inlineSubject[1].trim());
-    else if (/\*\*Assunto/.test(before)) for (const m of before.matchAll(/^\s*-\s+(.+)$/gm)) subjects.push(m[1].trim());
-    const notes = before
-      .split("\n")
-      .filter((l) => !/\*\*Assunto/.test(l) && !(subjects.length && /^\s*-\s+/.test(l)))
-      .join("\n")
-      .trim();
-    return { title: titleLine.trim(), subjects, message: code ? code[1].trim() : body.trim(), notes };
-  });
-  return { intro: head.replace(/^# .*\n/, "").trim(), sections };
-}
+// O parser de emails.md mora em writers/emailDraft.ts (o rascunho .eml usa o mesmo); exportado aqui para os testes.
+export { parseEmails };
 
 function jobDetail(j: Job) {
   const dir = packageDir(j);
@@ -126,6 +105,15 @@ function jobDetail(j: Job) {
         .filter((f) => /\.(pdf|md|docx)$/i.test(f))
         .map((f) => ({ name: f, url: fileUrl(path.join(dir, f))! }))
     : [];
+  // E-mail de candidatura do pacote: o .eml com anexo e o link do Gmail (destinatário, assunto, texto).
+  const draft = dir ? applicationDraft(j) : null;
+  const emails = parseEmails(read("emails.md"));
+  let sheet = null;
+  try {
+    sheet = applicationSheet(j);
+  } catch {
+    /* sem perfil: sem ficha */
+  }
   return {
     ...jobSummary(j),
     // Vagas antigas guardaram a página inteira: limpa os itens vazios de menu na hora de mostrar.
@@ -134,9 +122,23 @@ function jobDetail(j: Job) {
     gaps: j.triage?.mustHaveGaps ?? [],
     answers: j.answers ?? [],
     files,
+    sheet,
+    apply: draft ? { to: draft.to, attachments: draft.attachments.map((f) => path.basename(f)), gmail: gmailComposeUrl(draft) } : null,
     docs: {
       readme: read("LEIA-ME.md"),
-      emails: parseEmails(read("emails.md")),
+      emails: emails && {
+        ...emails,
+        // Com o rascunho com anexo, o link antigo (mailto, sem anexo) e o aviso do .eml só confundem: o quadro de envio já cobre.
+        intro: draft
+          ? emails.intro
+              .split("\n")
+              .filter((l) => !/\]\(mailto:/.test(l) && !/^\*\*Rascunho com o currículo/.test(l))
+              .join("\n")
+              .trim()
+          : emails.intro,
+        // Seções com assunto são e-mails (candidatura, follow-up, agradecimento): ganham o "Abrir no Gmail".
+        sections: emails.sections.map((s) => ({ ...s, gmail: s.subjects.length ? gmailComposeUrl({ to: draft?.to ?? "", subject: s.subjects[0], body: s.message }) : undefined })),
+      },
       interview: read("interview_prep.md"),
       ats: read("ats_report.md"),
       rating: read("rating_report.md"),
@@ -261,6 +263,7 @@ export function jobRoutes(app: App): Route[] {
           return loadJobs().map((j) => jobSummary(j, changedAt));
         })(),
         settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore, repeatWindowDays: settings.repeatWindowDays },
+        applyChannels: APPLY_CHANNELS,
         provider: providerState(),
         webSearch: canWebSearch(),
         webDefault: loadPreferences().webSearchByDefault,
@@ -421,7 +424,7 @@ export function jobRoutes(app: App): Route[] {
         const body = await c.body();
         const status = str(body.status, 20);
         if (!isStatus(status)) throw new HttpError(400, `Status '${status}' não existe.`);
-        const updated = changeStatus(job, status, str(body.note, 300));
+        const updated = changeStatus(job, status, str(body.note, 300), undefined, isApplyVia(body.via) ? body.via : undefined);
         app.jobsChanged(job.id);
         return { job: jobSummary(updated), previous: job.status };
       },
@@ -465,6 +468,17 @@ export function jobRoutes(app: App): Route[] {
             job.id,
           ),
         };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/email-draft$/,
+      (c) => {
+        // "Abrir no programa de e-mail": grava o .eml com o currículo anexado e abre. Quem envia é a pessoa.
+        const file = writeApplicationDraft(jobFrom(c.params[0]));
+        if (!file) throw new HttpError(400, "Esta vaga ainda não tem pacote com o e-mail de candidatura.");
+        openExternal(file);
+        return { file: path.basename(file), name: DRAFT_FILE };
       },
     ],
     [

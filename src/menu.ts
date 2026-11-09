@@ -20,6 +20,8 @@ import { interviewGuide, JobClosedError, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
 import { ANSWERS_FILE, answerQuestion, refineAnswer } from "./writers/answers.js";
+import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
+import { writeApplicationDraft } from "./writers/emailDraft.js";
 import type { JobAnswer } from "./schemas.js";
 
 const BACK = "__back__";
@@ -178,6 +180,7 @@ async function recommendedFlow() {
         { name: "📦 Gerar pacote (currículo, cover letter, e-mails)", value: "tailor" },
         { name: "🔍 Ver detalhes e lacunas", value: "details" },
         { name: "📝 Responder pergunta do formulário", value: "answer" },
+        { name: "📋 Ficha de candidatura (campos do formulário para copiar)", value: "sheet" },
         { name: "🔗 Abrir a vaga no navegador", value: "open" },
         { name: "🔒 Conferir se a vaga ainda está aberta", value: "check" },
         ...(job.duplicateOf ? [{ name: "🔁 Não é a mesma vaga (tirar a marca de repetida)", value: "notdup" }] : []),
@@ -199,6 +202,7 @@ async function recommendedFlow() {
     }
     if (action === "open") openExternal(job.applyUrl ?? job.url);
     if (action === "check") await checkOneFlow(job);
+    if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
     if (action === "notdup") {
       markNotDuplicate(job.id);
       console.log("Marca de repetida tirada.");
@@ -237,7 +241,9 @@ async function packagesFlow() {
         choices: [
           { name: "📄 Abrir currículo (PDF)", value: "pdf" },
           ...(job.files?.coverLetter ? [{ name: "✉️ Abrir cover letter (PDF)", value: "cover" }] : []),
+          { name: "✉️ Abrir o e-mail de candidatura no programa de e-mail (com o currículo anexado)", value: "draft" },
           { name: "📧 Mostrar e-mail de candidatura", value: "email" },
+          { name: "📋 Ficha de candidatura (campos do formulário para copiar)", value: "sheet" },
           { name: "💬 Mostrar mensagens de LinkedIn", value: "linkedin" },
           { name: "📝 Responder pergunta do formulário", value: "answer" },
           { name: "🔗 Abrir a vaga para me candidatar", value: "apply" },
@@ -256,6 +262,14 @@ async function packagesFlow() {
       if (action === "folder" && job.outputDir) openExternal(job.outputDir);
       if (action === "apply") openExternal(job.applyUrl ?? job.url);
       if (action === "check") await checkOneFlow(job);
+      if (action === "draft") {
+        const file = writeApplicationDraft(job);
+        if (file) {
+          openExternal(file);
+          console.log(`✉️ Abrindo ${file}. Confira e clique em Enviar. (No Gmail pelo navegador: interface → aba E-mails → "Abrir no Gmail".)`);
+        } else console.log("Este pacote não tem o e-mail de candidatura.");
+      }
+      if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
       if (action === "notdup") {
         Object.assign(job, markNotDuplicate(job.id));
         console.log("Marca de repetida tirada.");

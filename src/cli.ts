@@ -13,10 +13,12 @@ import { openExternal } from "./util/open.js";
 import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
 import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
 import { SOURCES } from "./jobs/sources/index.js";
+import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
+import { writeApplicationDraft } from "./writers/emailDraft.js";
 import { select } from "@inquirer/prompts";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
-import { changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
+import { APPLY_CHANNELS, changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
 import { triageJobs } from "./jobs/triage.js";
 import { getProvider } from "./providers/index.js";
 import { renderBaseResumes } from "./render/base.js";
@@ -219,6 +221,30 @@ program
   });
 
 program
+  .command("ficha")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("mostra os campos que os formulários de candidatura pedem (dados, resumo, experiências), prontos para copiar")
+  .action(async (busca: string[]) => {
+    const job = await pickJob({ query: busca.join(" "), message: "Para qual vaga?" });
+    console.log(sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
+  });
+
+program
+  .command("rascunho")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado (quem envia é você)")
+  .option("--nao-abrir", "só grava o arquivo .eml na pasta do pacote")
+  .action(async (busca: string[], o) => {
+    const job = await pickJob({ query: busca.join(" "), statuses: ["tailored", "low_fit", "applied", "interview"], message: "De qual vaga?" });
+    const file = writeApplicationDraft(job);
+    if (!file) throw new Error("Esta vaga ainda não tem pacote com o e-mail de candidatura. Gere o pacote primeiro (ajf tailor).");
+    console.log(`✉️ Rascunho com o currículo anexado: ${file}`);
+    console.log("   Abre no Outlook ou no programa de e-mail do computador. Confira e clique em Enviar.");
+    console.log("   No Gmail pelo navegador, use \"Abrir no Gmail\" na interface (aba E-mails) e arraste o PDF.");
+    if (!o.naoAbrir) openExternal(file);
+  });
+
+program
   .command("conferir")
   .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, confere todas que você ainda não enviou)")
   .description('confere se as vagas ainda aceitam candidaturas (página fora do ar, prazo vencido, "vaga encerrada")')
@@ -309,9 +335,10 @@ program
   .command("enviei")
   .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
   .description("marca que você se candidatou a uma vaga. Ex.: ajf enviei boticario")
-  .option("--note <texto>", "observação, ex.: 'via Gupy'")
+  .option("--note <texto>", "observação, ex.: 'indicação do Fulano'")
+  .addOption(new Option("--via <canal>", "por onde você se candidatou").choices(Object.keys(APPLY_CHANNELS)))
   .action(async (busca: string[], o) => {
-    await markApplied(busca.join(" "), o.note);
+    await markApplied(busca.join(" "), o.note, o.via);
   });
 
 program

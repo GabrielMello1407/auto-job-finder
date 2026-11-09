@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkbox, confirm, editor, input, select } from "@inquirer/prompts";
 import { ensureDir, hasProfile, paths } from "../config.js";
-import { DEFAULT_PREFERENCES, loadPreferences, type Preferences } from "../profile.js";
+import { DEFAULT_PREFERENCES, loadPreferences, withoutTranslatedTitles, type Preferences } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import { slugify } from "../util/text.js";
 import type { DiffLine } from "../util/diff.js";
@@ -232,9 +232,10 @@ export async function buildAndSaveProfile(p: {
   console.log("\n🛠  Montando seu perfil (pode levar alguns minutos)...");
   const built = await buildProfile({ sources, answers, prefs: prefsAnswers, intake });
   console.log("   currículo-base em português...");
-  const pt = await buildBaseResume(built.profileTruth, "pt-BR");
+  const ptDraft = await buildBaseResume(built.profileTruth, "pt-BR");
   console.log("   currículo-base em inglês...");
-  const en = await buildBaseResume(built.profileTruth, "en", pt);
+  const en = await buildBaseResume(built.profileTruth, "en", ptDraft);
+  const pt = withoutTranslatedTitles(ptDraft, en); // cargo em inglês só no currículo em inglês
 
   const backup = backupProfile();
   ensureDir(paths.profileDir);

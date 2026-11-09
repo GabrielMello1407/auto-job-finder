@@ -175,11 +175,24 @@ Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário 
 
 Em **Prontas**:
 1. Abra o **📄 Currículo** e confira o PDF inteiro.
-2. Clique em **🔗 Candidatar-se** para abrir a vaga, e use os **📧 E-mails** se o canal for e-mail ou LinkedIn.
+2. Candidate-se pelo canal da vaga:
+   - **Plataforma ou formulário** (Gupy, InHire, Greenhouse, Workday, site da empresa): clique em **🔗 Candidatar-se** e deixe aberta ao lado a **📋 Ficha**, com cada campo que esses formulários pedem de novo, um botão de copiar em cada (veja [Ficha de candidatura](#ficha-de-candidatura)).
+   - **E-mail:** na aba **E-mails**, **✉️ Abrir no programa de e-mail, com o currículo anexado** abre o e-mail pronto (destinatário, assunto, texto e o PDF). Usa o Gmail pelo navegador? **Abrir no Gmail** abre o e-mail preenchido; arraste o PDF da **📁 Pasta do PDF**.
+   - **LinkedIn:** as mensagens estão na aba **E-mails**.
 3. O formulário pede algo como "Por que você quer trabalhar aqui?"? Use a aba **Perguntas** da vaga (veja [Perguntas do formulário](#perguntas-do-formulário)).
-4. Depois de enviar, clique em **✅ Já me candidatei**. Dá para anotar por onde foi ("via Gupy").
+4. Depois de enviar, clique em **✅ Já me candidatei** e marque **por onde** foi (plataforma, e-mail, LinkedIn, site, WhatsApp, indicação). O canal provável já vem marcado. Com isso dá para ver depois qual canal responde mais.
 
 **O agente nunca envia nada sozinho.** Ele prepara; você revisa e envia.
+
+#### Ficha de candidatura
+
+Formulários de plataforma pedem de novo o que já está no currículo: nome, telefone, LinkedIn, um resumo com limite de caracteres e cada experiência, campo por campo. A aba **📋 Ficha** da vaga traz tudo pronto para copiar:
+- dados pessoais (nome e sobrenome separados, telefone também só com números);
+- o resumo em três tamanhos (até 300 e até 600 caracteres, e o completo), cortado em frases inteiras;
+- cada experiência: cargo, empresa, local, modalidade, início, fim, "trabalho aqui atualmente" e a descrição;
+- formação, certificações, idiomas, competências e projetos.
+
+Tudo sai do currículo adaptado para a vaga (ou do currículo-base, antes do pacote), sem nada novo. A mesma ficha fica em `ficha_de_candidatura.md`, na pasta do pacote.
 
 ### Acompanhar
 
@@ -200,7 +213,8 @@ Clique no título de uma vaga para abrir os detalhes.
 
 - **Resumo:** a avaliação da IA, o que você já tem (com evidência no perfil), as lacunas e a descrição.
 - **Pacote:** os arquivos, o LEIA-ME com o passo a passo de candidatura e os relatórios (ATS, nota do recrutador e conferência com o perfil).
-- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar. Se a vaga traz um e-mail de contato, **✉️ Abrir rascunho no seu e-mail** abre o seu programa de e-mail com destinatário, assunto e texto preenchidos; você anexa o currículo e envia.
+- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar. No topo, **✉️ Abrir no programa de e-mail, com o currículo anexado** abre o e-mail de candidatura pronto, com destinatário (se a vaga traz um e-mail de contato), assunto, texto e o PDF; o Outlook já abre para enviar. **Abrir no Gmail** (em cada e-mail) abre o Gmail pelo navegador com tudo preenchido, menos o anexo: arraste o PDF da **📁 Pasta do PDF**. Você confere e envia.
+- **Ficha:** os campos dos formulários de candidatura, prontos para copiar (veja [Ficha de candidatura](#ficha-de-candidatura)).
 - **Entrevista:** o guia, quando existir.
 - **Perguntas:** respostas para as perguntas do formulário de candidatura (veja abaixo).
 
@@ -328,6 +342,8 @@ LEIA-ME.md                          nota, ATS, COMO SE CANDIDATAR e checklist
 <Nome>_Curriculo_<Empresa>.pdf      currículo ATS (Resume_ em vagas de fora)
 <Nome>_Cover_Letter_<Empresa>.pdf   quando o mercado pede (EUA, Canadá, Europa) ou você pede
 emails.md                           candidatura, LinkedIn, follow-up, agradecimento
+rascunho_candidatura.eml            o e-mail de candidatura com o currículo anexado (abre no Outlook e afins)
+ficha_de_candidatura.md             os campos dos formulários de candidatura, prontos para copiar
 ats_report.md · rating_report.md · coverage_review.md · interview_prep.md
 resume.json                         edite à mão e use "Gerar o PDF de novo"
 ```
@@ -362,7 +378,9 @@ Tudo da interface também existe no terminal.
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
 | `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
-| `ajf enviei [empresa ou cargo] [--note "via Gupy"]` | Marca que você se candidatou (acha a vaga pelo nome) |
+| `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
+| `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |
+| `ajf enviei [empresa ou cargo] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marca que você se candidatou e por onde (acha a vaga pelo nome; sem `--via`, pergunta) |
 | `ajf status [empresa, cargo ou id] [status]` | Muda o status (entrevista, oferta, recusa...) |
 | `ajf auto [--web/--no-web] [--max 3] [--interview] [--open]` | Piloto automático |
 | `ajf painel` | Abre o `output/painel.html`, um resumo que funciona sem o servidor |

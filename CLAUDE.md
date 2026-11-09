@@ -41,11 +41,14 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 - The `gupy` source reads the `__NEXT_DATA__` of the portal search page; it needs queries in Portuguese.
 - Packages with a final rating below `AJF_MIN_RATING` (7) get status `low_fit`.
 - The package README (LEIA-ME) includes how to apply, based on `JobAnalysis.applyChannel` (email, linkedin, plataforma, site, whatsapp).
+- Each package also gets `rascunho_candidatura.eml` (`src/writers/emailDraft.ts`: the application e-mail with the PDFs attached and `X-Unsent: 1`, opened by the user's mail program; plus `gmailComposeUrl` for Gmail on the web) and `ficha_de_candidatura.md` (`src/writers/applicationSheet.ts`: form fields from the package resume, no LLM). The agent only writes and opens the draft; the user sends it. UI: E-mails and Ficha tabs; CLI: `ajf rascunho`, `ajf ficha`; menu: same actions.
+- "Já me candidatei" stores the channel in `Job.appliedVia` (`jobs/status.ts#APPLY_CHANNELS`), preselected by `guessApplyVia`; `ajf enviei --via`.
+- A resume in Portuguese never carries the English title in parentheses: `profile.ts#withoutTranslatedTitles` strips it (package, base resumes, sheet). The truth keeps the English name in a "Cargo em inglês:" line.
 - `output/painel.html` is regenerated after every CLI command.
 
 ## Checks
 
-- `npm run typecheck` and `npm test`. Tests are offline and cover guards, the refine loop, filter, ATS, rules, provider selection and CLI detection, JSON extraction, finding jobs by name, package folders by status, the UI parsers (pending items, e-mail sections), canonical links and repeated jobs, the closed-job verdict and the Gupy parsers.
+- `npm run typecheck` and `npm test`. Tests are offline and cover guards, the refine loop, filter, ATS, rules, provider selection and CLI detection, JSON extraction, finding jobs by name, package folders by status, the UI parsers (pending items, e-mail sections), canonical links and repeated jobs, the closed-job verdict, the Gupy parsers, the e-mail draft (.eml), the application sheet, the English-title cleanup and the apply-channel guess.
 - After touching `src/ui/public/js/`, run `node --check` on the changed files (they are not type-checked) and open the UI with `npm run demo` (fictional profile and jobs in `demo/`, no LLM; `scripts/demo.ts`).
 
 ## Docs

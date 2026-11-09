@@ -30,7 +30,8 @@
 3. **Prepara o pacote** de cada vaga boa:
    - currículo adaptado no padrão ATS, em PDF;
    - carta de apresentação, quando o mercado pede;
-   - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento;
+   - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento, com o e-mail pronto para abrir no seu programa de e-mail (já com o currículo anexado) ou no Gmail;
+   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar;
    - o passo a passo para se candidatar pelo canal certo;
    - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), que você ajusta conversando.
 4. **Acompanha as candidaturas:** lembra do follow-up, prepara um guia de entrevista e registra oferta ou recusa.

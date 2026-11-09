@@ -118,9 +118,10 @@ export function organizePackages(): number {
   return moved;
 }
 
-export function setStatus(id: string, status: JobStatus, notes?: string): Job {
+export function setStatus(id: string, status: JobStatus, notes?: string, extra: Partial<Job> = {}): Job {
   const before = findJob(loadJobs(), id);
   return updateJob(id, {
+    ...extra,
     status,
     // Reabrir uma vaga marcada como repetida é dizer que ela não é repetida (e não marcar de novo).
     ...(before.status === "discarded" && status !== "discarded" && before.duplicateOf ? { duplicateOf: undefined, notDuplicate: true } : {}),

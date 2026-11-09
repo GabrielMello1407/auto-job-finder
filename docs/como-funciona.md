@@ -195,6 +195,10 @@ flowchart TD
 - **Mercado** (`src/market.ts`): define papel (A4 ou Letter), idioma, nome do arquivo e se vai carta. Nos EUA: currículo + carta, papel Letter, sem foto, idade ou estado civil.
 - **ATS** (`src/tailor/ats.ts`): compara as palavras-chave da vaga com o currículo, em três grupos: *coberto*, *você tem mas não mostrou* e *lacuna real*.
 - **LEIA-ME:** explica como se candidatar pelo canal certo (e-mail, LinkedIn, plataforma, site ou WhatsApp), com checklist antes de enviar.
+- **Cargo em um idioma só:** no currículo em português, um cargo com a tradução entre parênteses ("Analista Desenvolvedor (Developer Analyst)") perde o trecho em inglês quando ele tem as palavras do cargo do currículo em inglês na mesma posição (`profile.ts#withoutTranslatedTitles`, sem IA; uma palavra só, como "(Sênior)", nunca sai). Vale para o pacote, os currículos-base e a ficha. O perfil guarda o nome em inglês numa linha "Cargo em inglês: ...".
+- **Rascunho de e-mail** (`writers/emailDraft.ts`): `rascunho_candidatura.eml` com destinatário (o e-mail de contato da vaga), assunto, texto e os PDFs em base64. O cabeçalho `X-Unsent: 1` faz o Outlook abrir como e-mail novo, pronto para enviar; quebra de linha no assunto não vira cabeçalho. Para o Gmail pelo navegador, `gmailComposeUrl` monta o link de "escrever" com destinatário, assunto e texto (o anexo vai à mão). O agente nunca envia: quem clica em Enviar é a pessoa. "Gerar o PDF de novo" refaz o rascunho com o PDF novo.
+- **Ficha de candidatura** (`writers/applicationSheet.ts`): os campos dos formulários de plataforma a partir do `resume.json` do pacote (ou do currículo-base no idioma da vaga): dados pessoais, resumo em 3 tamanhos (frases inteiras, `fitText`), cada experiência campo a campo, formação, certificações, idiomas, competências e projetos. Sem IA e sem nada novo; fica em `ficha_de_candidatura.md` e na aba Ficha.
+- **Canal da candidatura:** "Já me candidatei" grava `Job.appliedVia` (plataforma, e-mail, LinkedIn, site, WhatsApp, indicação, outro), já marcado com o canal provável (`status.ts#guessApplyVia`: `applyChannel` da análise, senão o site do link). Vai para o `tracker.csv` como "via ...".
 
 ## Anti-invenção
 
@@ -330,6 +334,8 @@ src/
     guards.ts            travas anti-invenção
     ats.ts               relatório ATS
   writers/               carta, e-mails, guia de entrevista, perguntas do formulário, plano e conferência do LinkedIn
+    emailDraft.ts        rascunho .eml com o currículo anexado e link do Gmail
+    applicationSheet.ts  ficha de candidatura (campos dos formulários, sem IA)
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos

@@ -266,6 +266,18 @@ details.panel[open] > summary { margin-bottom: 10px; }
 .subject { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .subject span { flex: 1; min-width: 0; }
 .message { white-space: pre-wrap; background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px; margin: 10px 0; font-size: 14px; }
+/* Ficha de candidatura: rótulo, valor e botão de copiar em cada linha. */
+.sheet h3 { margin-bottom: 6px; }
+.sheet-row { display: grid; grid-template-columns: minmax(120px, 30%) 1fr auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.sheet-row:last-child { border-bottom: 0; }
+.sheet-label { color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.sheet-label small { color: var(--faint); font-size: 12px; }
+.sheet-value { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.sheet-row.long .sheet-value { background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 10px; }
+@media (max-width: 640px) {
+  .sheet-row { grid-template-columns: 1fr auto; }
+  .sheet-label { grid-column: 1 / -1; }
+}
 
 /* markdown */
 .md { font-size: 14.5px; line-height: 1.6; }
@@ -309,6 +321,9 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 .option input { margin-top: 3px; accent-color: var(--accent); }
 .option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .option.off { opacity: 0.55; cursor: default; }
+.via-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.via-grid .option { margin-top: 0; padding: 8px 12px; align-items: center; gap: 8px; }
+.via-grid .option input { margin-top: 0; }
 
 .palette { position: fixed; inset: 0; z-index: 60; background: rgba(10, 10, 14, 0.45); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; animation: fade 0.12s ease both; }
 .palette-box { width: min(640px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; animation: pop 0.15s ease both; }
