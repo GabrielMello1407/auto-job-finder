@@ -43,6 +43,11 @@ export const settings = {
   /** Nota mínima da triagem (0–100) para o piloto automático gerar pacote. */
   minTriageScore: Number(process.env.AJF_MIN_TRIAGE_SCORE || 70),
   maxRevisions: Number(process.env.AJF_MAX_REVISIONS || 3),
+  /**
+   * Por quantos dias uma vaga igual (mesma empresa e cargo, em outro link) conta como repetida.
+   * Depois disso, ou se ela foi publicada depois da sua candidatura, é uma vaga reaberta: entra normal.
+   */
+  repeatWindowDays: Number(process.env.AJF_REPEAT_WINDOW_DAYS || 90),
   /** Fallback server-side em caso de recusa do modelo (beta, só API Anthropic). Desligue com AJF_FALLBACKS=off. */
   fallbacks: (process.env.AJF_FALLBACKS || "on") !== "off",
   chromePath: process.env.CHROME_PATH || detectChrome(),

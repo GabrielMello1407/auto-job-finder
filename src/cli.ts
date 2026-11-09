@@ -10,7 +10,9 @@ import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
-import { addJob, searchJobs } from "./jobs/search.js";
+import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
+import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
+import { SOURCES } from "./jobs/sources/index.js";
 import { select } from "@inquirer/prompts";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
@@ -111,16 +113,23 @@ program
 program
   .command("search")
   .description("busca vagas nas fontes (APIs públicas e, com --web, busca na web via IA)")
-  .option("-s, --sources <lista>", "fontes separadas por vírgula: github-br,getonbrd,remotive,himalayas,remoteok,jobicy,weworkremotely,arbeitnow,greenhouse,lever,ashby")
+  .option("-s, --sources <lista>", `fontes separadas por vírgula: ${Object.keys(SOURCES).join(",")}`)
   .option("-q, --query <termos...>", "termos de busca (sobrescreve preferences.json)")
   .option("--web", "também busca na web com IA (LinkedIn, Gupy, Indeed...) — consome tokens")
   .option("--hint <texto>", "instrução extra para a busca web (ex.: 'só vagas em Londrina')")
   .option("-v, --verbose", "mostra as vagas descartadas pelo filtro")
   .action(async (o) => {
     const r = await searchJobs({ sources: o.sources?.split(","), queries: o.query, web: o.web, webHint: o.hint });
-    console.log(`\nEncontradas ${r.found} · passaram no filtro ${r.kept} · novas ${r.added.length}`);
+    console.log(`\n${searchSummary(r)}`);
     r.errors.forEach((e) => console.log(`  ⚠ ${e}`));
-    if (o.verbose) r.dropped.forEach((d) => console.log(`  - ${d.job.company} — ${d.job.title}: ${d.reason}`));
+    if (o.verbose) {
+      r.dropped.forEach((d) => console.log(`  - ${d.job.company} — ${d.job.title}: ${d.reason}`));
+      const all = loadJobs();
+      for (const d of r.duplicates) {
+        const same = all.find((j) => j.id === d.duplicateOf);
+        console.log(`  🔁 ${d.company} — ${d.title} (${d.source}) = ${same ? `${same.company} — ${same.title} (${same.source})` : d.duplicateOf}`);
+      }
+    }
     printJobs(r.added);
     if (r.added.length) console.log(`\nPróximo passo: ajf triage`);
   });
@@ -166,6 +175,8 @@ program
     }
     const research = researchLines(j);
     if (research.length) console.log(`\n${research.join("\n")}`);
+    const flags = jobFlags(j);
+    if (flags.length) console.log(`\n${flags.join("\n")}`);
     if (j.outputDir) console.log(`\nPacote: ${j.outputDir}`);
     const text = withoutResearch(j.description);
     console.log(`\n${text.slice(0, 1500)}${text.length > 1500 ? "\n[...]" : ""}`);
@@ -208,6 +219,23 @@ program
   });
 
 program
+  .command("conferir")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, confere todas que você ainda não enviou)")
+  .description('confere se as vagas ainda aceitam candidaturas (página fora do ar, prazo vencido, "vaga encerrada")')
+  .action(async (busca: string[]) => {
+    if (busca.length) {
+      const job = await pickJob({ query: busca.join(" "), message: "Qual vaga conferir?" });
+      const { check } = await checkJobOpen(job);
+      const updated = recordOpenCheck(job, check);
+      console.log(`${OPEN_ICON[check.verdict]} ${job.company} — ${job.title}: ${check.reason}${updated.status !== job.status ? " (descartada)" : ""}`);
+      return;
+    }
+    console.log("🔒 Conferindo as vagas que você ainda não enviou...");
+    const r = await checkOpenJobs();
+    console.log(closedSummary(r));
+  });
+
+program
   .command("responder")
   .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
   .description("responde uma pergunta do formulário de candidatura (ex.: por que você quer trabalhar aqui?) com o seu perfil e a vaga")
@@ -230,6 +258,7 @@ program
   .option("--interview", "gera também o guia de preparação para entrevista")
   .option("--max-revisions <n>", "rodadas de revisão", (v) => Number(v))
   .option("--target <nota>", "nota-alvo do hiring manager", (v) => Number(v))
+  .option("--mesmo-encerrada", "gera mesmo se a página da vaga disser que ela foi encerrada")
   .action(async (id, o, cmd) => {
     const coverSource = cmd.getOptionValueSource("cover");
     const r = await tailorJob(id, {
@@ -240,6 +269,7 @@ program
       interview: o.interview,
       maxRevisions: o.maxRevisions,
       target: o.target,
+      ignoreClosed: o.mesmoEncerrada,
     });
     console.log(`\n✅ Pacote pronto: ${r.dir}\n   nota ${r.rating} · ATS ${r.ats}% · ${r.pages} página(s)`);
     r.violations.forEach((v) => console.log(`   ❌ ${v}`));

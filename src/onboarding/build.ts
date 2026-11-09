@@ -53,7 +53,11 @@ export const ProfileBuildSchema = z.object({
   neverClaim: z
     .array(z.object({ phrase: z.string(), message: z.string() }))
     .describe("Frases curtas que o agente NUNCA pode escrever sobre a pessoa (ex.: 'inglês fluente' se o nível é intermediário; 'certificado PMP' se só fez curso). Em pt e en quando fizer sentido."),
-  queries: z.array(z.string()).describe("4–8 termos de busca de vagas (cargo + variações), em português e inglês se a pessoa aceita vagas internacionais"),
+  queries: z
+    .array(z.string())
+    .describe(
+      "4–8 termos de busca de vagas (cargo + variações). Sempre inclua termos no idioma do país onde a pessoa mora (portais locais, como a Gupy no Brasil, só acham vagas assim); acrescente termos em inglês se ela aceita vagas internacionais",
+    ),
   titleMustInclude: z
     .array(z.string())
     .describe("10–30 palavras/expressões curtas em minúsculas que o TÍTULO da vaga deve conter (variações do cargo em pt/en, com e sem acento). Ex.: 'analista de marketing', 'marketing analyst'"),

@@ -6,9 +6,11 @@ import { marketProfile, type MarketProfile } from "../market.js";
 import { loadBaseResume, profileTruthEvidence } from "../profile.js";
 import { coverLetterHtml, resumeHtml } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
-import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type Resume } from "../schemas.js";
+import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type OpenCheck, type Resume } from "../schemas.js";
 import { track } from "../tracker.js";
-import { jobPageText } from "../jobs/page.js";
+import { checkJobOpen, checkUrl, OPEN_ICON, recordOpenCheck } from "../jobs/open.js";
+import { withoutResearch } from "../jobs/research.js";
+import { isWebSummary } from "../jobs/page.js";
 import { slugify, today } from "../util/text.js";
 import { writeAnswersFile } from "../writers/answers.js";
 import { writeCoverLetter, writeEmails, writeInterviewPrep } from "../writers/documents.js";
@@ -27,6 +29,8 @@ export interface TailorOptions {
   interview?: boolean;
   maxRevisions?: number;
   target?: number;
+  /** Gera mesmo se a página da vaga disser que ela acabou. */
+  ignoreClosed?: boolean;
 }
 
 /** Texto de evidência (sem as seções de lacunas/regras) usado pelas travas e pelo relatório ATS. */
@@ -52,22 +56,43 @@ function jobDescription(job: Job): string {
     .join("\n");
 }
 
-/** Vagas vindas da busca web chegam só com resumo: tenta baixar a página completa. */
-async function ensureFullDescription(job: Job): Promise<Job> {
-  if (!job.description.startsWith("[Resumo da busca web")) return job;
-  try {
-    const res = await fetch(job.url, { headers: { "User-Agent": settings.userAgent } });
-    if (res.ok) {
-      const text = jobPageText(await res.text());
-      if (text.length > 1500) return updateJob(job.id, { description: text.slice(0, 20000) });
-    }
-  } catch {
-    /* segue com o resumo */
+/** A página da vaga diz que ela acabou. O piloto automático descarta e passa para a próxima. */
+export class JobClosedError extends Error {
+  constructor(
+    readonly job: Job,
+    readonly check: OpenCheck,
+  ) {
+    super(
+      `A vaga parece encerrada: ${check.reason}. Confira o link (${checkUrl(job) ?? job.url}). ` +
+        `Se ela ainda estiver aberta, gere mesmo assim ("Gerar mesmo assim" nos detalhes da vaga, ou ajf tailor ${job.id} --mesmo-encerrada).`,
+    );
+    this.name = "JobClosedError";
   }
-  console.warn(
-    "  ⚠ Só tenho o resumo desta vaga. Para um currículo melhor, cole a descrição completa num arquivo e rode:\n" +
-      `    ajf add --file vaga.md --title "${job.title}" --company "${job.company}"   (ou: ajf → "Colar uma vaga")`,
-  );
+}
+
+/**
+ * Confere se a vaga ainda está aberta e aproveita a página: vagas da busca web chegam só com um
+ * resumo, e as da Gupy sem os requisitos — o texto completo da página entra no lugar.
+ */
+async function checkAndComplete(job: Job, opts: { ignoreClosed?: boolean; onlyComplete?: boolean } = {}): Promise<Job> {
+  if (!opts.onlyComplete) console.log("🔒 Conferindo se a vaga ainda está aberta...");
+  const { check, pageText } = await checkJobOpen(job);
+  if (!opts.onlyComplete) {
+    job = recordOpenCheck(job, check, { discard: false });
+    console.log(`   ${OPEN_ICON[check.verdict]} ${check.reason}`);
+    if (check.verdict === "encerrada" && !opts.ignoreClosed) throw new JobClosedError(job, check);
+  }
+
+  const summary = isWebSummary(job.description);
+  const received = withoutResearch(job.description);
+  const research = job.description.slice(received.length);
+  if (pageText && (summary ? pageText.length > 1500 : job.source === "gupy" && pageText.length > received.length))
+    return updateJob(job.id, { description: pageText.slice(0, 20000) + research });
+  if (summary)
+    console.warn(
+      "  ⚠ Só tenho o resumo desta vaga. Para um currículo melhor, cole a descrição completa num arquivo e rode:\n" +
+        `    ajf add --file vaga.md --title "${job.title}" --company "${job.company}"   (ou: ajf → "Colar uma vaga")`,
+    );
   return job;
 }
 
@@ -175,7 +200,7 @@ function coverMarkdown(c: CoverLetter, name: string): string {
 /** Gera o pacote completo de candidatura para uma vaga. */
 export async function tailorJob(id: string, opts: TailorOptions = {}) {
   let job = findJob(loadJobs(), id);
-  job = await ensureFullDescription(job);
+  job = await checkAndComplete(job, { ignoreClosed: opts.ignoreClosed });
   const jd = jobDescription(job);
 
   console.log("1/6 Analisando a vaga...");
@@ -343,7 +368,8 @@ export async function interviewGuide(id: string): Promise<string> {
     mp = meta.market;
     resume = ResumeSchema.parse(JSON.parse(fs.readFileSync(path.join(dir, "resume.json"), "utf8")));
   } else {
-    job = await ensureFullDescription(job);
+    // Já em entrevista: a vaga pode ter saído do ar; só aproveita o texto da página, se houver.
+    job = await checkAndComplete(job, { onlyComplete: true });
     console.log("Analisando a vaga...");
     analysis = await analyzeJob(jobDescription(job));
     const jobLang = job.triage?.jobLanguage === "other" ? undefined : (job.triage?.jobLanguage ?? guessLanguage(jobDescription(job)));

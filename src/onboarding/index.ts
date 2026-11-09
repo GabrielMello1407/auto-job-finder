@@ -255,7 +255,8 @@ export async function buildAndSaveProfile(p: {
     onsiteCities,
     excludedCompanies: old.excludedCompanies,
     companyBoards: old.companyBoards,
-    defaultSources: intake.isTech ? TECH_SOURCES : GENERAL_SOURCES,
+    // A Gupy é o portal de vagas do Brasil, em todas as áreas.
+    defaultSources: [...(/brasil|brazil/i.test(country) ? ["gupy"] : []), ...(intake.isTech ? TECH_SOURCES : GENERAL_SOURCES)],
     webSearchByDefault: !intake.isTech || !international,
     webSearchHints: `Priorize vagas de ${prefsAnswers.targetRoles.join(", ")} (${seniority}) — ${prefsAnswers.workModes}${onsiteCities.length ? ` (${onsiteCities.join(", ")})` : ""}. Mora em ${country}.${international ? " Aceita empresas de fora que contratam pessoas de " + country + "." : ""}`,
   };

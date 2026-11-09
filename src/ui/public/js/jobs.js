@@ -57,8 +57,27 @@ function meta(j) {
   const fresh = j.status === "new" ? `<span class="chip accent">nova · sem triagem</span>` : "";
   const outdated = j.pkg?.outdated ? `<span class="chip warn" title="O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades.">perfil mudou depois</span>` : "";
   const research = j.research ? researchChip(j.research) : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${fresh}${outdated}</div>`;
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}</div>`;
 }
+
+/* Vaga repetida (a mesma vaga em outro site) e vaga encerrada (a página diz que acabou). */
+const CHECKABLE = ["new", "triaged", "shortlisted", "tailored", "low_fit"];
+const original = (j) => (j.duplicateOf ? findJob(j.duplicateOf) : null);
+function duplicateChip(j) {
+  const o = original(j);
+  return o ? `<span class="chip warn" title="${esc(`Parece a mesma vaga que ${o.company} — ${o.title} (${stageOf(o.status)?.label ?? o.statusLabel})`)}">🔁 repetida</span>` : "";
+}
+const SENT_STATUSES = ["applied", "interview", "offer", "rejected"];
+const reopenedFrom = (j) => (j.reopenedFrom ? findJob(j.reopenedFrom) : null);
+const reopenedText = (o) =>
+  `${SENT_STATUSES.includes(o.status) ? "Você se candidatou a uma vaga igual" : "Você gerou um pacote para uma vaga igual"} em ${new Date(o.appliedAt ?? o.addedAt).toLocaleDateString("pt-BR")}`;
+function reopenedChip(j) {
+  const o = reopenedFrom(j);
+  return o ? `<span class="chip accent" title="${esc(`${reopenedText(o)} (${o.company} — ${o.title}). Foi há tempo: conta como vaga nova.`)}">📨 vaga reaberta</span>` : "";
+}
+const isClosed = (j) => j.openCheck?.verdict === "encerrada" && (CHECKABLE.includes(j.status) || j.status === "discarded");
+const closedChip = (j) => (isClosed(j) ? `<span class="chip bad" title="${esc(j.openCheck.reason)}">🔒 vaga encerrada</span>` : "");
+const OPEN_TEXT = { aberta: ["ok", "✓ aberta"], encerrada: ["bad", "🔒 parece encerrada"], sem_confirmacao: ["", "sem confirmação"] };
 
 const RESEARCH = {
   confirmada: ["ok", "✓ vaga confirmada na web", "O agente achou o anúncio oficial desta vaga."],
@@ -88,7 +107,7 @@ export function actionsFor(j) {
   const task = jobTask(j.id);
   if (task) {
     const what =
-      { tailor: "Gerando o pacote…", interview: "Preparando o guia de entrevista…", triage: "A IA está avaliando…", research: "Pesquisando na web…", render: "Gerando o PDF…" }[task.kind] ??
+      { tailor: "Gerando o pacote…", interview: "Preparando o guia de entrevista…", triage: "A IA está avaliando…", research: "Pesquisando na web…", render: "Gerando o PDF…", check: "Conferindo se está aberta…" }[task.kind] ??
       "Trabalhando…";
     return `<span class="busy"><span class="spin"></span>${task.status === "running" ? what : "Na fila…"}</span>`;
   }
@@ -98,7 +117,14 @@ export function actionsFor(j) {
     case "new":
     case "triaged":
     case "shortlisted":
-      A.push(btn("tailor", "📦 Gerar pacote", j.id, "primary", ""), link(j.url, "🔗 Ver vaga"), btn("applied", "✅ Já me candidatei", j.id), btn("discard", "Descartar", j.id, "ghost danger"));
+      A.push(
+        isClosed(j)
+          ? btn("tailor-anyway", "📦 Gerar mesmo assim", j.id, "", "A página da vaga diz que ela acabou. Confira o link antes.")
+          : btn("tailor", "📦 Gerar pacote", j.id, "primary", ""),
+        link(j.url, "🔗 Ver vaga"),
+        btn("applied", "✅ Já me candidatei", j.id),
+        btn("discard", "Descartar", j.id, "ghost danger"),
+      );
       break;
     case "tailored":
       A.push(j.url ? link(j.url, "🔗 Candidatar-se", "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, "✉️ Carta") : "");
@@ -231,8 +257,10 @@ function paintList() {
     const fresh = S.jobs.filter((j) => j.status === "new").length;
     const triaging = S.tasks.some((t) => t.kind === "triage" && !t.jobId && (t.status === "queued" || t.status === "running"));
     if (fresh && !triaging) html += `<div class="banner"><span>🧠 ${plural(fresh, "vaga nova ainda não foi avaliada", "vagas novas ainda não foram avaliadas")} pela IA.</span>${btn("triage", "Avaliar agora", null, "primary small")}</div>`;
-    if (jobs.length > 1 && !filterText) html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${btn("tailor-many", "📦 Gerar vários pacotes de uma vez", null, "small ghost")}</div>`;
+    if (jobs.length > 1 && !filterText)
+      html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn("tailor-many", "📦 Gerar vários pacotes de uma vez", null, "small ghost")}</div>`;
   }
+  if (st.id === "ready" && jobs.length && !filterText) html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}</div>`;
   if (!jobs.length) {
     const [icon, text, cta] = st.empty;
     html += filterText
@@ -247,6 +275,11 @@ function paintList() {
   cursor = -1;
 }
 let animateNext = true;
+
+const checkAllButton = () =>
+  S.tasks.some((t) => t.kind === "check" && !t.jobId && (t.status === "queued" || t.status === "running"))
+    ? `<span class="busy"><span class="spin"></span>Conferindo as vagas…</span>`
+    : btn("check-open", "🔒 Conferir se ainda estão abertas", null, "small ghost", "Abre o link de cada vaga que você ainda não enviou e marca as encerradas");
 
 /** Teclado na página de vagas: j/k andam entre as vagas (setas também, quando uma vaga está selecionada), Enter abre. */
 export function jobsKeydown(e) {
@@ -349,7 +382,30 @@ function drawerExtras(j) {
   if (["new", "triaged", "shortlisted", "discarded"].includes(j.status)) out.push(btn("retriage", "🧠 Avaliar de novo", j.id, "ghost small"));
   if (S.webSearch && !["rejected", "discarded"].includes(j.status))
     out.push(btn("research", j.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar na web", j.id, "ghost small", "Anúncio oficial, site da empresa e se a vaga é real"));
+  if (CHECKABLE.includes(j.status) && j.url) out.push(btn("check-one", "🔒 Conferir se está aberta", j.id, "ghost small", "Abre o link da vaga e procura sinais de que ela acabou"));
   return out.join("");
+}
+
+/** Quadro "vaga repetida" e "vaga encerrada" no resumo da gaveta. */
+function flagsPanels(d) {
+  let html = "";
+  const o = original(d);
+  if (o)
+    html += `<div class="panel"><h3>🔁 Vaga repetida</h3><p class="muted">Parece a mesma vaga que ${btn("open", `${esc(o.company)} — ${esc(o.title)}`, o.id, "small")} <span class="faint">(${esc(stageOf(o.status)?.label ?? o.statusLabel)}, ${esc(o.source)})</span>: mesma empresa, mesmo cargo e o mesmo texto, em outro site.</p>
+      <p class="faint" style="margin-top:8px">${d.status === "discarded" ? "Por isso ela entrou já descartada. Se não for a mesma, reabra." : "Confira antes de gerar outro pacote ou se candidatar de novo."}</p>
+      ${d.status === "discarded" ? "" : `<div class="btn-row" style="margin-top:10px">${btn("not-duplicate", "Não é a mesma vaga", d.id, "small ghost")}</div>`}</div>`;
+  const r = reopenedFrom(d);
+  if (r)
+    html += `<div class="panel"><h3>📨 Vaga reaberta</h3><p class="muted">${esc(reopenedText(r))}: ${btn("open", `${esc(r.company)} — ${esc(r.title)}`, r.id, "small")} <span class="faint">(${esc(stageOf(r.status)?.label ?? r.statusLabel)})</span>.</p>
+      <p class="faint" style="margin-top:8px">Como foi há mais de ${S.settings.repeatWindowDays ?? 90} dias, ou esta foi publicada depois, o agente trata como uma vaga nova da mesma empresa. Confira se vale se candidatar de novo.</p></div>`;
+  const c = d.openCheck;
+  if (c && (CHECKABLE.includes(d.status) || d.status === "discarded")) {
+    const [cls, text] = OPEN_TEXT[c.verdict] ?? OPEN_TEXT.sem_confirmacao;
+    html += `<div class="panel"${c.verdict === "encerrada" ? ' style="border-color:var(--bad)"' : ""}><h3>🔒 A vaga está aberta? <span class="faint" style="font-weight:400">· conferida em ${new Date(c.at).toLocaleDateString("pt-BR")}</span></h3>
+      <div class="status-line"><span class="chip ${cls}">${text}</span><span>${esc(c.reason)}</span></div>
+      ${c.verdict === "encerrada" ? `<p class="faint" style="margin-top:8px">Abra o link para ter certeza. Se ainda estiver aberta, use “Gerar mesmo assim”.</p>` : ""}</div>`;
+  }
+  return html;
 }
 
 /* Perguntas do formulário de candidatura: pergunta → resposta, com ajustes. */
@@ -436,6 +492,7 @@ function drawerBody(d, job) {
   if (["applied", "interview", "offer", "rejected"].includes(d.status) && (d.appliedAt || d.notes))
     html += `<div class="panel"><h3>Sua candidatura</h3><p>${d.appliedAt ? `Enviada em ${new Date(d.appliedAt).toLocaleDateString("pt-BR")}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
   if (t?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>🚩 Sinais de golpe</h3><p>${esc(t.scam.join("; "))}</p></div>`;
+  html += flagsPanels(d);
   if (d.research) {
     const r = d.research;
     html += `<div class="panel"${r.verdict === "suspeita" ? ' style="border-color:var(--bad)"' : ""}><h3>🔎 Pesquisa na web <span class="faint" style="font-weight:400">· ${new Date(r.at).toLocaleDateString("pt-BR")}</span></h3>
@@ -514,6 +571,36 @@ action("tailor", async (id) => {
   toast(`📦 Pacote de ${j?.company ?? "vaga"} na fila. Leva alguns minutos; pode continuar usando.`);
   await app.refresh();
 });
+action("tailor-anyway", async (id) => {
+  const j = findJob(id);
+  const ok = await modal({
+    title: "Gerar mesmo com a vaga encerrada?",
+    html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
+      <p class="muted" style="margin-top:6px">Na última conferência, ${esc(j.openCheck?.reason ?? "a página disse que a vaga acabou")}. Abra o link e confira: se ela ainda aceita candidaturas, gere o pacote.</p>
+      ${j.url ? `<div class="btn-row" style="margin-top:10px">${link(j.url, "🔗 Abrir a vaga", "small")}</div>` : ""}`,
+    confirm: "📦 Gerar mesmo assim",
+  });
+  if (!ok) return;
+  await api(`/api/jobs/${encodeURIComponent(id)}/tailor`, { ignoreClosed: true });
+  toast(`📦 Pacote de ${j.company} na fila.`);
+  await app.refresh();
+});
+action("check-open", async () => {
+  await api("/api/check-open", {});
+  toast("🔒 Conferindo as vagas que você ainda não enviou. As encerradas sem pacote vão para “Encerradas”.");
+  await app.refresh();
+});
+action("not-duplicate", async (id) => {
+  await api(`/api/jobs/${encodeURIComponent(id)}/not-duplicate`, {});
+  toast("Marca de repetida tirada. O agente não marca esta vaga de novo.");
+  await app.refresh();
+  if (drawer.id === id) await reloadDrawer();
+});
+action("check-one", async (id) => {
+  await api(`/api/jobs/${encodeURIComponent(id)}/check-open`, {});
+  toast("🔒 Conferindo se a vaga ainda está aberta.");
+  await app.refresh();
+});
 action("tailor-options", async (id) => {
   const j = findJob(id);
   const sel = (name, label, options) =>
@@ -524,7 +611,8 @@ action("tailor-options", async (id) => {
       <p class="muted" style="margin-top:6px">Deixe em “automático” para o agente decidir pela vaga.${j.pkg ? " O pacote atual continua na pasta; o novo vai para uma pasta própria." : ""}</p>
       <div class="grid2">${sel("lang", "Idioma do currículo", [["", "Automático"], ["pt-BR", "Português"], ["en", "Inglês"]])}${sel("paper", "Papel", [["", "Automático"], ["A4", "A4"], ["Letter", "Letter (EUA/Canadá)"]])}</div>
       <div class="grid2">${sel("market", "Mercado", [["", "Automático"], ["BR", "Brasil"], ["US", "EUA"], ["CA", "Canadá"], ["UK", "Reino Unido"], ["EU", "Europa"], ["LATAM", "América Latina"], ["GLOBAL", "Global"]])}${sel("cover", "Carta de apresentação", [["", "Automático"], ["sim", "Gerar"], ["nao", "Não gerar"]])}</div>
-      <label class="switch"><input type="checkbox" name="interview"><span>Gerar também o guia de entrevista</span></label>`,
+      <label class="switch"><input type="checkbox" name="interview"><span>Gerar também o guia de entrevista</span></label>
+      ${isClosed(j) ? `<label class="switch"><input type="checkbox" name="ignoreClosed"><span>Gerar mesmo com a vaga parecendo encerrada<small>${esc(j.openCheck.reason)}</small></span></label>` : ""}`,
     confirm: "📦 Gerar",
   });
   if (!r) return;
@@ -700,7 +788,12 @@ action("paste", async () => {
   });
   if (!r) return;
   const res = await api("/api/paste", r);
-  toast(`➕ ${res.job.company} adicionada. ${r.research && S.webSearch ? "A IA vai pesquisar a vaga na web e avaliar." : "A IA está avaliando."}`);
+  const same = res.job.duplicateOf ? findJob(res.job.duplicateOf) : null;
+  toast(
+    `➕ ${res.job.company} adicionada. ${r.research && S.webSearch ? "A IA vai pesquisar a vaga na web e avaliar." : "A IA está avaliando."}${
+      same ? ` 🔁 Parece a mesma vaga que ${same.company} — ${same.title}: confira antes de gerar outro pacote.` : ""
+    }`,
+  );
   stage = "decide";
   store.set("ajf.stage", stage);
   app.go("vagas");

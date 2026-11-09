@@ -1,7 +1,9 @@
 import { settings } from "../../config.js";
 import type { Job } from "../../schemas.js";
 import { htmlToText, shortHash } from "../../util/text.js";
+import { canonicalUrl } from "../dedupe.js";
 import { getonbrd, githubBr, jobicy, weworkremotely } from "./extra.js";
+import { gupy } from "./gupy.js";
 
 export type RawJob = Omit<Job, "id" | "addedAt" | "status">;
 
@@ -16,8 +18,9 @@ export interface JobSource {
   fetch(ctx: SourceContext): Promise<RawJob[]>;
 }
 
+/** ID da vaga a partir do link canônico (sem rastreio; o mesmo anúncio escrito de outro jeito dá o mesmo ID). */
 export function jobId(url: string): string {
-  return shortHash(url.replace(/[?#].*$/, ""));
+  return shortHash(canonicalUrl(url));
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -235,6 +238,7 @@ const ashby: JobSource = {
 };
 
 export const SOURCES: Record<string, JobSource> = {
+  gupy,
   "github-br": githubBr,
   getonbrd,
   jobicy,

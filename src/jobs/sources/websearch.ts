@@ -2,6 +2,7 @@ import { z } from "zod";
 import { webSearchStructured } from "../../llm.js";
 import type { Preferences } from "../../profile.js";
 import { today } from "../../util/text.js";
+import { WEB_SUMMARY_HEADER } from "../page.js";
 import type { RawJob } from "./index.js";
 
 const WebJobsSchema = z.object({
@@ -64,6 +65,6 @@ Regras:
     postedAt: j.postedAt || undefined,
     salary: j.salary || undefined,
     tags: [],
-    description: `[Resumo da busca web — confira a vaga completa no link]\n${j.summary}`,
+    description: `${WEB_SUMMARY_HEADER}\n${j.summary}`,
   }));
 }
