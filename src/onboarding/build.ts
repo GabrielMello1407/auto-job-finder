@@ -105,7 +105,7 @@ profileTruth — Markdown com EXATAMENTE estes títulos de seção (## ...), nes
 ## Objetivo e cargos-alvo
 ## Resumo
 ## Experiência profissional
-(uma subseção "### <Cargo> — <Empresa> (<MM/AAAA> – <MM/AAAA ou Atual>)" por posição, com local/modalidade e bullets de fatos: atividades, ferramentas, resultados — números SÓ como aparecem nas fontes)
+(uma subseção "### <Cargo> — <Empresa> (<MM/AAAA> – <MM/AAAA ou Atual>)" por posição, com local/modalidade e bullets de fatos: atividades, ferramentas, resultados — números SÓ como aparecem nas fontes. O cargo do título em um idioma só, como a pessoa usa no país dela; se as fontes trazem o nome também em outro idioma (ex.: o LinkedIn em inglês), registre numa linha "- Cargo em inglês: ..." dentro da posição, nunca entre parênteses no título)
 ## Projetos e portfólio
 ## Formação
 ## Certificações e cursos
@@ -145,18 +145,18 @@ O profile_truth acima foi atualizado. Atualize este currículo-base em portuguê
 - Mantenha palavra por palavra o que não mudou no perfil (headline, resumo, bullets, ordem das seções).
 - Inclua o que é novo no perfil (experiência, projeto, certificação, competência, resultado) e ajuste o que mudou (datas, cargos, empresa atual).
 - Retire o que não está mais no perfil.
-- experience: TODAS as posições do perfil, ordem cronológica reversa, cargos e datas exatamente como no perfil.
+- experience: TODAS as posições do perfil, ordem cronológica reversa, cargos e datas exatamente como no perfil (cargo só em português, sem tradução entre parênteses).
 - Se o resumo ou a headline ficaram desatualizados por causa das novidades, ajuste o mínimo necessário.
 Mire em 1–2 páginas. Não invente nada.`
       : en && ptVersion
       ? `<curriculo_pt>\n${JSON.stringify(ptVersion, null, 2)}\n</curriculo_pt>
 
-Traduza este currículo para inglês americano (language "en"), adaptando para o padrão de resume dos EUA: verbos de ação sem pronome, datas MM/YYYY, "Present" no lugar de "Atual", modalidade Remote/Hybrid/On-site. Mesmas posições, datas, números e fatos — nada novo. Cargos: mantenha o original e, se ajudar, acrescente a tradução entre parênteses. Linha de idiomas no mesmo nível declarado (ex.: "Portuguese: native | English: intermediate").`
+Traduza este currículo para inglês americano (language "en"), adaptando para o padrão de resume dos EUA: verbos de ação sem pronome, datas MM/YYYY, "Present" no lugar de "Atual", modalidade Remote/Hybrid/On-site. Mesmas posições, datas, números e fatos — nada novo. Cargos em inglês: use o "Cargo em inglês" do perfil quando houver; senão, traduza fielmente, sem promover nem mudar a senioridade. Linha de idiomas no mesmo nível declarado (ex.: "Portuguese: native | English: intermediate").`
       : `Monte o currículo-base em português do Brasil (language "pt-BR") a partir do profile_truth, no padrão ATS:
 - headline: cargo-alvo principal | 3–5 competências comprovadas.
 - summary: 3–5 frases fortes e verdadeiras (o que faz, para quem, resultados reais).
 - skills: 3–6 categorias coerentes com a área, só itens com evidência.
-- experience: TODAS as posições, ordem cronológica reversa, cargos e datas exatamente como no perfil, 3–6 bullets por posição (verbo de ação + o quê + como + resultado real).
+- experience: TODAS as posições, ordem cronológica reversa, cargos (só em português, sem tradução entre parênteses) e datas exatamente como no perfil, 3–6 bullets por posição (verbo de ação + o quê + como + resultado real).
 - projects: 0–3 projetos/portfólio relevantes (vazio se não houver).
 - education, certifications (só certificações/cursos reais; issuer e date como no perfil, vazio se não houver), languages (uma linha, nível declarado).
 - contact: copie do perfil; campos ausentes ficam vazios. availability: modalidades aceitas.

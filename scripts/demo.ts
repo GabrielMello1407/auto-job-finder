@@ -820,6 +820,20 @@ async function main() {
       write("rating_report.md", ratingReport(j));
       write("coverage_review.md", coverage());
       write("job.md", `# ${j.title} — ${j.company}\n\n${j.description}\n`);
+      // Canal de candidatura e e-mail de contato, como a análise da vaga grava (rascunho de e-mail, "Já me candidatei").
+      write(
+        "analysis.json",
+        JSON.stringify(
+          {
+            analysis: { applyChannel: j.contactEmail ? "email" : "plataforma", recruiterEmail: j.contactEmail ?? "" },
+            market: { language: j.triage?.lang ?? "pt-BR", paper: "A4", docName: "Curriculo" },
+            baseName: pdfName.replace(/\.pdf$/, ""),
+            company: j.company,
+          },
+          null,
+          2,
+        ),
+      );
       fs.copyFileSync(path.join(DEMO, "profile", "base_resume.pt.json"), path.join(dir, "resume.json"));
       if (j.interviewGuide) write("interview_prep.md", interviewPrep(j));
       if (basePdf) fs.copyFileSync(basePdf, path.join(dir, pdfName));

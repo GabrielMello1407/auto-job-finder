@@ -4,7 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import { ensureDir, paths } from "../config.js";
 import { structured } from "../llm.js";
-import { loadBaseResume, loadRules, type NeverClaimRule, type Rules } from "../profile.js";
+import { loadBaseResume, loadRules, withoutTranslatedTitles, type NeverClaimRule, type Rules } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import type { Resume } from "../schemas.js";
 import { lineDiff, type DiffLine } from "../util/diff.js";
@@ -189,9 +189,10 @@ export async function rebuildBaseResumes(opts: { backup?: boolean } = {}): Promi
     /* sem currículo-base anterior: monta do zero */
   }
   console.log("Refazendo o currículo-base em português...");
-  const pt = await buildBaseResume(truth, "pt-BR", undefined, previous);
+  const ptDraft = await buildBaseResume(truth, "pt-BR", undefined, previous);
   console.log("Refazendo o currículo-base em inglês...");
-  const en = await buildBaseResume(truth, "en", pt);
+  const en = await buildBaseResume(truth, "en", ptDraft);
+  const pt = withoutTranslatedTitles(ptDraft, en); // cargo em inglês só no currículo em inglês
   if (opts.backup !== false) {
     const backup = backupProfile();
     if (backup) console.log(`Os currículos-base anteriores estão em ${backup}.`);

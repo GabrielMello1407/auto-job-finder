@@ -85,6 +85,51 @@ export function profileTruthEvidence(): string {
     .join("");
 }
 
+const plain = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * Currículo em português com o cargo repetido em inglês ("Analista Desenvolvedor (Developer Analyst)"):
+ * tira o trecho entre parênteses quando ele é o cargo do currículo em inglês na mesma empresa. A tradução
+ * fica só no currículo em inglês. Sem IA: vale mesmo se o modelo acrescentar a tradução de novo.
+ */
+export function withoutTranslatedTitles(resume: Resume, english: Resume | null): Resume {
+  if (resume.language !== "pt-BR" || !english) return resume;
+  const noParens = (s: string) => plain(s.replace(/\([^()]*\)/g, ""));
+  const words = (s: string) => new Set(plain(s.replace(/&/g, " ")).split(" ").filter((w) => w.length > 1 && w !== "and"));
+  const experience = resume.experience.map((e, i) => {
+    const m = e.title.match(/^(.+?)\s*\(([^()]+)\)\s*$/);
+    if (!m) return e;
+    // A mesma posição no currículo em inglês: mesma empresa (o nome também pode estar traduzido entre
+    // parênteses, "SaaS próprio" × "own SaaS") ou, na mesma ordem, a mesma data de início.
+    const en =
+      english.experience.find((x) => plain(x.company) === plain(e.company)) ??
+      english.experience.find((x) => noParens(x.company) === noParens(e.company)) ??
+      (english.experience[i]?.start && english.experience[i].start === e.start ? english.experience[i] : undefined);
+    if (!en) return e;
+    // O trecho entre parênteses é o cargo em inglês: pelo menos 2 palavras, todas no cargo do currículo em
+    // inglês ("Founder & Lead Engineer" × "Founder and Lead Software Engineer"). "(Sênior)", "(PJ)" ficam.
+    const inner = words(m[2]);
+    const enWords = words(en.title);
+    return inner.size >= 2 && [...inner].every((w) => enWords.has(w)) ? { ...e, title: m[1].trim() } : e;
+  });
+  return { ...resume, experience };
+}
+
+/** O currículo-base em inglês, se existir (para comparar cargos). */
+export function englishBase(): Resume | null {
+  try {
+    return loadBaseResume("en");
+  } catch {
+    return null;
+  }
+}
+
 export function loadBaseResume(lang: "pt-BR" | "en"): Resume {
   requireProfile();
   const raw = JSON.parse(fs.readFileSync(paths.baseResume(lang), "utf8"));

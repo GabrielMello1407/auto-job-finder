@@ -104,6 +104,8 @@ export interface Job {
   /** PDFs gerados (caminhos absolutos). */
   files?: { resume?: string; coverLetter?: string };
   appliedAt?: string;
+  /** Por onde a pessoa se candidatou (src/jobs/status.ts#APPLY_CHANNELS). */
+  appliedVia?: ApplyVia;
   notes?: string;
   /** Pesquisa na web sobre a vaga e a empresa (vagas recebidas sem link ou por indicação). */
   research?: JobResearchSummary;
@@ -118,6 +120,8 @@ export interface Job {
   /** Última conferência de que a vaga ainda aceita candidaturas (src/jobs/open.ts). */
   openCheck?: OpenCheck;
 }
+
+export type ApplyVia = "plataforma" | "email" | "linkedin" | "site" | "whatsapp" | "indicacao" | "outro";
 
 export interface OpenCheck {
   at: string;

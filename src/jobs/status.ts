@@ -1,5 +1,7 @@
-import { input, search } from "@inquirer/prompts";
-import type { Job, JobStatus } from "../schemas.js";
+import fs from "node:fs";
+import path from "node:path";
+import { input, search, select } from "@inquirer/prompts";
+import type { ApplyVia, Job, JobStatus } from "../schemas.js";
 import { track } from "../tracker.js";
 import { norm } from "../util/text.js";
 import { loadJobs, setStatus } from "./store.js";
@@ -78,23 +80,70 @@ export async function pickJob(opts: { query?: string; statuses?: JobStatus[]; me
   });
 }
 
-/** Muda o status, registra no tracker.csv e devolve a vaga atualizada. */
-export function changeStatus(job: Job, status: JobStatus, note = "", next?: string): Job {
-  const updated = setStatus(job.id, status, note || undefined);
-  track(updated, status, next ?? (status === "applied" ? "follow-up em 5–7 dias úteis" : ""), note);
+/** Por onde a pessoa se candidatou, com o nome mostrado ("Enviada via e-mail"). */
+export const APPLY_CHANNELS: Record<ApplyVia, string> = {
+  plataforma: "plataforma de vagas",
+  email: "e-mail",
+  linkedin: "LinkedIn",
+  site: "site da empresa",
+  whatsapp: "WhatsApp",
+  indicacao: "indicação",
+  outro: "outro canal",
+};
+export const isApplyVia = (s: unknown): s is ApplyVia => typeof s === "string" && s in APPLY_CHANNELS;
+
+/** Sites de recrutamento: o link da vaga leva para um formulário de plataforma. */
+const PLATFORM_HOSTS =
+  /(gupy\.io|inhire\.app|quickin\.io|greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|solides\.com\.br|kenoby\.com|recrutei\.com\.br|pandape|breezy\.hr|recruitee\.com|smartrecruiters\.com|myworkdayjobs\.com|teamtailor\.com|join\.com|wellfound\.com|indeed\.|catho\.com|infojobs\.|vagas\.com|programathor\.com|bamboohr\.com|jobvite\.com|icims\.com)/i;
+
+/**
+ * Canal provável da candidatura, para já vir marcado no "Já me candidatei": o que a análise da vaga
+ * achou (pacote), senão o site do link da vaga.
+ */
+export function guessApplyVia(job: Job): ApplyVia | undefined {
+  if (job.outputDir) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(job.outputDir, "analysis.json"), "utf8")) as { analysis?: { applyChannel?: string } };
+      const c = meta.analysis?.applyChannel;
+      if (isApplyVia(c)) return c;
+    } catch {
+      /* sem análise: decide pelo link */
+    }
+  }
+  const url = job.applyUrl ?? job.research?.postingUrl ?? job.url;
+  if (/linkedin\.com/i.test(url)) return "linkedin";
+  if (PLATFORM_HOSTS.test(url)) return "plataforma";
+  return undefined;
+}
+
+/** Muda o status, registra no tracker.csv e devolve a vaga atualizada. Ao marcar como enviada, guarda o canal. */
+export function changeStatus(job: Job, status: JobStatus, note = "", next?: string, via?: ApplyVia): Job {
+  const updated = setStatus(job.id, status, note || undefined, status === "applied" && via ? { appliedVia: via } : {});
+  const trackNote = [status === "applied" && via ? `via ${APPLY_CHANNELS[via]}` : "", note].filter(Boolean).join(" · ");
+  track(updated, status, next ?? (status === "applied" ? "follow-up em 5–7 dias úteis" : ""), trackNote);
   return updated;
 }
 
-/** Fluxo "enviei": escolhe a vaga, pergunta a observação (se não veio) e marca como enviada. */
-export async function markApplied(query?: string, note?: string): Promise<Job> {
+/** Fluxo "enviei": escolhe a vaga, pergunta por onde foi e a observação (se não vieram) e marca como enviada. */
+export async function markApplied(query?: string, note?: string, via?: ApplyVia): Promise<Job> {
   const job = await pickJob({ query, statuses: SENDABLE, message: "Em qual vaga você se candidatou?" });
   if (job.status === "applied" || job.status === "interview" || job.status === "offer") {
     const when = job.appliedAt ? ` em ${new Date(job.appliedAt).toLocaleDateString("pt-BR")}` : "";
     console.log(`ℹ ${job.company} — ${job.title} já está como ${STATUS_LABELS[job.status]}${when}. Nada mudou (use 'ajf status' para mudar).`);
     return job;
   }
-  const obs = note ?? (process.stdin.isTTY ? await input({ message: "Observação (ex.: 'via Gupy'). Enter para pular:" }) : "");
-  const updated = changeStatus(job, "applied", obs);
-  console.log(`✅ ${updated.company} — ${updated.title} marcada como enviada. Lembre do follow-up em 5–7 dias úteis.`);
+  const guess = guessApplyVia(job);
+  const channel =
+    via ??
+    (process.stdin.isTTY
+      ? await select<ApplyVia | "">({
+          message: "Por onde você se candidatou?",
+          default: guess ?? "",
+          choices: [...(Object.entries(APPLY_CHANNELS) as [ApplyVia, string][]).map(([value, name]) => ({ name, value })), { name: "Pular", value: "" as const }],
+        })
+      : guess);
+  const obs = note ?? (process.stdin.isTTY ? await input({ message: "Observação (ex.: 'indicação do Fulano'). Enter para pular:" }) : "");
+  const updated = changeStatus(job, "applied", obs, undefined, channel || undefined);
+  console.log(`✅ ${updated.company} — ${updated.title} marcada como enviada${channel ? ` via ${APPLY_CHANNELS[channel]}` : ""}. Lembre do follow-up em 5–7 dias úteis.`);
   return updated;
 }

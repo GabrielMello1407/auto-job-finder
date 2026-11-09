@@ -3,7 +3,7 @@ import path from "node:path";
 import { ensureDir, paths, settings } from "../config.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { marketProfile, type MarketProfile } from "../market.js";
-import { loadBaseResume, profileTruthEvidence } from "../profile.js";
+import { englishBase, loadBaseResume, profileTruthEvidence, withoutTranslatedTitles } from "../profile.js";
 import { coverLetterHtml, resumeHtml } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
 import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type OpenCheck, type Resume } from "../schemas.js";
@@ -13,6 +13,8 @@ import { withoutResearch } from "../jobs/research.js";
 import { isWebSummary } from "../jobs/page.js";
 import { slugify, today } from "../util/text.js";
 import { writeAnswersFile } from "../writers/answers.js";
+import { SHEET_FILE, sheetFromResume, sheetMarkdown, writeSheet } from "../writers/applicationSheet.js";
+import { DRAFT_FILE, draftFromDir, writeDraft } from "../writers/emailDraft.js";
 import { writeCoverLetter, writeEmails, writeInterviewPrep } from "../writers/documents.js";
 import { analyzeJob, condenser, editor, reviewer, strategist } from "./agents.js";
 
@@ -142,8 +144,9 @@ function emailsMarkdown(e: EmailPack, analysis: JobAnalysis, attachments: string
   const note = e.linkedinConnectionNote;
   return `# E-mails e mensagens para o recrutador
 
-${to ? `**Destinatário encontrado na vaga:** ${to}  \n[Abrir rascunho no seu e-mail](${mailto}) (anexe os arquivos manualmente)\n` : "_Nenhum e-mail de contato na vaga. Procure o recrutador no LinkedIn._\n"}
+${to ? `**Destinatário encontrado na vaga:** ${to}  \n[Abrir rascunho no seu e-mail](${mailto}) (sem anexo)\n` : "_Nenhum e-mail de contato na vaga. Procure o recrutador no LinkedIn._\n"}
 **Anexos:** ${attachments.join(", ")}
+**Rascunho com o currículo já anexado:** \`${DRAFT_FILE}\`, nesta pasta. Abra com o Outlook (ou outro programa de e-mail), confira e envie. No Gmail pelo navegador, use o botão "Abrir no Gmail" da interface e arraste o PDF.
 
 ## 1. E-mail de candidatura
 **Assunto (escolha um):**
@@ -182,10 +185,10 @@ function howToApply(a: JobAnalysis, job: Job, attachments: string[]): string {
   const link = job.applyUrl ?? job.url;
   const files = attachments.join(" + ");
   const steps: Record<JobAnalysis["applyChannel"], string> = {
-    email: `📧 **Por e-mail**${a.recruiterEmail ? ` para **${a.recruiterEmail}**` : ""}: use o e-mail 1 de emails.md e anexe ${files}.`,
+    email: `📧 **Por e-mail**${a.recruiterEmail ? ` para **${a.recruiterEmail}**` : ""}: abra \`${DRAFT_FILE}\` (o e-mail 1 de emails.md, já com ${files} anexado), confira e envie. No Gmail pelo navegador, use "Abrir no Gmail" na interface e anexe ${files}.`,
     linkedin: `💼 **Pelo LinkedIn** (${link}): use a candidatura simplificada e envie ${attachments[0]}. Depois mande o convite de conexão (emails.md, item 2) para quem publicou a vaga.`,
-    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}. Se pedirem texto, copie o resumo e os bullets do resume.json — não invente respostas às perguntas de triagem.`,
-    site: `🌐 **Pelo site da empresa** (${link}): preencha o formulário e envie ${files}.`,
+    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}. Os campos que o formulário pede (dados, resumo em 3 tamanhos, cada experiência) estão prontos para copiar em \`${SHEET_FILE}\` ou na aba Ficha da vaga. Perguntas de triagem: aba Perguntas — não invente respostas.`,
+    site: `🌐 **Pelo site da empresa** (${link}): preencha o formulário com a \`${SHEET_FILE}\` (ou a aba Ficha da vaga) e envie ${files}.`,
     whatsapp: `📱 **Por WhatsApp**: adapte a mensagem direta (emails.md, item 3) e envie ${attachments[0]}. Confirme antes que o número é da empresa.`,
     desconhecido: `🔗 Abra a vaga (${link}) e siga o que ela pede. Os textos prontos estão em emails.md.`,
   };
@@ -232,7 +235,10 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
     onRound: (round, i) =>
       console.log(`   rodada ${i + 1}: nota ${round.rating}${round.violations ? ` · ${round.violations} violação(ões)` : ""}`),
   });
-  let final = result.best.resume;
+  // Currículo em português: o cargo sem a tradução em inglês entre parênteses (ela fica só no resume em inglês).
+  const english = mp.language === "pt-BR" ? englishBase() : null;
+  const tidy = (r: Resume) => withoutTranslatedTitles(r, english);
+  let final = tidy(result.best.resume);
 
   const dir = path.join(paths.outputDir, `${today()}-${slugify(job.company, 25)}-${slugify(analysis.roleTitle, 35)}`);
   ensureDir(dir);
@@ -247,7 +253,7 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   // Passou do limite de páginas: uma passada de enxugamento. Só fica se as travas continuarem limpas.
   if (pages > MAX_PAGES) {
     console.log(`   ${pages} páginas — enxugando para ${MAX_PAGES}...`);
-    const shorter = await condenser({ jd, analysis, current: final, pages, maxPages: MAX_PAGES, market: mp });
+    const shorter = tidy(await condenser({ jd, analysis, current: final, pages, maxPages: MAX_PAGES, market: mp }));
     if (guard(shorter).violations.length <= guard(final).violations.length) {
       const shortHtml = resumeHtml(shorter, mp.paper);
       const tmp = path.join(dir, "_condensed.pdf");
@@ -292,6 +298,14 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   console.log("6/6 Escrevendo e-mails e mensagens para o recrutador...");
   const emails = await writeEmails({ jd, analysis, resume: final, market: mp, withCoverLetter: wantCover });
   fs.writeFileSync(path.join(dir, "emails.md"), emailsMarkdown(emails, analysis, attachments));
+  // Rascunho com o currículo anexado (o programa de e-mail abre; você envia) e a ficha para formulários.
+  writeDraft(dir, {
+    to: analysis.recruiterEmail,
+    subject: emails.application.subjectOptions[0] ?? "",
+    body: emails.application.body,
+    attachments: attachments.map((a) => path.join(dir, a)),
+  });
+  writeSheet(job, dir);
 
   if (opts.interview) {
     console.log("+ Preparação para entrevista...");
@@ -324,6 +338,8 @@ ${howToApply(analysis, job, attachments)}
 ## Arquivos
 ${attachments.map((a) => `- ${a}`).join("\n")}
 - emails.md — candidatura, LinkedIn, follow-up, agradecimento
+- ${DRAFT_FILE} — o e-mail de candidatura com o currículo anexado, para abrir no programa de e-mail
+- ${SHEET_FILE} — os campos dos formulários de candidatura, prontos para copiar
 - ats_report.md · rating_report.md · coverage_review.md${opts.interview ? " · interview_prep.md" : ""}
 - resume.json — edite aqui e rode \`ajf render ${job.id}\` para gerar o PDF de novo
 
@@ -401,8 +417,10 @@ export async function rerender(dir: string) {
   const html = resumeHtml(resume, mp.paper);
   fs.writeFileSync(path.join(dir, "resume.html"), html);
   const pages = await htmlToPdf(html, path.join(dir, `${baseName}.pdf`), mp.paper);
+  const pdfs = [path.join(dir, `${baseName}.pdf`)];
   const coverJson = path.join(dir, "cover_letter.json");
   if (fs.existsSync(coverJson)) {
+    pdfs.push(path.join(dir, `${baseName.replace(`_${mp.docName}_`, "_Cover_Letter_")}.pdf`));
     const letter = JSON.parse(fs.readFileSync(coverJson, "utf8")) as CoverLetter;
     const coverHtml = coverLetterHtml(resume, letter, {
       company: meta.company,
@@ -412,6 +430,10 @@ export async function rerender(dir: string) {
     await htmlToPdf(coverHtml, path.join(dir, `${baseName.replace(`_${mp.docName}_`, "_Cover_Letter_")}.pdf`), mp.paper);
   }
   await closeBrowser();
+  // O rascunho de e-mail leva o PDF novo; a ficha, o currículo editado.
+  const draft = draftFromDir(dir, pdfs);
+  if (draft) writeDraft(dir, draft);
+  fs.writeFileSync(path.join(dir, SHEET_FILE), sheetMarkdown(sheetFromResume(resume, "pacote"), `Ficha de candidatura — ${meta.company}`));
   const guards = runGuards(resume, loadBaseResume(resume.language), sourcesText());
   return { pages, guards };
 }

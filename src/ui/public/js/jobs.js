@@ -94,7 +94,7 @@ function statusLine(j) {
   if (j.status === "applied") {
     const when = d == null ? "Enviada" : d === 0 ? "Enviada hoje" : `Enviada há ${plural(d, "dia", "dias")}`;
     const late = d != null && d >= 7;
-    return `<div class="status-line"><span class="chip ${late ? "warn" : "accent"}">${late ? "⏰ hora do follow-up" : "📨 aguardando resposta"}</span><span>${when}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
+    return `<div class="status-line"><span class="chip ${late ? "warn" : "accent"}">${late ? "⏰ hora do follow-up" : "📨 aguardando resposta"}</span><span>${when}${j.appliedViaLabel ? ` via ${esc(j.appliedViaLabel)}` : ""}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
   }
   if (j.status === "interview") return `<div class="status-line"><span class="chip accent">🎤 em entrevista</span></div>`;
   if (j.status === "offer") return `<div class="status-line"><span class="chip ok">🎉 oferta recebida</span></div>`;
@@ -129,6 +129,7 @@ export function actionsFor(j) {
     case "tailored":
       A.push(j.url ? link(j.url, "🔗 Candidatar-se", "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, "✉️ Carta") : "");
       if (j.pkg?.emails) A.push(btn("open:emails", "📧 E-mails", j.id));
+      A.push(btn("open:ficha", "📋 Ficha", j.id, "", "Os campos do formulário de candidatura, prontos para copiar"));
       A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"));
       if (j.pkg?.outdated) A.push(btn("tailor", "🔄 Gerar de novo", j.id, "", "O seu perfil mudou depois deste pacote"));
       A.push(btn("discard", "Descartar", j.id, "ghost danger"));
@@ -309,6 +310,7 @@ const DRAWER_TABS = [
   ["resumo", "Resumo", () => true],
   ["pacote", "Pacote", (d) => Boolean(d.pkg)],
   ["emails", "E-mails e mensagens", (d) => Boolean(d.docs?.emails)],
+  ["ficha", "Ficha", (d) => Boolean(d.sheet)],
   ["entrevista", "Entrevista", (d) => Boolean(d.docs?.interview)],
   ["perguntas", "Perguntas", () => true],
   ["descricao", "Descrição da vaga", () => true],
@@ -408,6 +410,25 @@ function flagsPanels(d) {
   return html;
 }
 
+/* Ficha de candidatura: os campos que os formulários pedem, cada um com o botão de copiar. */
+function sheetTab(s) {
+  const from =
+    s.from === "pacote"
+      ? "Do currículo adaptado para esta vaga."
+      : "Do seu currículo-base (esta vaga ainda não tem pacote; gerado o pacote, a ficha usa o currículo adaptado).";
+  return `<div class="panel"><p class="muted">Os campos que formulários como Gupy, InHire, Greenhouse e Workday pedem de novo, prontos para copiar. ${from} Perguntas como “por que você quer trabalhar aqui?” ficam na aba Perguntas.</p></div>
+  ${s.sections
+    .map(
+      (sec, i) => `<section class="panel sheet"><h3>${esc(sec.title)}</h3>${sec.fields
+        .map(
+          (f, k) => `<div class="sheet-row${f.long ? " long" : ""}"><span class="sheet-label">${esc(f.label)}${f.long ? `<small>${f.value.length} caracteres</small>` : ""}</span>
+          <div class="sheet-value">${esc(f.value)}</div>${btn("copy-sheet", "📋", `${i}:${k}`, "small ghost icon", `Copiar: ${f.label}`)}</div>`,
+        )
+        .join("")}</section>`,
+    )
+    .join("")}`;
+}
+
 /* Perguntas do formulário de candidatura: pergunta → resposta, com ajustes. */
 function answersTab(d) {
   const list = [...(d.answers ?? [])].reverse();
@@ -472,16 +493,24 @@ function drawerBody(d, job) {
   }
   if (drawer.tab === "emails") {
     const e = d.docs.emails;
-    return `${e.intro ? `<div class="panel md">${md(e.intro)}</div>` : ""}${e.sections
+    const a = d.apply;
+    const send = a
+      ? `<div class="panel"><h3>✉️ Enviar o e-mail de candidatura</h3>
+        <p class="muted">${a.to ? `Para <strong>${esc(a.to)}</strong>. ` : "A vaga não traz um e-mail de contato: preencha o destinatário. "}Nada é enviado sozinho: o e-mail abre pronto, você confere e clica em Enviar.</p>
+        <div class="btn-row" style="margin-top:10px">${btn("email-draft", "✉️ Abrir no programa de e-mail, com o currículo anexado", d.id, "primary small", "Outlook, Thunderbird ou o programa de e-mail do computador")}${link(a.gmail, "Abrir no Gmail", "small")}${btn("folder", "📁 Pasta do PDF", d.id, "small ghost")}</div>
+        <p class="faint" style="margin-top:8px">No programa de e-mail, ${a.attachments.length ? `${esc(a.attachments.join(" e "))} já vai anexado` : "anexe o currículo"}. No Gmail pelo navegador, arraste o PDF da pasta para o e-mail.</p></div>`
+      : "";
+    return `${send}${e.intro ? `<div class="panel md">${md(e.intro)}</div>` : ""}${e.sections
       .map(
         (s, i) => `<section class="email"><h3>${esc(s.title)}</h3>
         ${s.subjects.map((sub, k) => `<div class="subject"><span><span class="faint">Assunto</span> ${esc(sub)}</span>${btn("copy-email", "📋", `s:${i}:${k}`, "small ghost icon", "Copiar assunto")}</div>`).join("")}
         ${s.notes ? `<div class="md muted">${md(s.notes)}</div>` : ""}
-        <div class="message">${esc(s.message)}</div>${btn("copy-email", "📋 Copiar mensagem", `m:${i}`, "small")}
+        <div class="message">${esc(s.message)}</div><div class="btn-row">${btn("copy-email", "📋 Copiar mensagem", `m:${i}`, "small")}${s.gmail ? link(s.gmail, "Abrir no Gmail", "small ghost") : ""}</div>
       </section>`,
       )
       .join("")}`;
   }
+  if (drawer.tab === "ficha") return sheetTab(d.sheet);
   if (drawer.tab === "entrevista") return `<div class="panel md">${md(d.docs.interview)}</div>`;
   if (drawer.tab === "descricao") return `<div class="panel desc">${esc(d.description)}</div>`;
 
@@ -490,7 +519,7 @@ function drawerBody(d, job) {
     t ? `Aderência <strong>${esc(t.fit)}</strong> segundo a IA. ${esc(t.reason)}` : "Esta vaga ainda não foi avaliada pela IA."
   }</p></div>`;
   if (["applied", "interview", "offer", "rejected"].includes(d.status) && (d.appliedAt || d.notes))
-    html += `<div class="panel"><h3>Sua candidatura</h3><p>${d.appliedAt ? `Enviada em ${new Date(d.appliedAt).toLocaleDateString("pt-BR")}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
+    html += `<div class="panel"><h3>Sua candidatura</h3><p>${d.appliedAt ? `Enviada em ${new Date(d.appliedAt).toLocaleDateString("pt-BR")}` : ""}${d.appliedViaLabel ? ` via ${esc(d.appliedViaLabel)}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
   if (t?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>🚩 Sinais de golpe</h3><p>${esc(t.scam.join("; "))}</p></div>`;
   html += flagsPanels(d);
   if (d.research) {
@@ -510,8 +539,8 @@ function drawerBody(d, job) {
 
 /* -------------------------------------------------------------------- ações */
 
-async function setStatus(id, status, note = "", { quiet = false } = {}) {
-  const r = await api(`/api/jobs/${encodeURIComponent(id)}/status`, { status, note });
+async function setStatus(id, status, note = "", { quiet = false, via } = {}) {
+  const r = await api(`/api/jobs/${encodeURIComponent(id)}/status`, { status, note, via });
   if (!quiet) {
     const dest = stageOf(status);
     toast(`${r.job.company} → ${dest?.label ?? r.job.statusLabel}`, "", {
@@ -542,14 +571,19 @@ const toggleHint = (form) => {
 
 export async function markApplied(id) {
   const j = findJob(id);
+  const channels = Object.entries(S.applyChannels ?? {});
   const r = await modal({
     title: "Marcar como enviada",
     html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
       <p class="muted" style="margin-top:6px">A vaga vai para “Em andamento”${j.pkg ? " e a pasta do pacote para <code>output/2-em-andamento</code>" : ""}. Daqui a 7 dias aparece o lembrete de follow-up.</p>
-      <label class="field"><span>Observação <small>(opcional)</small></span><input name="note" placeholder="ex.: via Gupy, indicação do Fulano" autocomplete="off"></label>`,
+      <div class="field"><span>Por onde você se candidatou?</span><small>Com isso dá para ver depois qual canal responde mais.</small>
+        <div class="via-grid">${channels
+          .map(([v, label]) => `<label class="option"><input type="radio" name="via" value="${esc(v)}"${v === j.applyGuess ? " checked" : ""}><span>${esc(label)}</span></label>`)
+          .join("")}</div></div>
+      <label class="field"><span>Observação <small>(opcional)</small></span><input name="note" placeholder="ex.: indicação do Fulano, código da vaga 123" autocomplete="off"></label>`,
     confirm: "✅ Já me candidatei",
   });
-  if (r) await setStatus(id, "applied", r.note);
+  if (r) await setStatus(id, "applied", r.note, { via: r.via });
 }
 
 action("stage", (_id, id) => {
@@ -719,6 +753,15 @@ action("answer-delete", async (answerId) => {
   if (drawer.id === jobId) await reloadDrawer();
 });
 
+action("copy-sheet", async (ref) => {
+  const [i, k] = ref.split(":").map(Number);
+  const f = drawer.data?.sheet?.sections?.[i]?.fields?.[k];
+  if (f) await copy(f.value);
+});
+action("email-draft", async (id) => {
+  await api(`/api/jobs/${encodeURIComponent(id)}/email-draft`, {});
+  toast("✉️ Abrindo o e-mail no seu programa de e-mail. Confira e clique em Enviar.");
+});
 action("copy-email", async (ref) => {
   const e = drawer.data?.docs?.emails;
   if (!e) return;
