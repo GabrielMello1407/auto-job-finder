@@ -1,4 +1,6 @@
+import { withoutDashesResume } from "../profile.js";
 import type { CoverLetter, Resume } from "../schemas.js";
+import { withoutDashes } from "../util/text.js";
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -62,7 +64,9 @@ li { margin: 0 0 2.2pt; text-align: justify; }
 .small { font-size: 9pt; }
 `;
 
-export function resumeHtml(r: Resume, paper: "A4" | "Letter"): string {
+export function resumeHtml(resume: Resume, paper: "A4" | "Letter"): string {
+  // Última garantia: o PDF nunca sai com travessão, nem de um resume.json editado à mão ou antigo.
+  const r = withoutDashesResume(resume);
   const L = LABELS[r.language];
   const c = r.contact;
   const contactParts = [
@@ -76,7 +80,7 @@ export function resumeHtml(r: Resume, paper: "A4" | "Letter"): string {
   ].filter(Boolean);
 
   // Data desconhecida fica de fora: nada de "– Atual" solto ou de um traço sozinho.
-  const period = (start: string, end: string) => [start, end].map((d) => d?.trim()).filter(Boolean).join(" – ");
+  const period = (start: string, end: string) => [start, end].map((d) => d?.trim()).filter(Boolean).join(" - ");
 
   const skills = r.skills
     .map((g) => `<p><strong>${esc(g.category)}:</strong> ${esc(g.items.join(", "))}</p>`)
@@ -110,20 +114,20 @@ export function resumeHtml(r: Resume, paper: "A4" | "Letter"): string {
     .map((e) =>
       e.period
         ? `<div class="edu-title">${esc(e.degree)}</div><div class="job-meta">${esc(`${e.institution} | ${e.period}`)}</div>`
-        : `<div class="job-meta" style="margin-top:3pt">${esc([e.degree, e.institution].filter(Boolean).join(" – "))}</div>`,
+        : `<div class="job-meta" style="margin-top:3pt">${esc([e.degree, e.institution].filter(Boolean).join(", "))}</div>`,
     )
     .join("\n");
 
   const certs = r.certifications.length
     ? `<h2>${L.certifications}</h2>
 <ul>${r.certifications
-        .map((c) => `<li>${esc([c.name, c.issuer].filter((x) => x?.trim()).join(" – "))}${c.date?.trim() ? ` (${esc(c.date)})` : ""}</li>`)
+        .map((c) => `<li>${esc([c.name, c.issuer].filter((x) => x?.trim()).join(", "))}${c.date?.trim() ? ` (${esc(c.date)})` : ""}</li>`)
         .join("")}</ul>`
     : "";
 
   return `<!doctype html>
 <html lang="${r.language}">
-<head><meta charset="utf-8"><title>${esc(r.name)} — ${esc(r.headline)}</title>
+<head><meta charset="utf-8"><title>${esc(r.name)} | ${esc(r.headline)}</title>
 <style>${BASE_CSS(paper)}</style></head>
 <body>
 <h1>${esc(r.name)}</h1>
@@ -152,18 +156,30 @@ ${certs}
 }
 
 /** Carta de apresentação / cover letter com o mesmo cabeçalho do currículo. */
+/** Carta sem travessão como pontuação (soa como texto de IA). */
+export function withoutDashesLetter(l: CoverLetter): CoverLetter {
+  return {
+    subjectLine: withoutDashes(l.subjectLine, "subject"),
+    greeting: withoutDashes(l.greeting),
+    paragraphs: l.paragraphs.map((p) => withoutDashes(p)),
+    closing: withoutDashes(l.closing),
+  };
+}
+
 export function coverLetterHtml(
-  r: Resume,
-  letter: CoverLetter,
+  resume: Resume,
+  coverLetter: CoverLetter,
   opts: { company: string; paper: "A4" | "Letter"; date: string },
 ): string {
+  const r = withoutDashesResume(resume);
+  const letter = withoutDashesLetter(coverLetter);
   const c = r.contact;
   const contact = [esc(c.location), c.email && link(c.email), c.phone && esc(c.phone), c.linkedin && link(c.linkedin), c.portfolio && link(c.portfolio)]
     .filter(Boolean)
     .join(" | ");
   return `<!doctype html>
 <html lang="${r.language}">
-<head><meta charset="utf-8"><title>${esc(r.name)} — Cover Letter</title>
+<head><meta charset="utf-8"><title>${esc(r.name)} | Cover Letter</title>
 <style>${BASE_CSS(opts.paper)}
 @page { margin: 20mm 22mm; }
 body { font-size: 10.5pt; line-height: 1.45; }

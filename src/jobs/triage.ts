@@ -3,6 +3,7 @@ import { loadExcluded, loadPreferences } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import { TriageBatchSchema, type Job } from "../schemas.js";
 import { today, truncate } from "../util/text.js";
+import { cleanJobText } from "./page.js";
 import { loadJobs, saveJobs } from "./store.js";
 
 const BATCH = 6;
@@ -15,7 +16,7 @@ Local: ${j.location} | Remoto: ${j.remote ?? "?"} | Fonte: ${j.source} | Publica
 Salário: ${j.salary ?? "não informado"}
 Link: ${j.url}
 Descrição:
-${truncate(j.description, 5000)}
+${truncate(cleanJobText(j.description), 5000)}
 </job>`;
 }
 

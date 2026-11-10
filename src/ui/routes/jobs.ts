@@ -15,7 +15,7 @@ import { profileChangedAt } from "../../onboarding/update.js";
 import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
-import { tidyText } from "../../util/text.js";
+import { cleanJobText } from "../../jobs/page.js";
 import { answerQuestion, deleteAnswer, refineAnswer } from "../../writers/answers.js";
 import { applicationSheet } from "../../writers/applicationSheet.js";
 import { applicationDraft, DRAFT_FILE, gmailComposeUrl, parseEmails, writeApplicationDraft } from "../../writers/emailDraft.js";
@@ -116,8 +116,8 @@ function jobDetail(j: Job) {
   }
   return {
     ...jobSummary(j),
-    // Vagas antigas guardaram a página inteira: limpa os itens vazios de menu na hora de mostrar.
-    description: tidyText(j.description),
+    // Vagas antigas guardaram a página inteira: limpa menus, "Vagas semelhantes" e botões na hora de mostrar.
+    description: cleanJobText(j.description),
     evidence: j.triage?.evidence ?? [],
     gaps: j.triage?.mustHaveGaps ?? [],
     answers: j.answers ?? [],

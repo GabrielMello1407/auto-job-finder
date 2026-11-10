@@ -226,7 +226,7 @@ program
   .description("mostra os campos que os formulários de candidatura pedem (dados, resumo, experiências), prontos para copiar")
   .action(async (busca: string[]) => {
     const job = await pickJob({ query: busca.join(" "), message: "Para qual vaga?" });
-    console.log(sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
+    console.log(sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
   });
 
 program

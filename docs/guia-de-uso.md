@@ -439,6 +439,12 @@ O LinkedIn bloqueia leitura automática. No cadastro, use o PDF do perfil (**Mai
 
 O `data/usage.jsonl` registra os tokens de cada chamada.
 
+**A descrição da vaga veio com "Vagas semelhantes", "Salvar", "143 candidaturas"…**
+Isso é o resto da página do site (o LinkedIn mostra tudo junto). O agente agora tira esse resto: corta no começo de "Vagas semelhantes" e afins e remove botões, contadores, menu e tela de login. Vale para vaga baixada, para texto colado da página inteira e para vagas que já estavam salvas. Se uma vaga já tinha pacote, gere de novo para o pacote usar a descrição limpa.
+
+**O currículo tinha "—" (travessão) nos títulos e no texto.**
+Travessão soa como texto de IA. Agora o currículo, a carta, os e-mails e as respostas saem sem ele: em títulos, o resto vai entre parênteses ("TV Box Educacional (UENP, em desenvolvimento)"); no texto, vira vírgula; entre datas, hífen comum ("02/2025 - atual"). Nenhum "—" ou "–" aparece no currículo. Para um pacote que já existe, **🔄 Gerar o PDF de novo** (aba Pacote) refaz o PDF sem travessão, sem usar a IA.
+
 **O agente pode inventar coisas no meu currículo?**
 Ele é feito para não inventar. Só usa fatos do seu perfil, e travas em código barram número sem fonte, cargo ou data alterados, certificação inventada e as frases de "nunca afirmar". Mesmo assim, **leia sempre o PDF antes de enviar**. Veja [como funciona](como-funciona.md#anti-invenção).
 

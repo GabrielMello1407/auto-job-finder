@@ -202,7 +202,7 @@ async function recommendedFlow() {
     }
     if (action === "open") openExternal(job.applyUrl ?? job.url);
     if (action === "check") await checkOneFlow(job);
-    if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
+    if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
     if (action === "notdup") {
       markNotDuplicate(job.id);
       console.log("Marca de repetida tirada.");
@@ -269,7 +269,7 @@ async function packagesFlow() {
           console.log(`✉️ Abrindo ${file}. Confira e clique em Enviar. (No Gmail pelo navegador: interface → aba E-mails → "Abrir no Gmail".)`);
         } else console.log("Este pacote não tem o e-mail de candidatura.");
       }
-      if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura — ${job.company}`));
+      if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
       if (action === "notdup") {
         Object.assign(job, markNotDuplicate(job.id));
         console.log("Marca de repetida tirada.");

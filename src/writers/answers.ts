@@ -3,12 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { paths } from "../config.js";
+import { cleanJobText } from "../jobs/page.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { structured } from "../llm.js";
 import { forbiddenPatterns, profileTruthEvidence } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import type { Job, JobAnswer } from "../schemas.js";
-import { tidyText, truncate } from "../util/text.js";
+import { truncate, withoutDashes } from "../util/text.js";
 
 /**
  * Perguntas do formulário de candidatura ("Por que você quer trabalhar aqui?", "Fale de um projeto
@@ -35,7 +36,7 @@ function profileSources(): string {
 
 function jobBlock(job: Job): string {
   const head = [`Cargo: ${job.title}`, `Empresa: ${job.company}`, job.location ? `Local: ${job.location}` : ""].filter(Boolean);
-  return `${head.join("\n")}\n\n${truncate(tidyText(job.description), 12000)}`;
+  return `${head.join("\n")}\n\n${truncate(cleanJobText(job.description), 12000)}`;
 }
 
 /** Currículo enviado para esta vaga (resume.json do pacote), se houver. */
@@ -108,7 +109,8 @@ Escreva a resposta que a pessoa vai colar no formulário:
     r = await ask(`\n\nA versão anterior foi barrada pelas travas: ${issues.join("; ")}. Corrija: tire o que não tem fonte e respeite o limite.`);
     issues = problems();
   }
-  return { answer: r.answer.trim(), needsYou: r.needsYou, warnings: issues };
+  // Sem travessão como pontuação: soa como texto de IA no formulário.
+  return { answer: withoutDashes(r.answer.trim()), needsYou: r.needsYou, warnings: issues };
 }
 
 /** Responde uma pergunta nova do formulário e salva na vaga. */
