@@ -2,6 +2,7 @@ import { z } from "zod";
 import { canWebSearch, webSearchStructured } from "../llm.js";
 import type { Job, JobResearchSummary } from "../schemas.js";
 import { today, truncate } from "../util/text.js";
+import { cleanJobText } from "./page.js";
 import { findJob, loadJobs, updateJob } from "./store.js";
 
 /**
@@ -65,7 +66,7 @@ export const withoutResearch = (description: string) => description.split(`\n\n-
 export async function researchJob(id: string): Promise<Job> {
   if (!canWebSearch()) throw new Error("A IA escolhida não faz busca na web. Troque de IA (Claude ou outra com busca) para pesquisar a vaga.");
   const job = findJob(loadJobs(), id);
-  const received = withoutResearch(job.description);
+  const received = cleanJobText(withoutResearch(job.description));
   console.log(`Pesquisando ${job.company || "a empresa"} e a vaga "${job.title}" na web...`);
   const r = await webSearchStructured(JobResearchSchema, {
     label: "search:job-research",

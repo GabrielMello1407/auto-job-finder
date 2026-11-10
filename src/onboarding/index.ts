@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkbox, confirm, editor, input, select } from "@inquirer/prompts";
 import { ensureDir, hasProfile, paths } from "../config.js";
-import { DEFAULT_PREFERENCES, loadPreferences, withoutTranslatedTitles, type Preferences } from "../profile.js";
+import { DEFAULT_PREFERENCES, loadPreferences, withoutDashesResume, withoutTranslatedTitles, type Preferences } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import { slugify } from "../util/text.js";
 import type { DiffLine } from "../util/diff.js";
@@ -235,7 +235,8 @@ export async function buildAndSaveProfile(p: {
   const ptDraft = await buildBaseResume(built.profileTruth, "pt-BR");
   console.log("   currículo-base em inglês...");
   const en = await buildBaseResume(built.profileTruth, "en", ptDraft);
-  const pt = withoutTranslatedTitles(ptDraft, en); // cargo em inglês só no currículo em inglês
+  // Cargo em inglês só no currículo em inglês; nos dois, sem travessão como pontuação.
+  const pt = withoutDashesResume(withoutTranslatedTitles(ptDraft, en));
 
   const backup = backupProfile();
   ensureDir(paths.profileDir);
@@ -264,7 +265,7 @@ export async function buildAndSaveProfile(p: {
 
   fs.writeFileSync(paths.profileTruth, built.profileTruth.trim() + "\n");
   fs.writeFileSync(paths.baseResume("pt-BR"), JSON.stringify(pt, null, 2) + "\n");
-  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(en, null, 2) + "\n");
+  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(withoutDashesResume(en), null, 2) + "\n");
   fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
   fs.writeFileSync(paths.rules, JSON.stringify({ neverClaim: built.neverClaim }, null, 2) + "\n");
   if (!fs.existsSync(paths.excluded))

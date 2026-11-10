@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { englishBase, loadBaseResume, withoutTranslatedTitles } from "../profile.js";
+import { englishBase, loadBaseResume, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { ResumeSchema, type Job, type Resume } from "../schemas.js";
 
 /*
@@ -50,7 +50,9 @@ export function fitText(text: string, max: number): string {
 const CURRENT = /^(atual|present|current|presente|hoje)$/i;
 
 /** A ficha a partir de um currículo. */
-export function sheetFromResume(r: Resume, from: ApplicationSheet["from"] = "base"): ApplicationSheet {
+export function sheetFromResume(resume: Resume, from: ApplicationSheet["from"] = "base"): ApplicationSheet {
+  // O que vai para o formulário também sai sem travessão (soa como texto de IA).
+  const r = withoutDashesResume(resume);
   const en = r.language === "en";
   const t = (pt: string, eng: string) => (en ? eng : pt);
   const f = (label: string, value: string | undefined, long = false): SheetField[] => (value && value.trim() ? [{ label, value: value.trim(), long }] : []);
@@ -83,7 +85,7 @@ export function sheetFromResume(r: Resume, from: ApplicationSheet["from"] = "bas
       ].filter((x, i, all) => all.findIndex((y) => y.value === x.value) === i),
     },
     ...r.experience.map((e) => ({
-      title: `${t("Experiência", "Experience")}: ${e.title} — ${e.company}`,
+      title: `${t("Experiência", "Experience")}: ${e.title}, ${e.company}`,
       fields: [
         ...f(t("Cargo", "Job title"), e.title),
         ...f(t("Empresa", "Company"), e.company),
@@ -146,7 +148,7 @@ function resumeFor(job: Job): { resume: Resume; from: ApplicationSheet["from"] }
 export function applicationSheet(job: Job): ApplicationSheet {
   const { resume, from } = resumeFor(job);
   // Pacotes antigos podem ter o cargo repetido em inglês: no formulário em português, só em português.
-  return sheetFromResume(withoutTranslatedTitles(resume, resume.language === "pt-BR" ? englishBase() : null), from);
+  return sheetFromResume(withoutDashesResume(withoutTranslatedTitles(resume, resume.language === "pt-BR" ? englishBase() : null)), from);
 }
 
 /** A ficha em Markdown (`ficha_de_candidatura.md` e terminal). */
@@ -164,6 +166,6 @@ export function sheetMarkdown(s: ApplicationSheet, title = "Ficha de candidatura
 /** Grava a ficha na pasta do pacote. */
 export function writeSheet(job: Job, dir: string): string {
   const file = path.join(dir, SHEET_FILE);
-  fs.writeFileSync(file, sheetMarkdown(applicationSheet({ ...job, outputDir: dir }), `Ficha de candidatura — ${job.company}`));
+  fs.writeFileSync(file, sheetMarkdown(applicationSheet({ ...job, outputDir: dir }), `Ficha de candidatura: ${job.company}`));
   return file;
 }

@@ -133,7 +133,16 @@ A busca na web com IA traz só um resumo de cada vaga, e a busca da Gupy só a d
 
 1. **JobPosting em JSON-LD**, o formato que os sites de vaga publicam para o Google (Greenhouse, Lever, Workday, Wellfound, Indeed...). Vem a descrição limpa, mais empresa, local, países aceitos, tipo de contrato, salário e data.
 2. **Página de vaga da Gupy**, que não tem JSON-LD: os dados da vaga (`__NEXT_DATA__`) trazem descrição, responsabilidades, requisitos e informações adicionais separados.
-3. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
+3. **Página de vaga do LinkedIn**: o bloco da descrição (`show-more-less-html__markup`), com título, empresa, local e critérios, sem as vagas semelhantes.
+4. Sem isso, só o **conteúdo principal** da página (`<main>`, ou `<article>`), sem cabeçalho, menu, rodapé, barras laterais e formulários.
+
+Sites de vagas põem no conteúdo principal também o resto da página. `cleanJobText` tira esse resto, sem IA:
+- corta no começo de "Vagas semelhantes", "As pessoas também visualizaram", "Pesquisas semelhantes" e afins (português, inglês e espanhol; só títulos curtos, depois das primeiras linhas);
+- tira linhas de interface: botões ("Salvar", "Denunciar esta vaga"), contadores ("Há 14 horas", "143 candidaturas"), menu, tela de login e convites do site;
+- tira o cabeçalho repetido (cargo, empresa e local duas vezes no topo);
+- deixa o bloco "Pesquisa na web" como está e pode rodar de novo sem mudar nada.
+
+Vale para a página baixada, para o texto colado (quem copia a página inteira do LinkedIn) e, na leitura, para vagas já salvas: triagem, pacote, respostas do formulário, pesquisa na web e a descrição na interface.
 
 Um marcador de lista sozinho numa linha é juntado ao texto da linha seguinte (feeds RSS mandam `<li><p>texto</p></li>`); marcadores seguidos, de itens vazios de menu, saem. Linhas em branco repetidas também saem (`util/text.ts#tidyText`), inclusive na hora de mostrar vagas antigas.
 
@@ -195,6 +204,7 @@ flowchart TD
 - **Mercado** (`src/market.ts`): define papel (A4 ou Letter), idioma, nome do arquivo e se vai carta. Nos EUA: currículo + carta, papel Letter, sem foto, idade ou estado civil.
 - **ATS** (`src/tailor/ats.ts`): compara as palavras-chave da vaga com o currículo, em três grupos: *coberto*, *você tem mas não mostrou* e *lacuna real*.
 - **LEIA-ME:** explica como se candidatar pelo canal certo (e-mail, LinkedIn, plataforma, site ou WhatsApp), com checklist antes de enviar.
+- **Sem travessão:** "—" e "–" usados como pontuação soam como texto de IA. As instruções proíbem, e `util/text.ts#withoutDashes` garante sem IA: em títulos (projeto, cargo, empresa, formação), o resto vai entre parênteses ("TV Box Educacional — UENP — em desenvolvimento" vira "TV Box Educacional (UENP, em desenvolvimento)"); em texto, vira vírgula; em assunto de e-mail, hífen. Intervalos de data e número viram hífen comum ("02/2025 - atual", "10-20"): nenhum "—" ou "–" sobra. Vale para o currículo (`profile.ts#withoutDashesResume`: pacote, currículos-base, PDF e ficha), a carta, os e-mails e as respostas do formulário. O modelo do PDF também usa hífen entre as datas e vírgula entre curso e instituição.
 - **Cargo em um idioma só:** no currículo em português, um cargo com a tradução entre parênteses ("Analista Desenvolvedor (Developer Analyst)") perde o trecho em inglês quando ele tem as palavras do cargo do currículo em inglês na mesma posição (`profile.ts#withoutTranslatedTitles`, sem IA; uma palavra só, como "(Sênior)", nunca sai). Vale para o pacote, os currículos-base e a ficha. O perfil guarda o nome em inglês numa linha "Cargo em inglês: ...".
 - **Rascunho de e-mail** (`writers/emailDraft.ts`): `rascunho_candidatura.eml` com destinatário (o e-mail de contato da vaga), assunto, texto e os PDFs em base64. O cabeçalho `X-Unsent: 1` faz o Outlook abrir como e-mail novo, pronto para enviar; quebra de linha no assunto não vira cabeçalho. Para o Gmail pelo navegador, `gmailComposeUrl` monta o link de "escrever" com destinatário, assunto e texto (o anexo vai à mão). O agente nunca envia: quem clica em Enviar é a pessoa. "Gerar o PDF de novo" refaz o rascunho com o PDF novo.
 - **Ficha de candidatura** (`writers/applicationSheet.ts`): os campos dos formulários de plataforma a partir do `resume.json` do pacote (ou do currículo-base no idioma da vaga): dados pessoais, resumo em 3 tamanhos (frases inteiras, `fitText`), cada experiência campo a campo, formação, certificações, idiomas, competências e projetos. Sem IA e sem nada novo; fica em `ficha_de_candidatura.md` e na aba Ficha.

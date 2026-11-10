@@ -49,7 +49,7 @@ Estrutura (250–380 palavras no total, 3 a 4 parágrafos):
 
 Regras: tom humano e direto, frases curtas, nada de clichês ("passionate", "team player", "proativo"). Só fatos das fontes. Não mencione lacunas. ${
       en ? "Greeting: 'Dear <recruiter name>,' se houver nome na vaga; senão 'Dear Hiring Manager,'. Closing: 'Sincerely,'." : "Saudação: 'Olá, <nome>,' se houver nome; senão 'Prezada equipe de Recrutamento,'. Encerramento: 'Atenciosamente,'."
-    } subjectLine: "${en ? "Re: <Role> — <Company>" : "Candidatura: <Cargo> — <Empresa>"}".`,
+    } subjectLine: "${en ? "Re: <Role> at <Company>" : "Candidatura: <Cargo> (<Empresa>)"}".`,
   });
 }
 
@@ -64,7 +64,7 @@ export function writeEmails(p: { jd: string; analysis: JobAnalysis; resume: Resu
 
 Escreva, em ${en ? "inglês americano" : "português do Brasil"}, os textos de contato com o recrutador desta vaga. Nome do recrutador na vaga: "${p.analysis.recruiterName || "desconhecido"}" — se desconhecido use uma saudação neutra com [Nome] para eu preencher.
 
-1. application: e-mail de candidatura. 3 opções de assunto (padrão: "<Cargo> — ${candidateName()}"; se a vaga exigir um assunto específico, a 1ª opção é exatamente ele). Instruções de candidatura da vaga: "${p.analysis.applyInstructions || "nenhuma"}". Corpo com 90–150 palavras: quem sou em 1 frase, 2 provas ligadas aos requisitos, menção aos anexos (${p.withCoverLetter ? "resume + cover letter" : "currículo"}) e links que existirem no currículo (LinkedIn, portfólio). Assinatura com nome, telefone/e-mail e links que existirem.
+1. application: e-mail de candidatura. 3 opções de assunto (padrão: "<Cargo> - ${candidateName()}"; se a vaga exigir um assunto específico, a 1ª opção é exatamente ele). Instruções de candidatura da vaga: "${p.analysis.applyInstructions || "nenhuma"}". Corpo com 90–150 palavras: quem sou em 1 frase, 2 provas ligadas aos requisitos, menção aos anexos (${p.withCoverLetter ? "resume + cover letter" : "currículo"}) e links que existirem no currículo (LinkedIn, portfólio). Assinatura com nome, telefone/e-mail e links que existirem.
 2. linkedinConnectionNote: convite de conexão com no MÁXIMO 300 caracteres (conte!). Cite a vaga e 1 prova.
 3. linkedinMessage: mensagem direta/InMail após conectar, até ~600 caracteres.
 4. followUp: e-mail de acompanhamento para 5–7 dias úteis depois, curto, educado, com 1 informação nova de valor.

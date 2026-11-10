@@ -4,7 +4,7 @@ import { loadPreferences } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import { fixMojibake, norm, shortHash } from "../util/text.js";
 import { canonicalUrl } from "./dedupe.js";
-import { jobPageText } from "./page.js";
+import { cleanJobText, jobPageText } from "./page.js";
 import { prefilter } from "./filter.js";
 import { SOURCES, type RawJob } from "./sources/index.js";
 import { webSearchJobs } from "./sources/websearch.js";
@@ -76,8 +76,9 @@ export function searchSummary(s: Pick<Awaited<ReturnType<typeof searchJobs>>, "a
 /** Adiciona uma vaga manualmente: URL (busca o texto da página) ou arquivo .md/.txt com a descrição. */
 export async function addJob(input: { url?: string; file?: string; text?: string; title?: string; company?: string; location?: string }) {
   let description = "";
-  if (input.text) description = input.text;
-  else if (input.file) description = fs.readFileSync(input.file, "utf8");
+  // Texto copiado da página inteira (LinkedIn, Indeed) traz "Vagas semelhantes" e botões: só fica a vaga.
+  if (input.text) description = cleanJobText(input.text);
+  else if (input.file) description = cleanJobText(fs.readFileSync(input.file, "utf8"));
   else if (input.url) {
     if (/linkedin\.com/i.test(input.url))
       throw new Error("O LinkedIn exige login para ler a vaga. Copie o texto da vaga e use 'ajf' → \"Colar uma vaga\" (ou ajf add --file vaga.md --url <link>).");

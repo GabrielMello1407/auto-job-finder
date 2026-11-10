@@ -42,6 +42,40 @@ const STARTS_WITH_MARKER = /^[-•·*–](\s|$)/;
  * ao texto que vem logo depois ("-" / "SQL" vira "- SQL"); se depois vier outro marcador, é um item
  * vazio (menu de site) e sai.
  */
+/**
+ * Sem travessão (—) nem meia-risca (–) como pontuação: em currículo, carta e e-mail soa como texto de IA.
+ * - "text": vira vírgula ("Portal AITEC — engenheiro único" → "Portal AITEC, engenheiro único");
+ * - "title": o resto vai entre parênteses ("TV Box Educacional — UENP — em desenvolvimento" →
+ *   "TV Box Educacional (UENP, em desenvolvimento)");
+ * - "subject" (assunto de e-mail): hífen; "headline": barra vertical, como o resto da linha.
+ * Intervalos de data e número ("02/2025 – atual", "10–20") viram hífen comum ("02/2025 - atual", "10-20"):
+ * nenhum "—" ou "–" sobra.
+ */
+export function withoutDashes(s: string, kind: "text" | "title" | "subject" | "headline" = "text"): string {
+  if (!/[—–]/.test(s)) return s;
+  // Traço de pontuação: não vem depois de um dígito, com ou sem espaço (aí é intervalo: "2023 – 2024").
+  const DASH = /(?<!\d\s*)\s*[—–]\s*/g;
+  let out: string;
+  if (kind === "title") {
+    const parts = s.split(DASH).map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) out = s.replace(DASH, " ");
+    else {
+      const [first, ...rest] = parts;
+      // Se o resto já tem parênteses, parêntese dentro de parêntese fica feio: vai com vírgula.
+      out = rest.some((p) => /[()]/.test(p)) || /\)$/.test(first) ? parts.join(", ") : `${first} (${rest.join(", ")})`;
+    }
+  } else out = s.replace(DASH, kind === "subject" ? " - " : kind === "headline" ? " | " : ", ");
+  // O que sobrou é intervalo (depois de um dígito): hífen comum, com ou sem espaço como estava.
+  out = out.replace(/(\s*)[—–](\s*)/g, (_, a: string, b: string) => (a || b ? " - " : "-"));
+  return out
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*,/g, ",")
+    .replace(/,\s*([.;:!?)])/g, "$1")
+    .replace(/\(\s*,\s*/g, "(")
+    .replace(/^\s*[,|-]\s*|\s*[,|-]\s*$/g, "")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
 export function tidyText(text: string): string {
   const lines = normalizeLines(text);
   const out: string[] = [];

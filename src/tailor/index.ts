@@ -3,15 +3,15 @@ import path from "node:path";
 import { ensureDir, paths, settings } from "../config.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { marketProfile, type MarketProfile } from "../market.js";
-import { englishBase, loadBaseResume, profileTruthEvidence, withoutTranslatedTitles } from "../profile.js";
-import { coverLetterHtml, resumeHtml } from "../render/resumeHtml.js";
+import { englishBase, loadBaseResume, profileTruthEvidence, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
+import { coverLetterHtml, resumeHtml, withoutDashesLetter } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
 import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type OpenCheck, type Resume } from "../schemas.js";
 import { track } from "../tracker.js";
 import { checkJobOpen, checkUrl, OPEN_ICON, recordOpenCheck } from "../jobs/open.js";
 import { withoutResearch } from "../jobs/research.js";
-import { isWebSummary } from "../jobs/page.js";
-import { slugify, today } from "../util/text.js";
+import { cleanJobText, isWebSummary } from "../jobs/page.js";
+import { slugify, today, withoutDashes } from "../util/text.js";
 import { writeAnswersFile } from "../writers/answers.js";
 import { SHEET_FILE, sheetFromResume, sheetMarkdown, writeSheet } from "../writers/applicationSheet.js";
 import { DRAFT_FILE, draftFromDir, writeDraft } from "../writers/emailDraft.js";
@@ -52,7 +52,8 @@ function jobDescription(job: Job): string {
     job.salary ? `Salário: ${job.salary}` : "",
     `Link: ${job.url}`,
     "",
-    job.description,
+    // Vagas salvas antes desta limpeza podem ter a página inteira (vagas semelhantes, botões).
+    cleanJobText(job.description),
   ]
     .filter((l) => l !== "")
     .join("\n");
@@ -166,7 +167,7 @@ ${note}
 ${e.linkedinMessage}
 \`\`\`
 
-## 4. Follow-up (5–7 dias úteis depois)
+## 4. Follow-up (5-7 dias úteis depois)
 **Assunto:** ${e.followUp.subject}
 \`\`\`text
 ${e.followUp.body}
@@ -194,6 +195,19 @@ function howToApply(a: JobAnalysis, job: Job, attachments: string[]): string {
   };
   const step = steps[a.applyChannel] ?? steps.desconhecido;
   return a.applyInstructions ? `${step}\n\n> Instruções da vaga: ${a.applyInstructions}` : step;
+}
+
+/** E-mails e mensagens sem travessão como pontuação: assunto com hífen, texto com vírgula. */
+function withoutDashesEmails(e: EmailPack): EmailPack {
+  const t = (s: string) => withoutDashes(s);
+  const subject = (s: string) => withoutDashes(s, "subject");
+  return {
+    application: { subjectOptions: e.application.subjectOptions.map(subject), body: t(e.application.body) },
+    linkedinConnectionNote: t(e.linkedinConnectionNote),
+    linkedinMessage: t(e.linkedinMessage),
+    followUp: { subject: subject(e.followUp.subject), body: t(e.followUp.body) },
+    thankYou: { subject: subject(e.thankYou.subject), body: t(e.thankYou.body) },
+  };
 }
 
 function coverMarkdown(c: CoverLetter, name: string): string {
@@ -237,7 +251,8 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   });
   // Currículo em português: o cargo sem a tradução em inglês entre parênteses (ela fica só no resume em inglês).
   const english = mp.language === "pt-BR" ? englishBase() : null;
-  const tidy = (r: Resume) => withoutTranslatedTitles(r, english);
+  // E sem travessão como pontuação (títulos ganham parênteses; textos, vírgula).
+  const tidy = (r: Resume) => withoutDashesResume(withoutTranslatedTitles(r, english));
   let final = tidy(result.best.resume);
 
   const dir = path.join(paths.outputDir, `${today()}-${slugify(job.company, 25)}-${slugify(analysis.roleTitle, 35)}`);
@@ -281,7 +296,7 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   const attachments = [pdfName];
   if (wantCover) {
     console.log("5/6 Escrevendo cover letter / carta de apresentação...");
-    const letter = await writeCoverLetter({ jd, analysis, resume: final, market: mp });
+    const letter = withoutDashesLetter(await writeCoverLetter({ jd, analysis, resume: final, market: mp }));
     const coverName = `${baseName.replace(`_${mp.docName}_`, "_Cover_Letter_")}.pdf`;
     const coverHtml = coverLetterHtml(final, letter, {
       company: job.company,
@@ -296,7 +311,7 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   } else console.log("5/6 Cover letter não necessária para este mercado (use --cover para gerar).");
 
   console.log("6/6 Escrevendo e-mails e mensagens para o recrutador...");
-  const emails = await writeEmails({ jd, analysis, resume: final, market: mp, withCoverLetter: wantCover });
+  const emails = withoutDashesEmails(await writeEmails({ jd, analysis, resume: final, market: mp, withCoverLetter: wantCover }));
   fs.writeFileSync(path.join(dir, "emails.md"), emailsMarkdown(emails, analysis, attachments));
   // Rascunho com o currículo anexado (o programa de e-mail abre; você envia) e a ficha para formulários.
   writeDraft(dir, {
@@ -433,7 +448,7 @@ export async function rerender(dir: string) {
   // O rascunho de e-mail leva o PDF novo; a ficha, o currículo editado.
   const draft = draftFromDir(dir, pdfs);
   if (draft) writeDraft(dir, draft);
-  fs.writeFileSync(path.join(dir, SHEET_FILE), sheetMarkdown(sheetFromResume(resume, "pacote"), `Ficha de candidatura — ${meta.company}`));
+  fs.writeFileSync(path.join(dir, SHEET_FILE), sheetMarkdown(sheetFromResume(resume, "pacote"), `Ficha de candidatura: ${meta.company}`));
   const guards = runGuards(resume, loadBaseResume(resume.language), sourcesText());
   return { pages, guards };
 }

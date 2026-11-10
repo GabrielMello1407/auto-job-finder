@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { hasProfile, paths } from "./config.js";
 import { ResumeSchema, type Resume } from "./schemas.js";
+import { withoutDashes } from "./util/text.js";
 
 export interface Preferences {
   /** Cargos que a pessoa procura (ex.: "Analista de Marketing Digital", "Full Stack Developer"). */
@@ -121,6 +122,27 @@ export function withoutTranslatedTitles(resume: Resume, english: Resume | null):
   return { ...resume, experience };
 }
 
+/**
+ * Currículo sem travessão como pontuação (soa como texto de IA): títulos ganham parênteses, textos
+ * ganham vírgula (`util/text.ts#withoutDashes`). Datas e links não mudam. Sem IA; pode rodar de novo.
+ */
+export function withoutDashesResume(r: Resume): Resume {
+  const t = (s: string) => withoutDashes(s, "text");
+  const h = (s: string) => withoutDashes(s, "title");
+  return {
+    ...r,
+    headline: withoutDashes(r.headline, "headline"),
+    contact: { ...r.contact, location: t(r.contact.location), availability: t(r.contact.availability) },
+    summary: t(r.summary),
+    skills: r.skills.map((s) => ({ category: h(s.category), items: s.items.map(t) })),
+    experience: r.experience.map((e) => ({ ...e, title: h(e.title), company: h(e.company), location: t(e.location), mode: t(e.mode), start: t(e.start), end: t(e.end), bullets: e.bullets.map(t) })),
+    projects: r.projects.map((p) => ({ ...p, name: h(p.name), description: t(p.description), tech: p.tech.map(t) })),
+    education: r.education.map((e) => ({ ...e, degree: h(e.degree), institution: h(e.institution), period: t(e.period) })),
+    certifications: r.certifications.map((c) => ({ ...c, name: h(c.name), issuer: t(c.issuer), date: t(c.date) })),
+    languages: t(r.languages),
+  };
+}
+
 /** O currículo-base em inglês, se existir (para comparar cargos). */
 export function englishBase(): Resume | null {
   try {
@@ -133,7 +155,8 @@ export function englishBase(): Resume | null {
 export function loadBaseResume(lang: "pt-BR" | "en"): Resume {
   requireProfile();
   const raw = JSON.parse(fs.readFileSync(paths.baseResume(lang), "utf8"));
-  return ResumeSchema.parse(raw);
+  // Sem travessão: a IA parte de um currículo sem ele, e as travas comparam com a mesma forma.
+  return withoutDashesResume(ResumeSchema.parse(raw));
 }
 
 /** Nome do candidato (do currículo-base). */
