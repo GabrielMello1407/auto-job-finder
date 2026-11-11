@@ -155,6 +155,12 @@ export interface JobResearchSummary {
   postingUrl?: string;
   companySite?: string;
   notes: string[];
+  /**
+   * Missão, valores e cultura da página oficial da empresa, cada um com o link da fonte
+   * (src/jobs/research.ts#officialCulture). Vazio = pesquisou e a página oficial não fala disso;
+   * ausente = pesquisa de antes desta busca existir.
+   */
+  culture?: { text: string; source: string }[];
 }
 
 export const MarketSchema = z.enum(["BR", "US", "CA", "UK", "EU", "LATAM", "GLOBAL"]);

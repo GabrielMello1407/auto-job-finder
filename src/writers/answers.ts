@@ -5,11 +5,11 @@ import { z } from "zod";
 import { paths } from "../config.js";
 import { cleanJobText } from "../jobs/page.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
-import { structured } from "../llm.js";
+import { canWebSearch, structured } from "../llm.js";
 import { forbiddenPatterns, profileTruthEvidence } from "../profile.js";
 import { profileSystem } from "../prompts.js";
-import type { Job, JobAnswer } from "../schemas.js";
-import { truncate, withoutDashes } from "../util/text.js";
+import type { Job, JobAnalysis, JobAnswer } from "../schemas.js";
+import { norm, truncate, withoutDashes } from "../util/text.js";
 
 /**
  * Perguntas do formulário de candidatura ("Por que você quer trabalhar aqui?", "Fale de um projeto
@@ -45,6 +45,82 @@ function tailoredResume(job: Job): string | null {
   return file && fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
 }
 
+/** Análise da vaga feita no pacote (analysis.json): o que a empresa valoriza, obrigatórios, diferenciais. */
+function packageAnalysis(job: Job): Partial<JobAnalysis> | null {
+  const file = job.outputDir && path.join(job.outputDir, "analysis.json");
+  if (!file || !fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8")).analysis ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const list = (items: string[] | undefined, max = 12) => (items?.length ? items.slice(0, max).join("; ") : "");
+
+/**
+ * O foco da resposta: o que a vaga pede e a empresa valoriza (análise do pacote), o que a triagem ligou
+ * ao perfil e as lacunas, e a missão e os valores da página oficial (pesquisa na web, com a fonte).
+ */
+export function jobFocus(job: Job): string {
+  const a = packageAnalysis(job);
+  const tri = job.triage;
+  const culture = job.research?.culture ?? [];
+  const lines = [
+    a?.companyContext ? `O que a empresa faz e valoriza, segundo a vaga: ${a.companyContext}` : "",
+    list(a?.mustHave) ? `Requisitos obrigatórios: ${list(a?.mustHave)}` : "",
+    list(a?.niceToHave) ? `Diferenciais: ${list(a?.niceToHave)}` : "",
+    list(a?.responsibilities) ? `Responsabilidades: ${list(a?.responsibilities)}` : "",
+    list(tri?.evidence) ? `Provas do perfil que a triagem ligou à vaga: ${list(tri?.evidence)}` : "",
+    list(tri?.mustHaveGaps) ? `Obrigatórios sem evidência no perfil (lacunas: a pessoa não tem, não afirme): ${list(tri?.mustHaveGaps)}` : "",
+    culture.length ? `Missão, valores e cultura, da página oficial da empresa:\n${culture.map((c) => `- ${c.text} (fonte: ${c.source})`).join("\n")}` : "",
+  ].filter(Boolean);
+  return truncate(lines.join("\n"), 5000);
+}
+
+/**
+ * Pergunta sobre a empresa (por que ela, cultura, valores, missão, o produto "de vocês")? Pistas em
+ * português, inglês e espanhol, ou o nome da empresa na pergunta. Sem IA.
+ */
+/** Sempre sobre a empresa que contrata: cultura, valores, missão, "o nosso produto". */
+const ABOUT_COMPANY = [
+  /\b(cultura|culture|valores|values|missao|mission|mision|proposito|purpose|visao|vision)\b/,
+  /\b(nosso|nossa|nossos|nossas|our|ours|nuestro|nuestra|nuestros|nuestras)\b/,
+];
+/** Sobre a empresa, a não ser que a pergunta seja sobre sair do emprego atual ("por que quer sair da empresa?"). */
+const WHY_HERE = [
+  /\b(empresa|companhia|organizacao|company|organi[sz]ation|compania)\b(?! (atual|anterior|passada|current|previous|last|actual))/,
+  /\btrabalhar (aqui|conosco|com a gente|com voces|na |no |nessa|nesta|nesse|neste|em nossa|em nosso)/,
+  /\b(work|working) (here|with us|for us|at |for )/,
+  /\bjoin(ing)? (us|our|the team|this team)\b/,
+  /\bfazer parte (do|da|de nosso|de nossa|desse|dessa|deste|desta)\b/,
+  /\bwhy (do|would) you want\b/,
+  /\bpor ?que (voce |vc )?(quer|gostaria|deseja|escolheu)\b/,
+  /\bpor que (nos|a gente)\b|\bwhy us\b/,
+  /\bpor que (quieres?|te gustaria)\b|\bpor que nosotros\b|\btrabajar (aqui|con nosotros|en )/,
+];
+const LEAVING = /\b(sair|deixar|leave|leaving|salir|dejar)\b/;
+const GENERIC_NAME = new Set(["empresa", "company", "grupo", "group", "brasil", "brazil", "tecnologia", "technology", "digital", "solucoes", "solutions", "servicos", "services", "exemplo", "example", "ltda"]);
+
+export function isCompanyQuestion(question: string, company = ""): boolean {
+  const q = ` ${norm(question).replace(/[^a-z0-9]+/g, " ")} `;
+  if (ABOUT_COMPANY.some((re) => re.test(q))) return true;
+  if (!LEAVING.test(q) && WHY_HERE.some((re) => re.test(q))) return true;
+  const words = norm(company)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4 && !GENERIC_NAME.has(w));
+  return words.some((w) => q.includes(` ${w} `));
+}
+
+/**
+ * Vale sugerir a pesquisa na web antes de responder: a pergunta é sobre a empresa, a IA pesquisa na
+ * web e a vaga ainda não tem a missão e os valores da página oficial pesquisados (nunca pesquisada,
+ * ou pesquisada antes de a pesquisa guardar isso). Pesquisada sem achar nada: não sugere de novo.
+ */
+export function shouldSuggestResearch(job: Job, question: string, webSearch = canWebSearch()): boolean {
+  return webSearch && isCompanyQuestion(question, job.company) && job.research?.culture === undefined;
+}
+
 const NUM_RE = /\d+(?:[.,]\d+)*/g;
 const nums = (t: string) => new Set((t.match(NUM_RE) ?? []).map((n) => n.replace(/[.,]/g, "")));
 
@@ -77,9 +153,10 @@ async function write(job: Job, d: Draft): Promise<{ answer: string; needsYou: st
   const others = (job.answers ?? []).filter((a) => a.question !== d.question).slice(-MAX_HISTORY);
   // O que a pessoa escreve nos ajustes também é fato contado por ela (ex.: "uso o app há um ano").
   const told = [d.context ?? "", ...(d.adjustments ?? []), d.refine?.instruction ?? ""].filter((t) => t.trim());
-  const sources = [profileSources(), job.description, d.question, ...told, resume ?? ""].join("\n");
+  const focus = jobFocus(job);
+  const sources = [profileSources(), job.description, focus, d.question, ...told, resume ?? ""].join("\n");
 
-  const prompt = `${block("vaga", jobBlock(job))}${block("curriculo_enviado_para_esta_vaga", resume)}${block("o_que_a_pessoa_contou", d.context)}${block(
+  const prompt = `${block("vaga", jobBlock(job))}${block("analise_da_vaga", focus)}${block("curriculo_enviado_para_esta_vaga", resume)}${block("o_que_a_pessoa_contou", d.context)}${block(
     "ajustes_pedidos_antes",
     d.adjustments?.map((a) => `- ${a}`).join("\n"),
   )}${block("respostas_ja_dadas_nesta_candidatura", others.map((a) => `P: ${a.question}\nR: ${a.answer}`).join("\n\n"))}
@@ -93,7 +170,8 @@ ${
 Escreva a resposta que a pessoa vai colar no formulário:
 - Primeira pessoa, no idioma da pergunta, tom humano e direto. Sem clichês ("sou apaixonado por", "proativo", "vestir a camisa") e sem bajular a empresa.
 - Sobre a pessoa, só fatos das fontes (profile_truth, currículos-base, currículo enviado) e do que ela contou: <o_que_a_pessoa_contou> e os ajustes, que podem trazer fatos como "uso o app há um ano". Ligue a pergunta a 1 ou 2 provas concretas que combinam com a vaga.
-- Sobre a empresa, só o que está na <vaga> (inclusive a pesquisa na web, se houver). Não invente produto, valores, notícias, clientes ou números da empresa.
+- Use a <analise_da_vaga> para escolher essas provas: prefira as que atendem um requisito obrigatório ou o que a empresa valoriza. O que está nas lacunas a pessoa não tem: não afirme nem insinue.
+- Sobre a empresa, só o que está na <vaga> e na <analise_da_vaga> (inclusive a pesquisa na web e a missão e os valores da página oficial, se houver). Se citar um valor ou a missão da empresa, use as palavras da página e ligue a uma prova concreta da pessoa, sem bajular. Não invente produto, valores, notícias, clientes ou números da empresa.
 - Coerente com <respostas_ja_dadas_nesta_candidatura>, sem repetir as mesmas provas se der para variar.
 - Se a pergunta pede algo que só a pessoa sabe (motivação pessoal, opinião sobre o produto ou o app, pretensão salarial, disponibilidade, por que quer sair do emprego), escreva a melhor resposta verdadeira possível com as fontes, sem inventar sentimentos ou experiências, e diga em needsYou o que ela precisa contar. Nunca invente valor de salário, documento ou endereço.`;
 

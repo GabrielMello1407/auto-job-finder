@@ -19,7 +19,7 @@ import type { Job, JobStatus } from "./schemas.js";
 import { interviewGuide, JobClosedError, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
-import { ANSWERS_FILE, answerQuestion, refineAnswer } from "./writers/answers.js";
+import { ANSWERS_FILE, answerQuestion, refineAnswer, shouldSuggestResearch } from "./writers/answers.js";
 import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
 import { writeApplicationDraft } from "./writers/emailDraft.js";
 import type { JobAnswer } from "./schemas.js";
@@ -63,10 +63,26 @@ function printAnswer(a: JobAnswer) {
 }
 
 /** Pergunta do formulário de candidatura: responde e deixa ajustar até a pessoa dar Enter. Também usado pelo `ajf responder`. */
-export async function answerFlow(job: Job, given?: { question: string; limit?: number; context?: string }) {
+export async function answerFlow(job: Job, given?: { question: string; limit?: number; context?: string; research?: boolean }) {
   const question = given?.question ?? (await input({ message: "Pergunta do formulário:", required: true }));
   const limit = given ? given.limit : Number(await input({ message: "Limite de caracteres (Enter se não tiver):" })) || undefined;
   const context = given ? given.context : await input({ message: "Algo que só você sabe para esta resposta (motivação, opinião sobre o produto; Enter para pular):" });
+  // Pergunta sobre a empresa sem a missão e os valores pesquisados: sugere pesquisar antes (a mesma regra da interface).
+  if (given?.research || shouldSuggestResearch(job, question)) {
+    const go =
+      given?.research ||
+      (process.stdin.isTTY &&
+        (await confirm({
+          message: "Essa pergunta é sobre a empresa, e a missão e os valores dela ainda não foram pesquisados na página oficial. Pesquisar na web antes? (cerca de 1 minuto)",
+          default: true,
+        })));
+    if (go) {
+      if (canWebSearch()) {
+        await researchJob(job.id);
+        researchLines(findJob(loadJobs(), job.id)).forEach((l) => console.log(l));
+      } else console.log("⚠ A IA escolhida não faz busca na web: a resposta usa só o anúncio.");
+    } else if (!process.stdin.isTTY) console.log("💡 Pergunta sobre a empresa: use --pesquisar (ou ajf pesquisar) para a resposta contar com a missão e os valores da página oficial.");
+  }
   console.log("✍️ Escrevendo...");
   let a = await answerQuestion(job.id, { question, limit, context });
   for (;;) {

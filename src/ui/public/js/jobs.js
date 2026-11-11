@@ -539,7 +539,14 @@ function drawerBody(d, job) {
       <div class="status-line">${researchChip(r)}</div>
       <div class="btn-row" style="margin-top:10px">${link(r.postingUrl, t("🔗 Anúncio oficial"), "small")}${link(r.companySite, t("🏢 Site da empresa"), "small")}</div>
       ${r.notes?.length ? `<ul class="${r.verdict === "confirmada" ? "list-ok" : "list-gap"}" style="margin-top:10px">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
-      <p class="faint" style="margin-top:8px">${t("Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem e o pacote.")}</p></div>`;
+      ${
+        r.culture?.length
+          ? `<p style="margin-top:12px"><strong>${t("🏢 Missão e valores (página oficial)")}</strong></p><ul class="culture" style="margin-top:6px">${r.culture
+              .map((c) => `<li>${esc(c.text)} ${link(c.source, t("fonte"), "small ghost")}</li>`)
+              .join("")}</ul>`
+          : ""
+      }
+      <p class="faint" style="margin-top:8px">${t("Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem, o pacote e as respostas do formulário.")}</p></div>`;
   }
   if (d.evidence.length) html += `<div class="panel"><h3>${t("O que você já tem")}</h3><ul class="list-ok">${d.evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
   if (d.gaps.length) html += `<div class="panel"><h3>${t("Lacunas: requisitos sem evidência no seu perfil")}</h3><ul class="list-gap">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
@@ -729,11 +736,46 @@ action("answer-ask", async (jobId, _arg, el) => {
   if (question.length < 5) return toast(t("Escreva a pergunta do formulário."), "bad");
   const limit = Number($("#ans-limit").value) || undefined;
   const context = $("#ans-ctx").value.trim();
-  await writingButton(el, () => api(`/api/jobs/${encodeURIComponent(jobId)}/answers`, { question, limit, context }));
+  const ask = (skipResearch) => writingButton(el, () => api(`/api/jobs/${encodeURIComponent(jobId)}/answers`, { question, limit, context, skipResearch }));
+  const first = await ask(false);
+  // Pergunta sobre a empresa sem a missão e os valores pesquisados: o servidor sugere pesquisar antes.
+  if (first.suggestResearch) {
+    if ((await researchFirst(jobId, first.researching)) !== "answer") return;
+    await ask(true);
+  }
   for (const f of ["#ans-q", "#ans-limit", "#ans-ctx"]) if ($(f)) $(f).value = "";
   toast(t("✍️ Resposta pronta. Revise antes de colar no formulário."));
   if (drawer.id === jobId) await reloadDrawer();
 });
+
+/** Pesquisar a empresa antes de responder, ou responder só com o anúncio. Devolve "research", "answer" ou null. */
+async function researchFirst(jobId, researching) {
+  const r = await modal({
+    title: t("Pesquisar a empresa antes de responder?"),
+    html: `<p>${t("Essa pergunta é sobre a empresa, e o agente ainda não pesquisou a missão e os valores dela na página oficial. Sem isso, a resposta usa só o que o anúncio diz.")}</p>
+      <p class="muted" style="margin-top:8px">${
+        researching
+          ? t("A pesquisa desta vaga já está rodando. Quando terminar, clique em ✍️ Responder de novo.")
+          : t("A pesquisa leva cerca de um minuto. Quando terminar, clique em ✍️ Responder de novo: a pergunta continua no campo.")
+      }</p>
+      <div class="btn-row" style="margin-top:12px"><button type="button" class="small" data-anyway>${t("Responder só com o anúncio")}</button></div>
+      <input type="hidden" name="choice" value="research">`,
+    confirm: researching ? "" : t("🔎 Pesquisar primeiro"),
+    cancel: researching ? t("Esperar") : t("Cancelar"),
+    onOpen: (form) => {
+      form.querySelector("[data-anyway]").onclick = () => {
+        form.elements.choice.value = "answer";
+        form.requestSubmit();
+      };
+    },
+  });
+  if (r?.choice === "research") {
+    await api(`/api/jobs/${encodeURIComponent(jobId)}/research`, {});
+    toast(t("🔎 Pesquisando a empresa. Quando terminar, clique em ✍️ Responder de novo."));
+    await app.refresh();
+  }
+  return r?.choice ?? null;
+}
 
 action("answer-refine", async (answerId, _arg, el) => {
   const jobId = drawer.id;

@@ -169,6 +169,7 @@ flowchart LR
 - The AI returns a validated object (`JobResearchSchema`): official posting, company site and summary, details the text didn't have, how to apply, the company's e-mail domains, a verdict and notes.
 - The result goes at the end of the description, separated by `---` under the heading `## Pesquisa na web`, making clear it came from the web and not from whoever passed on the job. Researching again replaces that block (`withoutResearch`) instead of piling up.
 - The verdict and the links go in `Job.research` for the interface to show the badge (confirmed, not found, suspicious). Only `http(s)` links are kept.
+- **Mission and values** (`companyCulture`): what the company states on its official page, each item with the page link. `officialCulture` keeps only links on the domain of the company site or the official posting, an address with the company's name, or its careers page on a recruiting platform (Gupy, Greenhouse, Lever...). Glassdoor, news, LinkedIn and items without a link are dropped. They go in the research block and in `Job.research.culture` (empty when the official page doesn't mention them, so the agent doesn't suggest researching again).
 - The research doesn't make things up: what doesn't show up on the web stays "not found", and the job continues with the received text. Facts about you still come only from the profile.
 
 ## 3. AI triage
@@ -265,6 +266,8 @@ Every status change:
 `src/writers/answers.ts` answers the questions application forms ask ("Why do you want to work here?"):
 
 - **Context:** the job (with the web research, if any), the resume sent for it (the package's `resume.json`), what the person told for that answer and the other answers already given in the same application, so it doesn't repeat the same proof.
+- **Focus** (`jobFocus`): the package's analysis (`analysis.json`: what the company does and values, required and nice-to-have skills, responsibilities), the triage's proof and gaps, and the mission and values from the official page with their links. The prompt asks for proof that meets a requirement or something the company values, and forbids claiming a gap.
+- **Research first** (`isCompanyQuestion`, `shouldSuggestResearch`, no AI): a question about the company (why this company, culture, values, mission, "our product", the company's name; cues in Portuguese, English and Spanish), on a job whose mission and values were never researched, with an AI that searches the web. The route returns `{ suggestResearch }` instead of writing, and the page offers to research first or to answer with the posting only (`skipResearch`). `ajf responder` and the menu ask the same; `--pesquisar` researches without asking.
 - **Validated output** (`AnswerSchema`): the answer and `needsYou`, what only the person knows and would make the answer stronger (motivation, opinion of the product, salary expectations).
 - **Guards:** numbers that are not in the profile, the job or what the person told, and the phrases in `rules.json → neverClaim`. With a character limit, the length is checked too. If something fails, there is one correction round; whatever is left shows up as a warning.
 - **Refinements:** each request ("shorter", "I've used the app for a year") is kept in `adjustments` and keeps applying in the next ones, including as a fact told by the person.

@@ -151,7 +151,8 @@ Um amigo mandou "a Empresa X está contratando, manda o currículo para rh@empre
 Com **🔎 Pesquisar a vaga e a empresa na web** ligado (vem ligado quando a IA faz busca na web), antes da triagem o agente:
 - procura o **anúncio oficial** da mesma vaga (site de carreiras, Gupy, LinkedIn…) e o **site da empresa**;
 - acrescenta o que o anúncio traz e o texto recebido não trazia (requisitos, etapas, como se candidatar);
-- **confere se a vaga é real**: e-mail de contato fora do domínio da empresa, empresa que não aparece em lugar nenhum, pedido de taxa ou documentos.
+- **confere se a vaga é real**: e-mail de contato fora do domínio da empresa, empresa que não aparece em lugar nenhum, pedido de taxa ou documentos;
+- guarda a **missão e os valores** da empresa como a página oficial escreve (site, "sobre nós", página de carreiras), cada um com o link da página. Avaliações, notícias e o que não tem link oficial ficam de fora.
 
 Se achar, a vaga ganha **✓ vaga confirmada na web** e o link oficial vira o **Ver vaga**. Se não achar, ela segue só com o que você colou (**não achada na web**), e a triagem e o pacote funcionam do mesmo jeito. Com sinais de golpe, aparece **🚩 vaga suspeita**.
 
@@ -234,6 +235,10 @@ Muitos formulários pedem mais que o currículo: "Por que você quer trabalhar a
 4. **📋 Copiar** e colar no formulário.
 
 ![Perguntas do formulário](images/perguntas.jpg)
+
+Para escrever, a IA usa a vaga (com a pesquisa na web, se houver), o currículo enviado para ela e o seu perfil, e também o que a análise do pacote achou: o que a empresa faz e valoriza, os requisitos obrigatórios e os diferenciais, e as provas e lacunas da triagem. Ela escolhe as provas do seu perfil que atendem um requisito ou algo que a empresa valoriza, e nunca afirma uma lacuna.
+
+**Perguntas sobre a empresa.** Em "por que essa empresa?", "o que você sabe da nossa cultura?" e afins, o agente confere antes se a missão e os valores da empresa já foram pesquisados. Se não, ele sugere **🔎 Pesquisar primeiro** (cerca de um minuto; depois clique em **✍️ Responder** de novo, a pergunta continua no campo) ou **Responder só com o anúncio**. Com a missão e os valores pesquisados, a resposta pode citar um deles com as palavras da página, ligado a algo concreto que você fez.
 
 Quando a pergunta pede algo que só você sabe (por que essa empresa, pretensão salarial, opinião sobre o produto), a IA escreve o que dá com os fatos e diz o que você precisa contar. Ela nunca inventa motivação, experiência com o produto ou valor de salário.
 
@@ -389,7 +394,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Gera o pacote. Antes, confere se a vaga ainda está aberta; `--mesmo-encerrada` gera mesmo assim |
 | `ajf conferir [empresa, cargo ou id]` | Confere se as vagas ainda aceitam candidaturas. Sem nada, confere todas que você ainda não enviou |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
-| `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter |
+| `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."] [--pesquisar]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter. Em pergunta sobre a empresa, oferece pesquisar a missão e os valores antes; `--pesquisar` pesquisa sem perguntar |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
 | `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |

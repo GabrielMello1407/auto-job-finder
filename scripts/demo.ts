@@ -78,6 +78,8 @@ interface DemoJob {
     extra?: string[];
     apply?: string;
     notes: string[];
+    /** Missão e valores da página oficial, com o link (fictícios). */
+    culture?: { text: string; source: string }[];
   };
 }
 
@@ -260,6 +262,11 @@ Requirements
       extra: ["Experiência com filas (RabbitMQ ou SQS)", "Desejável: Docker", "Etapas: conversa com RH, desafio técnico e entrevista com o time"],
       apply: "E-mail para talentos@nuvemazul.example.com com o assunto \"Back-end Node\", até o fim do mês.",
       notes: ["O anúncio oficial no site de carreiras é a mesma vaga, com os mesmos requisitos.", "O e-mail que o seu amigo passou bate com o domínio da empresa."],
+      culture: [
+        { text: "Missão: tirar o achismo da logística, com dados de rastreamento em tempo real.", source: "https://example.com/nuvem-azul/sobre" },
+        { text: "Autonomia com responsabilidade: quem constrói também cuida do que vai para produção.", source: "https://example.com/nuvem-azul/carreiras" },
+        { text: "Comunicação clara, com decisões escritas e abertas para o time.", source: "https://example.com/nuvem-azul/carreiras" },
+      ],
     },
   },
   {
@@ -797,10 +804,11 @@ async function main() {
         officialEmailDomains: [],
         verdict: r.verdict,
         notes: r.notes,
+        companyCulture: r.culture ?? [],
         sources: [r.postingUrl, r.companySite].filter((u): u is string => Boolean(u)),
       });
       job.description = `${j.description}\n\n---\n\n${block}`;
-      job.research = { at: ago(j.days, 1), verdict: r.verdict, postingUrl: r.postingUrl, companySite: r.companySite, notes: r.notes };
+      job.research = { at: ago(j.days, 1), verdict: r.verdict, postingUrl: r.postingUrl, companySite: r.companySite, notes: r.notes, culture: r.culture ?? [] };
     }
     if (j.appliedDays != null) job.appliedAt = ago(j.appliedDays, 3);
     if (j.notes) job.notes = j.notes;

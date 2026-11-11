@@ -169,6 +169,7 @@ flowchart LR
 - A IA devolve um objeto validado (`JobResearchSchema`): anúncio oficial, site e resumo da empresa, detalhes que o texto não trazia, como se candidatar, domínios de e-mail da empresa, veredito e observações.
 - O resultado entra no fim da descrição, separado por `---` e com o título `## Pesquisa na web`, avisando que veio da web e não de quem passou a vaga. Pesquisar de novo troca esse bloco (`withoutResearch`) em vez de acumular.
 - O veredito e os links ficam em `Job.research` para a interface mostrar o selo (confirmada, não encontrada, suspeita). Só links `http(s)` são guardados.
+- **Missão e valores** (`companyCulture`): o que a empresa declara na página oficial, cada item com o link da página. O `officialCulture` só guarda links do domínio do site da empresa ou do anúncio oficial, um endereço com o nome da empresa, ou a página de carreiras dela numa plataforma de recrutamento (Gupy, Greenhouse, Lever...). Glassdoor, notícias, LinkedIn e item sem link saem. Vão para o bloco da pesquisa e para `Job.research.culture` (vazio quando a página oficial não fala disso, para o agente não sugerir pesquisar de novo).
 - A pesquisa não inventa: o que não aparece na web fica como "não encontrado", e a vaga segue com o texto recebido. Os fatos sobre você continuam vindo só do perfil.
 
 ## 3. Triagem pela IA
@@ -265,6 +266,8 @@ Cada mudança de status:
 `src/writers/answers.ts` responde as perguntas que o formulário de candidatura faz ("Por que você quer trabalhar aqui?"):
 
 - **Contexto:** a vaga (com a pesquisa na web, se houver), o currículo enviado para ela (`resume.json` do pacote), o que a pessoa contou para aquela resposta e as outras respostas já dadas na mesma candidatura, para não repetir as mesmas provas.
+- **Foco** (`jobFocus`): a análise do pacote (`analysis.json`: o que a empresa faz e valoriza, requisitos obrigatórios e diferenciais, responsabilidades), as provas e lacunas da triagem, e a missão e os valores da página oficial com os links. O prompt pede provas que atendem um requisito ou algo que a empresa valoriza e proíbe afirmar uma lacuna.
+- **Pesquisar antes** (`isCompanyQuestion`, `shouldSuggestResearch`, sem IA): pergunta sobre a empresa (por que ela, cultura, valores, missão, "o nosso produto", o nome da empresa; pistas em português, inglês e espanhol), numa vaga cuja missão e valores nunca foram pesquisados, com uma IA que busca na web. A rota devolve `{ suggestResearch }` em vez de escrever, e a página oferece pesquisar antes ou responder só com o anúncio (`skipResearch`). O `ajf responder` e o menu perguntam o mesmo; `--pesquisar` pesquisa sem perguntar.
 - **Saída validada** (`AnswerSchema`): a resposta e `needsYou`, o que só a pessoa sabe e deixaria a resposta mais forte (motivação, opinião sobre o produto, pretensão salarial).
 - **Travas:** número que não está no perfil, na vaga ou no que a pessoa contou, e as frases de `rules.json → neverClaim`. Com limite de caracteres, o tamanho também é conferido. Se algo falha, há uma rodada de correção; o que sobrar aparece como aviso.
 - **Ajustes:** cada pedido ("mais curto", "uso o app há um ano") fica guardado em `adjustments` e continua valendo nos próximos, inclusive como fato contado pela pessoa.
