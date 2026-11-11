@@ -79,7 +79,7 @@ São as mesmas do [CLAUDE.md](CLAUDE.md) (e do [AGENTS.md](AGENTS.md)), que vale
 
 ## Onde mexer
 
-- **Novo provedor de IA:** implemente `LlmProvider` em `src/providers/` e registre em `PROVIDERS` e `createProvider` (`src/providers/index.ts`). Toda chamada passa por `src/llm.ts`.
+- **Novo provedor de IA:** implemente `LlmProvider` em `src/providers/` e registre em `PROVIDERS` e `createProvider` (`src/providers/index.ts`). Toda chamada passa por `src/llm.ts`. Trate também `CallOptions.images` (funções em `src/providers/images.ts`).
 - **Nova fonte de vagas:** crie um `JobSource` em `src/jobs/sources/` (com `description`) e registre em `SOURCES`.
 - **Interface:** rotas em `src/ui/routes/`, página em `src/ui/public/` (HTML, CSS e módulos JS, sem build). Mantenha a interface e o menu do terminal (`src/menu.ts`) com as mesmas ações. Texto novo na tela: escreva em português dentro de `t()` e coloque o inglês em `locales/en.json`. Passe o texto direto, não uma variável, para a chave ser encontrada (`cond ? t("a") : t("b")`, e não `t(cond ? "a" : "b")`).
 

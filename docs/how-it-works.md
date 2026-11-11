@@ -267,6 +267,7 @@ Every status change:
 
 - **Context:** the job (with the web research, if any), the resume sent for it (the package's `resume.json`), what the person told for that answer and the other answers already given in the same application, so it doesn't repeat the same proof.
 - **Focus** (`jobFocus`): the package's analysis (`analysis.json`: what the company does and values, required and nice-to-have skills, responsibilities), the triage's proof and gaps, and the mission and values from the official page with their links. The prompt asks for proof that meets a requirement or something the company values, and forbids claiming a gap.
+- **Question from a screenshot** (`readQuestionsFromImage`): a short call that only transcribes the open questions and their character limits from the image (no profile data goes along; personal-data fields, buttons and menus are ignored), cleaned by `cleanImageQuestions`. The page shrinks big screenshots to 2000 px before sending (`POST /api/jobs/:id/answers/image`); the CLI takes `--imagem` or a dropped file path (`imageFile`). The person checks the text before answering.
 - **Research first** (`isCompanyQuestion`, `shouldSuggestResearch`, no AI): a question about the company (why this company, culture, values, mission, "our product", the company's name; cues in Portuguese, English and Spanish), on a job whose mission and values were never researched, with an AI that searches the web. The route returns `{ suggestResearch }` instead of writing, and the page offers to research first or to answer with the posting only (`skipResearch`). `ajf responder` and the menu ask the same; `--pesquisar` researches without asking.
 - **Validated output** (`AnswerSchema`): the answer and `needsYou`, what only the person knows and would make the answer stronger (motivation, opinion of the product, salary expectations).
 - **Guards:** numbers that are not in the profile, the job or what the person told, and the phrases in `rules.json → neverClaim`. With a character limit, the length is checked too. If something fails, there is one correction round; whatever is left shows up as a warning.
@@ -299,6 +300,8 @@ Every call goes through `src/llm.ts`, so providers are interchangeable. Detectio
    - `gemini`: REST.
 
 The CLIs run in an empty, isolated temporary folder, with no access to your files. `AJF_PROVIDER` forces a specific AI.
+
+**Images** (`CallOptions.images`, `src/providers/images.ts`): a call can carry images, today the screenshot of a form question. The APIs get them in the request body (Anthropic/Bedrock/Vertex content blocks, OpenAI `input_image` or `image_url`, Gemini `inline_data`); `codex exec` gets `--image`; Claude Code and Gemini CLI get a copy in the call's isolated folder and open it with their file-reading tool (`Read`, `read_file`), the only tool enabled besides web search. The copy is deleted after the call. The type is checked by the first bytes (PNG, JPG, WEBP, GIF), up to 5 MB.
 
 ## The local interface
 

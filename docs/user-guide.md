@@ -230,6 +230,8 @@ Click a job's title to open its details.
 Many forms ask for more than the resume: "Why do you want to work here?", "Tell us about a project you are proud of", "What do you think of our app?". In the job's **Questions** tab:
 
 1. **Paste the question.** If the field has a character limit, enter it. If you want, tell something only you know (motivation, your opinion of the product).
+
+   **Or use a screenshot of the form:** paste it (Ctrl+V), drop it on the question field or click **📷 Read the question from a screenshot**. The AI only reads the text: it fills in the question and the character limit when the screenshot shows one, and ignores personal-data fields (name, e-mail, phone). With several questions in the screenshot, you pick which one to answer. Check the text it read before answering; only the screenshot goes to the AI in this step, nothing from your profile.
 2. **✍️ Answer**. In a few seconds the answer comes out, in the question's language. It uses facts from your profile and what the job says about the company, and goes through the same guards as the resume (numbers without a source, "never claim" phrases).
 3. **Refine it in a chat.** In the **Adjust** field, ask for "shorter", "mention project X", "in English", or answer what the AI asked in **To make it sound like you, tell us**. What you tell there counts as your own fact in the next refinements.
 4. **📋 Copy** and paste it into the form.
@@ -394,7 +396,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Builds the package. First checks whether the job is still open; `--mesmo-encerrada` builds it anyway |
 | `ajf conferir [company, title or id]` | Checks whether jobs still take applications. With nothing, checks every job you haven't sent |
 | `ajf render <folder or id>` | Rebuilds the PDF after editing `resume.json` |
-| `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."] [--pesquisar]` | Answers an application-form question and lets you refine it until you press Enter. For a question about the company, it offers to research its mission and values first; `--pesquisar` does it without asking |
+| `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Answers an application-form question and lets you refine it until you press Enter. `--imagem` reads the question (and its limit) from a screenshot; without options, you can also drop the screenshot file in the terminal instead of typing. For a question about the company, it offers to research its mission and values first; `--pesquisar` does it without asking |
 | `ajf linkedin [--current profile.pdf]` · `ajf linkedin --conferir --current profile.pdf` | LinkedIn plan, or a review of your current LinkedIn (exported PDF or text in `.md`/`.txt`) |
 | `ajf ficha [company, title or id]` | Shows the application-form fields (details, summary in 3 sizes, each experience), ready to copy |
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |

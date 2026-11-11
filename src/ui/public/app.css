@@ -518,3 +518,8 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 /* Missão e valores da empresa (pesquisa na web), cada um com o link da página oficial */
 .culture { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
 .culture .btn { margin-left: 4px; height: 24px; padding: 0 8px; font-size: 12px; vertical-align: middle; }
+
+/* Print da pergunta do formulário (aba Perguntas) */
+.ans-image { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -4px 0 10px; font-size: 13px; }
+.found-questions { display: grid; gap: 6px; margin-bottom: 10px; }
+.found-questions button { white-space: normal; height: auto; min-height: 30px; padding-top: 6px; padding-bottom: 6px; justify-content: flex-start; text-align: left; }

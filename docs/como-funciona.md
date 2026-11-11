@@ -267,6 +267,7 @@ Cada mudança de status:
 
 - **Contexto:** a vaga (com a pesquisa na web, se houver), o currículo enviado para ela (`resume.json` do pacote), o que a pessoa contou para aquela resposta e as outras respostas já dadas na mesma candidatura, para não repetir as mesmas provas.
 - **Foco** (`jobFocus`): a análise do pacote (`analysis.json`: o que a empresa faz e valoriza, requisitos obrigatórios e diferenciais, responsabilidades), as provas e lacunas da triagem, e a missão e os valores da página oficial com os links. O prompt pede provas que atendem um requisito ou algo que a empresa valoriza e proíbe afirmar uma lacuna.
+- **Pergunta de um print** (`readQuestionsFromImage`): uma chamada curta que só transcreve as perguntas abertas e o limite de caracteres da imagem (nada do perfil vai junto; campos de dados pessoais, botões e menus são ignorados), limpas por `cleanImageQuestions`. A página reduz prints grandes para 2000 px antes de mandar (`POST /api/jobs/:id/answers/image`); o terminal aceita `--imagem` ou o caminho do arquivo arrastado (`imageFile`). A pessoa confere o texto antes de responder.
 - **Pesquisar antes** (`isCompanyQuestion`, `shouldSuggestResearch`, sem IA): pergunta sobre a empresa (por que ela, cultura, valores, missão, "o nosso produto", o nome da empresa; pistas em português, inglês e espanhol), numa vaga cuja missão e valores nunca foram pesquisados, com uma IA que busca na web. A rota devolve `{ suggestResearch }` em vez de escrever, e a página oferece pesquisar antes ou responder só com o anúncio (`skipResearch`). O `ajf responder` e o menu perguntam o mesmo; `--pesquisar` pesquisa sem perguntar.
 - **Saída validada** (`AnswerSchema`): a resposta e `needsYou`, o que só a pessoa sabe e deixaria a resposta mais forte (motivação, opinião sobre o produto, pretensão salarial).
 - **Travas:** número que não está no perfil, na vaga ou no que a pessoa contou, e as frases de `rules.json → neverClaim`. Com limite de caracteres, o tamanho também é conferido. Se algo falha, há uma rodada de correção; o que sobrar aparece como aviso.
@@ -299,6 +300,8 @@ Todas as chamadas passam por `src/llm.ts`, então os provedores são intercambi�
    - `gemini`: REST.
 
 As CLIs rodam numa pasta temporária vazia e isolada, sem acesso aos seus arquivos. `AJF_PROVIDER` força uma IA específica.
+
+**Imagens** (`CallOptions.images`, `src/providers/images.ts`): uma chamada pode levar imagens, hoje o print de uma pergunta de formulário. As APIs recebem a imagem no corpo do pedido (blocos de conteúdo da Anthropic/Bedrock/Vertex, `input_image` ou `image_url` da OpenAI, `inline_data` do Gemini); o `codex exec` recebe `--image`; o Claude Code e o Gemini CLI recebem uma cópia na pasta isolada da chamada e abrem com a ferramenta de ler arquivos (`Read`, `read_file`), a única liberada além da busca na web. A cópia é apagada depois da chamada. O tipo é conferido pelos primeiros bytes (PNG, JPG, WEBP, GIF), até 5 MB.
 
 ## A interface local
 

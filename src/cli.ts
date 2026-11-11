@@ -268,10 +268,11 @@ program
   .option("-p, --pergunta <texto>", "a pergunta do formulário (sem ela, pergunta no terminal)")
   .option("--limite <n>", "limite de caracteres do campo", (v) => Number(v))
   .option("--contexto <texto>", "algo que só você sabe para esta resposta (motivação, opinião sobre o produto)")
+  .option("--imagem <arquivo>", "print da pergunta (PNG, JPG, WEBP ou GIF): a IA lê a pergunta e o limite de caracteres")
   .option("--pesquisar", "pesquisa a empresa na web antes (missão e valores da página oficial), sem perguntar")
   .action(async (busca: string[], o) => {
     const job = await pickJob({ query: busca.join(" "), message: "Para qual vaga?" });
-    await answerFlow(job, o.pergunta ? { question: o.pergunta, limit: o.limite || undefined, context: o.contexto, research: Boolean(o.pesquisar) } : undefined);
+    await answerFlow(job, { question: o.pergunta, limit: o.limite || undefined, context: o.contexto, research: Boolean(o.pesquisar), image: o.imagem });
   });
 
 program

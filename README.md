@@ -39,7 +39,7 @@
    - the application e-mail, messages for the recruiter, a follow-up and a thank-you note, with the e-mail ready to open in your mail program (resume already attached) or in Gmail;
    - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy;
    - step-by-step instructions to apply through the right channel;
-   - answers to application-form questions ("Why do you want to work here?"), which you refine in a chat.
+   - answers to application-form questions ("Why do you want to work here?"), typed or read from a screenshot of the form, which you refine in a chat.
 4. **Tracks your applications:** reminds you to follow up, prepares an interview guide and records offers and rejections.
 5. **Looks after your LinkedIn:** writes a plan to attract recruiters and reviews your current profile, showing what is right, what is missing and what to fix.
 6. **Keeps up with your career:** tell it about something new (a project, a job, a course) and the AI proposes the profile changes. You review the before and after, and your resumes are rebuilt.

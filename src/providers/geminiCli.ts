@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { copyImages, imageNote } from "./images.js";
 import { structuredViaText } from "./jsonText.js";
 import { isolatedDir, runCli, tempFile } from "./spawn.js";
 import type { CallOptions, LlmProvider } from "./types.js";
@@ -27,6 +28,8 @@ export function geminiCliLoggedIn(): boolean {
 async function run(opts: CallOptions, model: string | undefined, extra = ""): Promise<string> {
   const dir = isolatedDir("gemini-cli");
   const sysFile = tempFile(dir, "system", ".md", opts.system.join("\n\n"));
+  // Imagem: copiada para a pasta da chamada; a CLI abre com read_file (ferramenta só de leitura).
+  const images = copyImages(dir, opts.images);
   // -p é anexado ao fim do texto recebido pelo stdin.
   const args = ["-p", "Responda agora seguindo as instruções acima.", "-o", "json"];
   if (model) args.push("-m", model);
@@ -34,7 +37,7 @@ async function run(opts: CallOptions, model: string | undefined, extra = ""): Pr
     const { stdout, stderr, code } = await runCli({
       bin: bin(),
       args,
-      stdin: extra ? `${opts.user}\n\n${extra}` : opts.user,
+      stdin: (extra ? `${opts.user}\n\n${extra}` : opts.user) + imageNote(images, "read_file"),
       cwd: dir,
       env: { GEMINI_SYSTEM_MD: sysFile },
       name: "gemini -p",
@@ -54,6 +57,7 @@ async function run(opts: CallOptions, model: string | undefined, extra = ""): Pr
     return parsed.response.trim();
   } finally {
     fs.rmSync(sysFile, { force: true });
+    for (const f of images) fs.rmSync(f, { force: true });
   }
 }
 
