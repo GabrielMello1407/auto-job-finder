@@ -396,8 +396,10 @@ test("pesquisa da vaga: bloco no fim da descrição, sai inteiro ao pesquisar de
     officialEmailDomains: ["empresax.com.br"],
     verdict: "nao_encontrada",
     notes: ["O e-mail de contato bate com o domínio da empresa."],
+    companyCulture: [{ text: "Missão: crédito simples para pequenos negócios.", source: "https://empresax.com.br/sobre" }],
     sources: [],
   });
+  assert.match(block, /Missão, valores e cultura, como a página oficial da empresa escreve:\n- Missão: crédito simples para pequenos negócios\. \(fonte: https:\/\/empresax\.com\.br\/sobre\)/);
   assert.match(block, /^## Pesquisa na web/);
   assert.match(block, /anúncio oficial não encontrado/);
   assert.match(block, /Domínios de e-mail da empresa: empresax\.com\.br/);

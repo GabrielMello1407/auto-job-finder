@@ -151,7 +151,8 @@ A friend sent "Company X is hiring, send your resume to hr@companyx.com"? Use **
 With **🔎 Research the job and the company on the web** turned on (it is on by default when the AI can search the web), before the triage the agent:
 - looks for the **official posting** of the same job (careers site, Gupy, LinkedIn…) and the **company site**;
 - adds what the posting has that the text you received didn't (requirements, stages, how to apply);
-- **checks whether the job is real**: a contact e-mail outside the company's domain, a company that shows up nowhere, a request for fees or documents.
+- **checks whether the job is real**: a contact e-mail outside the company's domain, a company that shows up nowhere, a request for fees or documents;
+- saves the company's **mission and values** as its official page states them (site, "about us", careers page), each with the link to the page. Reviews, news and anything without an official link are left out.
 
 If it finds it, the job gets **✓ job confirmed on the web** and the official link becomes **🔗 View job**. If not, it continues with what you pasted (**not found on the web**), and the triage and the package work the same way. With scam signals, **🚩 suspicious job** appears.
 
@@ -234,6 +235,10 @@ Many forms ask for more than the resume: "Why do you want to work here?", "Tell 
 4. **📋 Copy** and paste it into the form.
 
 ![Application-form questions](images/en/perguntas.jpg)
+
+To write the answer, the AI uses the job (with the web research, if any), the resume sent for it and your profile, plus what the package's analysis found: what the company does and values, the required and nice-to-have skills, and the proof and gaps from the triage. It picks the proof from your profile that meets a requirement or something the company values, and never claims a gap.
+
+**Questions about the company.** For "why this company?", "what do you know about our culture?" and the like, the agent first checks whether the company's mission and values were already researched. If not, it suggests **🔎 Research first** (about a minute; then click **✍️ Answer** again, the question stays in the field) or **Answer with the posting only**. When the research found the mission and values, the answer can quote one of them in the page's own words, tied to something concrete you did.
 
 When the question asks for something only you know (why this company, salary expectations, your opinion of the product), the AI writes what it can with the facts and says what you need to tell it. It never makes up motivation, experience with the product or a salary figure.
 
@@ -389,7 +394,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Builds the package. First checks whether the job is still open; `--mesmo-encerrada` builds it anyway |
 | `ajf conferir [company, title or id]` | Checks whether jobs still take applications. With nothing, checks every job you haven't sent |
 | `ajf render <folder or id>` | Rebuilds the PDF after editing `resume.json` |
-| `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."]` | Answers an application-form question and lets you refine it until you press Enter |
+| `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."] [--pesquisar]` | Answers an application-form question and lets you refine it until you press Enter. For a question about the company, it offers to research its mission and values first; `--pesquisar` does it without asking |
 | `ajf linkedin [--current profile.pdf]` · `ajf linkedin --conferir --current profile.pdf` | LinkedIn plan, or a review of your current LinkedIn (exported PDF or text in `.md`/`.txt`) |
 | `ajf ficha [company, title or id]` | Shows the application-form fields (details, summary in 3 sizes, each experience), ready to copy |
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |

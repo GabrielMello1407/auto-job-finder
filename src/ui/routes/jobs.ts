@@ -16,7 +16,7 @@ import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
 import { cleanJobText } from "../../jobs/page.js";
-import { answerQuestion, deleteAnswer, refineAnswer } from "../../writers/answers.js";
+import { answerQuestion, deleteAnswer, refineAnswer, shouldSuggestResearch } from "../../writers/answers.js";
 import { applicationSheet } from "../../writers/applicationSheet.js";
 import { applicationDraft, DRAFT_FILE, gmailComposeUrl, parseEmails, writeApplicationDraft } from "../../writers/emailDraft.js";
 import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Ctx, type Route } from "../http.js";
@@ -85,6 +85,7 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
       postingUrl: isHttp(j.research.postingUrl) ? j.research.postingUrl : undefined,
       companySite: isHttp(j.research.companySite) ? j.research.companySite : undefined,
       notes: j.research.notes,
+      culture: j.research.culture?.filter((c) => isHttp(c.source)),
       at: j.research.at,
     },
     pkg: dir
@@ -574,6 +575,9 @@ export function jobRoutes(app: App): Route[] {
         const body = await c.body();
         const question = str(body.question, 2000);
         if (question.length < 5) throw new HttpError(400, "Escreva a pergunta do formulário.");
+        // Pergunta sobre a empresa sem a missão e os valores pesquisados: a página sugere pesquisar antes.
+        if (!body.skipResearch && shouldSuggestResearch(job, question))
+          return { suggestResearch: true, researching: queue.has("research", job.id) || queue.has("triage", job.id) };
         const limit = body.limit ? clamp(body.limit, 50, 20000, 0) || undefined : undefined;
         return { answer: await answering(job.id, () => answerQuestion(job.id, { question, limit, context: str(body.context, 4000) })) };
       },

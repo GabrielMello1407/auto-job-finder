@@ -202,7 +202,7 @@
   "🔎 Pesquisa na web": "🔎 Web research",
   "🔗 Anúncio oficial": "🔗 Official posting",
   "🏢 Site da empresa": "🏢 Company site",
-  "Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem e o pacote.": "The details found are at the end of the job description and already count for the triage and the package.",
+  "Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem, o pacote e as respostas do formulário.": "The details found are at the end of the job description and already count for the triage, the package and the form answers.",
   "O que você já tem": "What you already have",
   "Lacunas: requisitos sem evidência no seu perfil": "Gaps: requirements with no evidence in your profile",
   "Descrição": "Description",
@@ -753,5 +753,15 @@
   "projeto Vertex definido": "Vertex project set",
   "sem ANTHROPIC_VERTEX_PROJECT_ID": "no ANTHROPIC_VERTEX_PROJECT_ID",
   "sem OPENAI_API_KEY": "no OPENAI_API_KEY",
-  "sem GEMINI_API_KEY": "no GEMINI_API_KEY"
+  "sem GEMINI_API_KEY": "no GEMINI_API_KEY",
+  "Pesquisar a empresa antes de responder?": "Research the company before answering?",
+  "Essa pergunta é sobre a empresa, e o agente ainda não pesquisou a missão e os valores dela na página oficial. Sem isso, a resposta usa só o que o anúncio diz.": "This question is about the company, and the agent hasn't looked up its mission and values on its official page yet. Without that, the answer only uses what the posting says.",
+  "A pesquisa desta vaga já está rodando. Quando terminar, clique em ✍️ Responder de novo.": "The research for this job is already running. When it finishes, click ✍️ Answer again.",
+  "A pesquisa leva cerca de um minuto. Quando terminar, clique em ✍️ Responder de novo: a pergunta continua no campo.": "The research takes about a minute. When it finishes, click ✍️ Answer again: the question stays in the field.",
+  "Responder só com o anúncio": "Answer with the posting only",
+  "🔎 Pesquisar primeiro": "🔎 Research first",
+  "Esperar": "Wait",
+  "🔎 Pesquisando a empresa. Quando terminar, clique em ✍️ Responder de novo.": "🔎 Researching the company. When it finishes, click ✍️ Answer again.",
+  "🏢 Missão e valores (página oficial)": "🏢 Mission and values (official page)",
+  "fonte": "source"
 }
