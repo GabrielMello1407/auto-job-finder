@@ -1,5 +1,7 @@
 # Guia de uso
 
+[English](user-guide.md) · **Português**
+
 Tudo o que você precisa para usar o auto-job-finder, do zero até a candidatura enviada. Os prints usam a demonstração (`npm run demo`), com uma pessoa e empresas fictícias.
 
 - [1. Instalar](#1-instalar)
@@ -59,7 +61,7 @@ O terminal mostra um link e o navegador abre sozinho. **Deixe o terminal aberto*
 npm run demo
 ```
 
-Abre a interface com a **Ana Souza**, uma pessoa fictícia, e 13 vagas inventadas em todas as etapas. Não usa IA nem os seus dados. É a melhor forma de conhecer as telas antes de montar o seu perfil. A demonstração fica na pasta `demo/` e é recriada a cada execução.
+Abre a interface com a **Ana Souza**, uma pessoa fictícia, e 15 vagas inventadas em todas as etapas. Não usa IA nem os seus dados. É a melhor forma de conhecer as telas antes de montar o seu perfil. A demonstração fica na pasta `demo/` e é recriada a cada execução.
 
 ## 3. Montar o seu perfil
 

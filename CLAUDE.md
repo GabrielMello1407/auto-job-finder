@@ -1,6 +1,6 @@
 # auto-job-finder
 
-Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI entry: `npm run ajf -- <command>`, or `ajf <command>` after `npm link` (see README). User-facing text and docs are in Brazilian Portuguese; code identifiers are in English.
+Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI entry: `npm run ajf -- <command>`, or `ajf <command>` after `npm link` (see README). Code identifiers are in English. The interface, CLI messages and the files generated for the user are in Brazilian Portuguese for now (an English interface is planned). The main docs are in English with a Brazilian Portuguese copy next to each one (see Docs).
 
 ## LLM providers
 
@@ -55,7 +55,8 @@ Job-application agent for anyone, in any field (TypeScript, Node 22.12+). CLI en
 
 ## Docs
 
-- `README.md` is the showcase, `docs/guia-de-uso.md` the user guide (every screen, commands, FAQ) and `docs/como-funciona.md` the internals (pipeline, guards, providers, UI, code map). Update the guide when something users see changes.
+- `README.md` is the showcase, `docs/user-guide.md` the user guide (every screen, commands, FAQ) and `docs/how-it-works.md` the internals (pipeline, guards, providers, UI, code map). They are in English; the Brazilian Portuguese copies are `README.pt-BR.md`, `docs/guia-de-uso.md` and `docs/como-funciona.md` (also `CONTRIBUTING.pt-BR.md` and `SECURITY.pt-BR.md`). Every change goes to both languages, and each file links to the other at the top. In the English docs, UI labels stay as they appear on screen (Portuguese) with the translation in parentheses.
+- Update the user guide when something users see changes. Issue and PR templates in `.github/` are bilingual.
 - Screenshots in `docs/images/` come only from `npm run demo`, never from real data. The logo is `src/ui/public/logo.svg` (also the UI favicon).
 - `npm run ajf -- base` renders the base resumes without calling the LLM. Run it after touching `src/render/`.
 - `npm run ajf -- ia --testar` makes one short real call to the active provider.

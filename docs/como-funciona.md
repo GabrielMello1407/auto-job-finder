@@ -1,5 +1,7 @@
 # Como funciona
 
+[English](how-it-works.md) · **Português**
+
 Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar", e como o código está organizado. Para usar, veja o [guia de uso](guia-de-uso.md).
 
 - [Visão geral](#visão-geral)
@@ -9,6 +11,7 @@ Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar
 - [4. O pacote de cada vaga](#4-o-pacote-de-cada-vaga)
 - [Anti-invenção](#anti-invenção)
 - [O caminho de uma vaga](#o-caminho-de-uma-vaga)
+- [Perguntas do formulário](#perguntas-do-formulário)
 - [LinkedIn](#linkedin)
 - [As IAs](#as-ias)
 - [A interface local](#a-interface-local)
@@ -103,6 +106,7 @@ A mesma vaga aparece em vários sites: Remotive e We Work Remotely, dois reposit
    - **você já tratou a outra** (pacote, candidatura, entrevista, oferta ou recusa): repetir uma candidatura custa mais que esconder uma vaga, que dá para reabrir.
 
    A repetida entra **descartada**, com `duplicateOf` apontando para a original (a primeira, se a achada já era repetida de outra), para não gastar triagem nem virar outro pacote. Reabrir, ou "Não é a mesma vaga", tira a marca e grava `notDuplicate`, para não marcar de novo. Vaga **colada** por você entra normal, só marcada, e o aviso diz qual é a parecida; o piloto automático não gera pacote de vaga marcada.
+
    **Vaga reaberta.** Os itens acima só valem dentro de uma janela (`AJF_REPEAT_WINDOW_DAYS`, 90 dias) contada da sua candidatura, ou do dia em que a outra vaga foi salva. Fora dela, ou se a vaga achada foi publicada pelo menos 14 dias depois da sua candidatura, é **outra abertura** da mesma vaga: entra normal, e se você já tinha tratado a antiga ganha `reopenedFrom` e o aviso "📨 vaga reaberta". Mesmo link continua sendo o mesmo anúncio, não importa quando.
 3. **Vagas já salvas.** Depois de cada busca, `store.ts#flagHandledTwins` procura, entre as vagas ainda não enviadas, a mesma de uma que você já tratou (`dedupe.ts#handledTwins`): pega o que escapou e o que foi salvo antes desta checagem. Sem pacote, vai para "Encerradas"; com pacote, só fica marcada. Entre duas com pacote, a mais nova é a repetida. O piloto automático confere de novo antes de cada pacote (`handledTwin`).
 
@@ -332,7 +336,7 @@ src/
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
     dedupe.ts            vaga repetida: link canônico, título, empresa e texto
     open.ts              vaga encerrada: confere o link antes do pacote e no ajf conferir
-    page.ts              texto da vaga a partir da página (JobPosting, Gupy ou conteúdo principal)
+    page.ts              texto da vaga a partir da página (JobPosting, Gupy, LinkedIn ou conteúdo principal) e cleanJobText
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json
@@ -358,4 +362,4 @@ examples/profile/        perfil fictício (referência de formato e testes)
 tests/                   testes offline (npm test)
 ```
 
-Quer contribuir? Veja o [CONTRIBUTING.md](../CONTRIBUTING.md).
+Quer contribuir? Veja o [CONTRIBUTING.pt-BR.md](../CONTRIBUTING.pt-BR.md).

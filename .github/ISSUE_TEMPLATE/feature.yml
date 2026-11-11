@@ -1,27 +1,27 @@
-name: 💡 Sugestão
-description: Uma ideia para o agente ficar mais útil.
+name: 💡 Suggestion / Sugestão
+description: An idea to make the agent more useful. / Uma ideia para o agente ficar mais útil.
 labels: [sugestão]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Qual problema isso resolve
-      description: 'Conte a situação real. Ex.: "Na minha área (enfermagem) as vagas saem no site X e o agente não acha."'
+      label: What problem does it solve / Qual problema isso resolve
+      description: 'Tell the real situation. E.g.: "In my field (nursing) jobs are posted on site X and the agent doesn''t find them." / Conte a situação real. Ex.: "Na minha área (enfermagem) as vagas saem no site X e o agente não acha."'
     validations:
       required: true
   - type: textarea
     id: idea
     attributes:
-      label: Como você imagina a solução
+      label: How you picture the solution / Como você imagina a solução
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternativas que você considerou
+      label: Alternatives you considered / Alternativas que você considerou
   - type: checkboxes
     id: rules
     attributes:
-      label: Combina com o projeto
-      description: O agente serve para qualquer área, nunca inventa fatos sobre a pessoa e nunca envia nada sozinho.
+      label: Fits the project / Combina com o projeto
+      description: The agent serves any field, never makes up facts about the person and never sends anything on its own. / O agente serve para qualquer área, nunca inventa fatos sobre a pessoa e nunca envia nada sozinho.
       options:
-        - label: A ideia funciona para outras áreas e não só para a minha.
-        - label: A ideia não faz o agente inventar fatos nem enviar algo em nome da pessoa.
+        - label: The idea works for other fields, not only mine. / A ideia funciona para outras áreas e não só para a minha.
+        - label: The idea doesn't make the agent invent facts or send anything on the person's behalf. / A ideia não faz o agente inventar fatos nem enviar algo em nome da pessoa.

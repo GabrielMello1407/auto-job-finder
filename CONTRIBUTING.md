@@ -1,88 +1,93 @@
-# Contribuindo
+# Contributing
 
-Obrigado por querer ajudar! O auto-job-finder é um agente de candidaturas para **qualquer pessoa, em qualquer área**. Toda contribuição precisa manter isso.
+**English** · [Português](CONTRIBUTING.pt-BR.md)
 
-## Antes de começar
+Thanks for wanting to help! auto-job-finder is a job-application agent for **anyone, in any field**. Every contribution has to keep it that way.
 
-- Para bugs e ideias, abra uma [issue](https://github.com/GabrielMello1407/auto-job-finder/issues) usando um dos modelos.
-- Para mudanças grandes (um provedor de IA novo, uma tela nova, mudar o formato do perfil), abra uma issue antes do código para combinar a direção.
-- Falhas de segurança **não** vão em issue pública: veja [SECURITY.md](SECURITY.md).
+## Before you start
 
-## Rodando o projeto
+- For bugs and ideas, open an [issue](https://github.com/GabrielMello1407/auto-job-finder/issues) using one of the templates.
+- For big changes (a new AI provider, a new screen, a new profile format), open an issue before writing code so we agree on the direction.
+- Security issues do **not** go in public issues: see [SECURITY.md](SECURITY.md).
 
-Requisitos: Node 22.12 ou mais novo (o `.nvmrc` aponta o 22), Chrome/Edge/Chromium (para os PDFs) e uma IA configurada (veja o [README](README.md#qual-ia-o-agente-usa)).
+## Running the project
+
+Requirements: Node 22.12 or newer (`.nvmrc` points to 22), Chrome/Edge/Chromium (for the PDFs) and one configured AI (see the [README](README.md#getting-started-for-real)).
 
 ```bash
 npm install
-npm run ajf              # abre a interface
-npm run ajf -- menu      # menu no terminal
-npm run ajf -- --help    # todos os comandos
+npm run ajf              # opens the interface
+npm run ajf -- menu      # terminal menu
+npm run ajf -- --help    # every command
 ```
 
-**Use dados de teste, não os seus.** O jeito mais fácil é a demonstração:
+**Use test data, not your own.** The easiest way is the demo:
 
 ```bash
-npm run demo              # pasta demo/ com perfil e vagas fictícios, e abre a interface
-npm run demo -- --no-open # só mostra o link
+npm run demo              # demo/ folder with a fictional profile and jobs, opens the interface
+npm run demo -- --no-open # only prints the link
 ```
 
-Ela é recriada a cada execução (`scripts/demo.ts`), não usa IA e cobre todas as etapas das vagas. Para testar o fluxo completo com IA sem misturar com o seu perfil, aponte `AJF_HOME` para outra pasta:
+It is rebuilt on every run (`scripts/demo.ts`), uses no AI and covers every job stage. To test the full flow with an AI without mixing it with your own profile, point `AJF_HOME` to another folder:
 
 ```bash
 # macOS/Linux
-AJF_HOME=/tmp/ajf-teste npm run ajf -- ui --no-open
+AJF_HOME=/tmp/ajf-test npm run ajf -- ui --no-open
 # Windows (PowerShell)
-$env:AJF_HOME="C:\temp\ajf-teste"; npm run ajf -- ui --no-open
+$env:AJF_HOME="C:\temp\ajf-test"; npm run ajf -- ui --no-open
 ```
 
-`examples/profile/` tem um perfil fictício que serve de referência, é usado pelos testes e pela demonstração.
+`examples/profile/` holds a fictional profile used as a reference, by the tests and by the demo.
 
-## Checagens antes do PR
+## Checks before a PR
 
 ```bash
 npm run typecheck
 npm test
-# os arquivos JS da página não passam pelo typecheck: confira a sintaxe de cada um
+# the page's JS files are not type-checked: check the syntax of each one
 for f in src/ui/public/js/*.js; do node --check "$f"; done
 ```
 
-O CI roda essas mesmas checagens em Ubuntu, macOS e Windows a cada PR.
+CI runs the same checks on Ubuntu, macOS and Windows for every PR.
 
-- Mexeu em `src/render/`? Rode `npm run ajf -- base` e confira os PDFs em `output/base/`.
-- Mexeu num provedor de IA? Rode `npm run ajf -- ia --testar`.
-- Mexeu na interface? Rode `npm run demo` e use a tela de verdade, no tema claro e no escuro.
-- Mudou algo que aparece nos prints da documentação (`docs/images/`)? Tire os prints novos **da demonstração**, nunca com dados reais.
+- Touched `src/render/`? Run `npm run ajf -- base` and check the PDFs in `output/base/`.
+- Touched an AI provider? Run `npm run ajf -- ia --testar`.
+- Touched the interface? Run `npm run demo` and use the real screen, in the light and dark themes.
+- Changed something shown in the documentation screenshots (`docs/images/`)? Take new screenshots **from the demo**, never with real data.
 
-Os testes ficam em `tests/` (arquivos `*.test.ts`), rodam offline e não chamam IA. Toda correção de bug deve vir com um teste quando der.
+Tests live in `tests/` (`*.test.ts` files), run offline and never call an AI. Every bug fix should come with a test when possible.
 
-## Regras do projeto
+## Project rules
 
-São as mesmas do [CLAUDE.md](CLAUDE.md), que vale para pessoas e para agentes de IA:
+They are the same as in [CLAUDE.md](CLAUDE.md) (also [AGENTS.md](AGENTS.md)), which apply to people and to AI agents:
 
-1. **Nada de dados pessoais no repositório.** `profile/`, `data/` e `output/` ficam fora do git. Não cole currículo, vagas reais ou o seu `.env` em issues, testes ou exemplos.
-2. **O agente nunca inventa fatos.** Tudo sobre a pessoa sai do `profile_truth.md` e dos currículos-base. Requisito sem evidência é lacuna, não algo a preencher. Não enfraqueça as travas (`src/tailor/guards.ts`).
-3. **Funciona para qualquer área.** Nada em `src/` pode ser específico de uma pessoa ou de uma profissão: prompts, fontes e textos têm que servir para enfermagem, vendas ou desenvolvimento.
-4. **O agente prepara, a pessoa envia.** Nunca enviar candidatura, e-mail ou mudar o LinkedIn em nome de alguém.
-5. **Segurança:**
-   - nunca abrir links ou caminhos por um shell (use `src/util/open.ts`);
-   - a interface fica só em `127.0.0.1`, com token;
-   - todo texto vindo de fora passa por `esc()` antes de ir para a página.
-6. **Idioma:** textos para quem usa e documentação em português do Brasil, simples e diretos; nomes no código em inglês.
+1. **No personal data in the repository.** `profile/`, `data/` and `output/` stay out of git. Don't paste resumes, real jobs or your `.env` into issues, tests or examples.
+2. **The agent never makes up facts.** Everything about the person comes from `profile_truth.md` and the base resumes. A requirement without evidence is a gap, not something to fill in. Don't weaken the guards (`src/tailor/guards.ts`).
+3. **It works for any field.** Nothing in `src/` may be specific to one person or one profession: prompts, sources and texts have to work for nursing, sales or software development.
+4. **The agent prepares, the person sends.** Never submit an application, send an e-mail or change LinkedIn on someone's behalf.
+5. **Security:**
+   - never open links or paths through a shell (use `src/util/open.ts`);
+   - the interface stays on `127.0.0.1`, behind a token;
+   - every text that comes from outside goes through `esc()` before reaching the page.
+6. **Language:**
+   - code identifiers in English;
+   - the interface and the files generated for the user are in Brazilian Portuguese for now (an English interface is planned);
+   - the main documentation (README, CONTRIBUTING, SECURITY, `docs/`) is in English, with a Brazilian Portuguese copy next to it (`README.pt-BR.md`, `CONTRIBUTING.pt-BR.md`, `SECURITY.pt-BR.md`, `docs/guia-de-uso.md`, `docs/como-funciona.md`). When you change one, change the other.
 
-## Onde mexer
+## Where to make changes
 
-- **Novo provedor de IA:** implemente `LlmProvider` em `src/providers/` e registre em `PROVIDERS` e `createProvider` (`src/providers/index.ts`). Toda chamada passa por `src/llm.ts`.
-- **Nova fonte de vagas:** crie um `JobSource` em `src/jobs/sources/` (com `description`) e registre em `SOURCES`.
-- **Interface:** rotas em `src/ui/routes/`, página em `src/ui/public/` (HTML, CSS e módulos JS, sem build). Mantenha a interface e o menu do terminal (`src/menu.ts`) com as mesmas ações.
+- **New AI provider:** implement `LlmProvider` in `src/providers/` and register it in `PROVIDERS` and `createProvider` (`src/providers/index.ts`). Every call goes through `src/llm.ts`.
+- **New job source:** create a `JobSource` in `src/jobs/sources/` (with a `description`) and register it in `SOURCES`.
+- **Interface:** routes in `src/ui/routes/`, page in `src/ui/public/` (HTML, CSS and JS modules, no build step). Keep the interface and the terminal menu (`src/menu.ts`) offering the same actions.
 
-A estrutura completa e o funcionamento de cada parte estão em [docs/como-funciona.md](docs/como-funciona.md). O passo a passo de uso está em [docs/guia-de-uso.md](docs/guia-de-uso.md): atualize-o quando mudar algo que quem usa vê.
+The full structure and how each part works are in [docs/how-it-works.md](docs/how-it-works.md). The user walkthrough is in [docs/user-guide.md](docs/user-guide.md): update it (and the Portuguese copy) when something users see changes.
 
-## Commits e PRs
+## Commits and PRs
 
-- Mensagens no estilo `tipo: o que mudou`, em português: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
-- Um assunto por PR. Descreva o problema, o que mudou e como você testou.
-- Preencha o checklist do modelo de PR.
+- Messages in the `type: what changed` style: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`. English or Portuguese are both fine.
+- One subject per PR. Describe the problem, what changed and how you tested it.
+- Fill in the checklist in the PR template.
 
-## Licença
+## License
 
-Ao contribuir, você concorda que a sua contribuição será distribuída sob a [licença MIT](LICENSE).
+By contributing, you agree that your contribution will be distributed under the [MIT license](LICENSE).
