@@ -2,7 +2,7 @@
   "name": "auto-job-finder",
   "version": "0.2.0",
   "private": true,
-  "description": "Agente de IA para candidaturas em qualquer área: monta o perfil (currículo, LinkedIn, portfólio), busca vagas, adapta o currículo ATS, cover letter, e-mails e LinkedIn. Funciona com Claude, ChatGPT/Codex, Gemini ou APIs.",
+  "description": "AI job-application agent for any field: builds your profile (resume, LinkedIn, portfolio), finds jobs, tailors an ATS resume, cover letter, e-mails and LinkedIn. Works with Claude, ChatGPT/Codex, Gemini or APIs.",
   "license": "MIT",
   "author": "Gabriel Mello Moraes",
   "repository": {
@@ -30,7 +30,8 @@
     "ajf": "tsx src/cli.ts",
     "demo": "tsx scripts/demo.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"tests/*.test.ts\""
+    "test": "tsx --test \"tests/*.test.ts\"",
+    "i18n": "tsx scripts/i18n.ts"
   },
   "engines": {
     "node": ">=22.12"

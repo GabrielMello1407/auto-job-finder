@@ -135,8 +135,15 @@ button:disabled { opacity: 0.5; cursor: default; transform: none; }
 .nav .pill { margin-left: auto; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 650; }
 .nav .pill.warn { background: var(--warn-soft); color: var(--warn); }
 
-.side-foot { margin-top: auto; display: grid; gap: 8px; }
-.cmdk { justify-content: space-between; color: var(--muted); font-weight: 500; background: var(--surface-2); border-color: transparent; }
+/* Uma coluna que não cresce com o texto: rótulo comprido (outro idioma, nome da IA) quebra ou vira "…", sem passar da barra. */
+.side-foot { margin-top: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.side-foot > button { min-width: 0; }
+.nav-more { display: none; }
+.cmdk { justify-content: space-between; color: var(--muted); font-weight: 500; font-size: 13px; background: var(--surface-2); border-color: transparent; }
+.cmdk > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cmdk kbd { flex: none; }
+.ia-chip #ia-label { min-width: 0; overflow-wrap: anywhere; }
+.lang-chip { font-weight: 500; font-size: 13px; }
 .cmdk:hover { color: var(--ink); }
 .ia-chip { justify-content: flex-start; font-weight: 500; font-size: 13px; height: auto; min-height: 36px; padding: 6px 10px; text-align: left; white-space: normal; }
 .ia-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); flex: none; }
@@ -453,7 +460,18 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 .history { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .history li { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 
+/* Nome de arquivo, e-mail, caminho e link não têm espaço: quebram em qualquer ponto em vez de passar da borda. */
+.panel, .modal, .drawer-head, .toast, .palette { overflow-wrap: anywhere; }
+
 /* ================================================================ celular */
+@media (max-width: 640px) {
+  /* Botão com texto comprido (nome do PDF, "Abrir no programa de e-mail…") quebra em linhas em vez de estourar. */
+  .panel .btn, .panel button, .modal .btn, .modal button, .drawer .btn, .drawer button:not(.tab) {
+    white-space: normal; height: auto; min-height: 36px; padding-top: 6px; padding-bottom: 6px; text-align: center;
+  }
+  .panel .small, .modal .small, .drawer .small { min-height: 30px; padding-top: 4px; padding-bottom: 4px; }
+  .modal-actions { flex-wrap: wrap; }
+}
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .side {
@@ -464,8 +482,12 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
   .brand, .side-foot { display: none; }
   .nav { grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
   .nav a { flex-direction: column; height: auto; gap: 0; padding: 6px 4px; font-size: 11.5px; }
-  .nav .ico { font-size: 18px; }
+  .nav .ico { font-size: 18px; width: auto; }
   .nav .pill { display: none; }
+  .nav-more {
+    display: flex; flex-direction: column; align-items: center; height: auto; gap: 0; padding: 6px 4px;
+    border: 0; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 550;
+  }
   .nav a[aria-current="page"] { box-shadow: none; border-color: transparent; background: var(--accent-soft); color: var(--accent); }
   .main { padding: 18px 16px 120px; }
   .page-head h1 { font-size: 25px; }

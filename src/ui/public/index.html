@@ -9,25 +9,29 @@
 </head>
 <body>
 <div class="shell">
-  <aside class="side" aria-label="Navegação">
+  <!-- Textos com data-i18n são traduzidos ao abrir (main.js#translateStatic); o português é a chave. -->
+  <aside class="side" data-i18n-label="Navegação" aria-label="Navegação">
     <div class="brand">
       <img class="brand-mark" src="/logo.svg" alt="" width="34" height="34">
-      <div><b>auto-job-finder</b><span>do achado ao envio</span></div>
+      <div><b>auto-job-finder</b><span data-i18n>do achado ao envio</span></div>
     </div>
     <nav class="nav" id="nav">
-      <a href="#/vagas" data-route="vagas"><span class="ico">💼</span>Vagas<span class="pill num" id="nav-vagas" hidden></span></a>
-      <a href="#/perfil" data-route="perfil"><span class="ico">🪪</span>Perfil<span class="pill warn num" id="nav-perfil" hidden></span></a>
-      <a href="#/preferencias" data-route="preferencias"><span class="ico">🎯</span>Preferências</a>
+      <a href="#/vagas" data-route="vagas"><span class="ico">💼</span><span data-i18n>Vagas</span><span class="pill num" id="nav-vagas" hidden></span></a>
+      <a href="#/perfil" data-route="perfil"><span class="ico">🪪</span><span data-i18n>Perfil</span><span class="pill warn num" id="nav-perfil" hidden></span></a>
+      <a href="#/preferencias" data-route="preferencias"><span class="ico">🎯</span><span data-i18n>Preferências</span></a>
       <a href="#/linkedin" data-route="linkedin"><span class="ico">🔗</span>LinkedIn</a>
+      <!-- Só no celular, onde o pé da barra some: abre a paleta (buscar, trocar a IA, mudar o idioma). -->
+      <button type="button" class="nav-more" data-act="palette"><span class="ico">⋯</span><span data-i18n>Mais</span></button>
     </nav>
     <div class="side-foot">
-      <button type="button" class="cmdk" data-act="palette">Buscar ou fazer algo <kbd>Ctrl K</kbd></button>
-      <button type="button" class="ia-chip" data-act="ia" id="ia-chip"><span class="dot"></span><span id="ia-label">IA</span></button>
+      <button type="button" class="cmdk" data-act="palette"><span data-i18n>Buscar ou fazer algo</span> <kbd>Ctrl K</kbd></button>
+      <button type="button" class="ia-chip" data-act="ia" id="ia-chip"><span class="dot"></span><span id="ia-label" data-i18n>IA</span></button>
+      <button type="button" class="lang-chip" data-act="language" id="lang-chip" data-nolock></button>
     </div>
   </aside>
 
   <main class="main">
-    <div id="offline" class="offline" hidden>Sem conexão com o <code>ajf</code>. O terminal foi fechado? Rode <code>ajf</code> de novo.</div>
+    <div id="offline" class="offline" hidden data-i18n-html>Sem conexão com o <code>ajf</code>. O terminal foi fechado? Rode <code>ajf</code> de novo.</div>
     <div id="view" class="view"></div>
   </main>
 </div>
@@ -37,6 +41,6 @@
 <div id="palette-root"></div>
 <div id="modal-root"></div>
 <div id="toasts" class="toasts" aria-live="polite"></div>
-<script type="module" src="/js/main.js"></script>
+<script type="module" src="/js/boot.js"></script>
 </body>
 </html>

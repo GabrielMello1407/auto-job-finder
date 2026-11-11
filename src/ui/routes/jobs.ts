@@ -19,9 +19,19 @@ import { cleanJobText } from "../../jobs/page.js";
 import { answerQuestion, deleteAnswer, refineAnswer } from "../../writers/answers.js";
 import { applicationSheet } from "../../writers/applicationSheet.js";
 import { applicationDraft, DRAFT_FILE, gmailComposeUrl, parseEmails, writeApplicationDraft } from "../../writers/emailDraft.js";
-import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Route } from "../http.js";
+import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Ctx, type Route } from "../http.js";
 
 /** Vagas, tarefas longas (busca, triagem, pacotes) e escolha da IA. */
+
+/** Tradutor da chamada (c.t): nome e resultado da tarefa saem no idioma de quem pediu. */
+type Tr = Ctx["t"];
+
+/** Situação da IA na tela: "encontrado em <caminho>" e "endpoint <url>" levam o valor junto. */
+function providerDetail(t: Tr, detail: string): string {
+  const found = /^encontrado em (.+)$/.exec(detail);
+  if (found) return t("encontrado em {path}", { path: found[1] });
+  return detail.startsWith("endpoint ") ? detail : t(detail);
+}
 
 function packageDir(j: Job): string | undefined {
   return j.outputDir && fs.existsSync(j.outputDir) ? j.outputDir : undefined;
@@ -210,27 +220,28 @@ function droppedSummary(dropped: { reason: string }[]): string[] {
 export function jobRoutes(app: App): Route[] {
   const { queue } = app;
 
-  const enqueueTailor = (job: Job, opts: TailorOptions = {}) => {
+  const enqueueTailor = (t: Tr, job: Job, opts: TailorOptions = {}) => {
     requireProfileForTasks();
     if (queue.has("tailor", job.id)) throw new HttpError(409, "O pacote dessa vaga já está na fila.");
     return queue.add(
       "tailor",
-      `Pacote: ${job.company} — ${job.title}`,
+      t("Pacote: {job}", { job: `${job.company} — ${job.title}` }),
       async () => {
         const r = await tailorJob(job.id, opts);
         r.violations.forEach((v) => console.log(`❌ ${v}`));
-        return `nota ${r.rating} · ATS ${r.ats}% · ${r.ready ? "✅ pronto para enviar" : r.violations.length ? "❌ violou as travas, leia coverage_review.md" : "⚠ baixa aderência"}`;
+        const verdict = r.ready ? t("✅ pronto para enviar") : r.violations.length ? t("❌ violou as travas, leia coverage_review.md") : t("⚠ baixa aderência");
+        return t("nota {rating} · ATS {ats}% · {verdict}", { rating: r.rating, ats: r.ats, verdict });
       },
       job.id,
     );
   };
 
-  const enqueueTriage = (ids?: string[], research = false) => {
+  const enqueueTriage = (t: Tr, ids?: string[], research = false) => {
     requireProfileForTasks();
     if (!ids && queue.has("triage")) throw new HttpError(409, "A triagem já está na fila.");
     return queue.add(
       "triage",
-      ids?.length === 1 ? (research ? "Pesquisar e avaliar a vaga colada" : "Avaliar a vaga colada") : "Avaliar vagas novas",
+      ids?.length !== 1 ? t("Avaliar vagas novas") : research ? t("Pesquisar e avaliar a vaga colada") : t("Avaliar a vaga colada"),
       async () => {
         // Vaga recebida sem link: primeiro a pesquisa na web, para a triagem já ver o anúncio oficial.
         if (research && ids?.length === 1) {
@@ -240,8 +251,8 @@ export function jobRoutes(app: App): Route[] {
             console.log(`⚠ Pesquisa na web: ${(e as Error).message}`);
           }
         }
-        const t = await triageJobs(ids ? { ids } : {});
-        return `${t.length} avaliada(s) · ${t.filter((j) => j.status === "shortlisted").length} recomendada(s)`;
+        const done = await triageJobs(ids ? { ids } : {});
+        return t("{n} avaliada(s) · {top} recomendada(s)", { n: done.length, top: done.filter((j) => j.status === "shortlisted").length });
       },
       ids?.length === 1 ? ids[0] : undefined,
     );
@@ -274,16 +285,16 @@ export function jobRoutes(app: App): Route[] {
     [
       "GET",
       /^\/api\/providers$/,
-      () => ({
+      (c) => ({
         ...providerState(),
         providers: detectProviders().map((d) => ({
           id: d.info.id,
-          label: d.info.label,
+          label: c.t(d.info.label),
           kind: d.info.kind,
           webSearch: d.info.webSearch,
           ready: d.ready,
-          detail: d.detail,
-          setup: d.info.setup,
+          detail: providerDetail(c.t, d.detail),
+          setup: c.t(d.info.setup),
         })),
       }),
     ],
@@ -294,7 +305,7 @@ export function jobRoutes(app: App): Route[] {
         const id = normalizeProviderId(str((await c.body()).id, 40));
         if (!id) throw new HttpError(400, "IA desconhecida.");
         const det = detectProviders().find((d) => d.info.id === id);
-        if (!det?.ready) throw new HttpError(400, `Essa IA não está pronta nesta máquina: ${det?.detail ?? ""}`);
+        if (!det?.ready) throw new HttpError(400, "Essa IA não está pronta nesta máquina: {detail}", { detail: providerDetail(c.t, det?.detail ?? "") });
         setEnvVar("AJF_PROVIDER", id);
         return providerState();
       },
@@ -315,7 +326,7 @@ export function jobRoutes(app: App): Route[] {
           });
           return { ok: r.ok, reply: r.reply, seconds: Math.round((Date.now() - t0) / 100) / 10 };
         } catch (e) {
-          throw new HttpError(502, `A IA não respondeu: ${(e as Error).message}`);
+          throw new HttpError(502, "A IA não respondeu: {error}", { error: (e as Error).message });
         }
       },
     ],
@@ -343,13 +354,13 @@ export function jobRoutes(app: App): Route[] {
         const webHint = str(body.hint, 500) || undefined;
         noSearchRunning();
         return {
-          task: queue.add("search", web ? "Buscar vagas (sites + web com IA)" : "Buscar vagas", async () => {
+          task: queue.add("search", web ? c.t("Buscar vagas (sites + web com IA)") : c.t("Buscar vagas"), async () => {
             const s = await searchJobs({ web, webHint });
             console.log(searchSummary(s));
             if (s.dropped.length) console.log(`Cortadas pelo filtro das preferências:\n${droppedSummary(s.dropped).join("\n")}`);
             s.errors.forEach((e) => console.log(`⚠ ${e}`));
-            const t = await triageJobs();
-            return `${s.added.length} vaga(s) nova(s) · ${t.filter((j) => j.status === "shortlisted").length} recomendada(s)`;
+            const done = await triageJobs();
+            return c.t("{n} vaga(s) nova(s) · {top} recomendada(s)", { n: s.added.length, top: done.filter((j) => j.status === "shortlisted").length });
           }),
         };
       },
@@ -363,15 +374,15 @@ export function jobRoutes(app: App): Route[] {
         const max = Math.max(0, Math.min(15, Number(body.max ?? 3) || 0));
         noSearchRunning();
         return {
-          task: queue.add("auto", `Piloto automático (até ${max} pacote${max === 1 ? "" : "s"})`, async () => {
+          task: queue.add("auto", c.t("Piloto automático (até {max} pacote(s))", { max }), async () => {
             const r = await autopilot({ web, maxPackages: max, interview: Boolean(body.interview) });
             const ready = r.results.filter((x) => x.ready).length;
-            return `${r.search.added.length} vaga(s) nova(s) · ${r.results.length} pacote(s), ${ready} pronto(s) para enviar`;
+            return c.t("{n} vaga(s) nova(s) · {packages} pacote(s), {ready} pronto(s) para enviar", { n: r.search.added.length, packages: r.results.length, ready });
           }),
         };
       },
     ],
-    ["POST", /^\/api\/triage$/, () => ({ task: enqueueTriage() })],
+    ["POST", /^\/api\/triage$/, (c) => ({ task: enqueueTriage(c.t) })],
     [
       "POST",
       /^\/api\/paste$/,
@@ -394,7 +405,7 @@ export function jobRoutes(app: App): Route[] {
           throw new HttpError(400, (e as Error).message);
         }
         app.jobsChanged(job.id);
-        return { job: jobSummary(job), task: enqueueTriage([job.id], Boolean(body.research) && canWebSearch()) };
+        return { job: jobSummary(job), task: enqueueTriage(c.t, [job.id], Boolean(body.research) && canWebSearch()) };
       },
     ],
 
@@ -423,7 +434,7 @@ export function jobRoutes(app: App): Route[] {
         const job = jobFrom(c.params[0]);
         const body = await c.body();
         const status = str(body.status, 20);
-        if (!isStatus(status)) throw new HttpError(400, `Status '${status}' não existe.`);
+        if (!isStatus(status)) throw new HttpError(400, "Status '{status}' não existe.", { status });
         const updated = changeStatus(job, status, str(body.note, 300), undefined, isApplyVia(body.via) ? body.via : undefined);
         app.jobsChanged(job.id);
         return { job: jobSummary(updated), previous: job.status };
@@ -432,7 +443,7 @@ export function jobRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/jobs\/([\w-]+)\/tailor$/,
-      async (c) => ({ task: enqueueTailor(jobFrom(c.params[0]), tailorOptions(await c.body())) }),
+      async (c) => ({ task: enqueueTailor(c.t, jobFrom(c.params[0]), tailorOptions(await c.body())) }),
     ],
     [
       "POST",
@@ -443,7 +454,7 @@ export function jobRoutes(app: App): Route[] {
         const ids = strList((await c.body()).ids, { max: 15 });
         if (!ids.length) throw new HttpError(400, "Escolha pelo menos uma vaga.");
         const jobs = ids.map(jobFrom).filter((j) => !queue.has("tailor", j.id));
-        return { tasks: jobs.map((j) => enqueueTailor(j)) };
+        return { tasks: jobs.map((j) => enqueueTailor(c.t, j)) };
       },
     ],
     [
@@ -460,10 +471,10 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add(
             "triage",
-            `Avaliar de novo: ${job.company}`,
+            c.t("Avaliar de novo: {company}", { company: job.company }),
             async () => {
-              const [t] = await triageJobs({ ids: [job.id] });
-              return t?.triage ? `triagem ${t.triage.score} · ${STATUS_LABELS[t.status]}` : "avaliada";
+              const [done] = await triageJobs({ ids: [job.id] });
+              return done?.triage ? c.t("triagem {score} · {status}", { score: done.triage.score, status: c.t(STATUS_LABELS[done.status]) }) : c.t("avaliada");
             },
             job.id,
           ),
@@ -494,15 +505,15 @@ export function jobRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/check-open$/,
-      () => {
+      (c) => {
         // "Conferir se ainda estão abertas" (o `ajf conferir`): todas as vagas que ainda não foram enviadas.
         if (queue.has("check")) throw new HttpError(409, "A conferência já está na fila.");
         if (!loadJobs().some((j) => CHECKABLE.includes(j.status))) throw new HttpError(400, "Nenhuma vaga para conferir: todas já foram enviadas ou encerradas.");
         return {
-          task: queue.add("check", "Conferir se as vagas ainda estão abertas", async () => {
+          task: queue.add("check", c.t("Conferir se as vagas ainda estão abertas"), async () => {
             const r = await checkOpenJobs();
             console.log(`\n${closedSummary(r)}`);
-            return `${r.open} aberta(s) · ${r.closed.length} encerrada(s) · ${r.unknown} sem confirmação`;
+            return c.t("{open} aberta(s) · {closed} encerrada(s) · {unknown} sem confirmação", { open: r.open, closed: r.closed.length, unknown: r.unknown });
           }),
         };
       },
@@ -516,11 +527,11 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add(
             "check",
-            `Conferir se está aberta: ${job.company}`,
+            c.t("Conferir se está aberta: {company}", { company: job.company }),
             async () => {
               const { check } = await checkJobOpen(job);
               const updated = recordOpenCheck(job, check);
-              return `${OPEN_ICON[check.verdict]} ${check.reason}${updated.status !== job.status ? " · movida para Encerradas" : ""}`;
+              return `${OPEN_ICON[check.verdict]} ${check.reason}${updated.status !== job.status ? ` · ${c.t("movida para Encerradas")}` : ""}`;
             },
             job.id,
           ),
@@ -539,13 +550,13 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add(
             "research",
-            `Pesquisar na web: ${job.company || job.title}`,
+            c.t("Pesquisar na web: {job}", { job: job.company || job.title }),
             async () => {
               const updated = await researchJob(job.id);
               // Antes do pacote, a triagem é refeita com o que foi achado.
               if (["new", "triaged", "shortlisted"].includes(updated.status)) await triageJobs({ ids: [job.id] });
               const v = updated.research?.verdict;
-              return v === "confirmada" ? "anúncio oficial encontrado" : v === "suspeita" ? "🚩 sinais de golpe" : "anúncio oficial não encontrado";
+              return v === "confirmada" ? c.t("anúncio oficial encontrado") : v === "suspeita" ? c.t("🚩 sinais de golpe") : c.t("anúncio oficial não encontrado");
             },
             job.id,
           ),
@@ -601,12 +612,13 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add(
             "render",
-            `PDF de novo: ${job.company}`,
+            c.t("PDF de novo: {company}", { company: job.company }),
             async () => {
               const r = await rerender(dir);
               r.guards.violations.forEach((v) => console.log(`❌ ${v}`));
               r.guards.warnings.forEach((v) => console.log(`⚠ ${v}`));
-              return `${r.pages} página(s) · ${r.guards.violations.length ? `❌ ${r.guards.violations.length} violação(ões) das travas` : "travas ok"}`;
+              const guards = r.guards.violations.length ? c.t("❌ {n} violação(ões) das travas", { n: r.guards.violations.length }) : c.t("travas ok");
+              return c.t("{pages} página(s) · {guards}", { pages: r.pages, guards });
             },
             job.id,
           ),
@@ -623,10 +635,10 @@ export function jobRoutes(app: App): Route[] {
         return {
           task: queue.add(
             "interview",
-            `Guia de entrevista: ${job.company}`,
+            c.t("Guia de entrevista: {company}", { company: job.company }),
             async () => {
               await interviewGuide(job.id);
-              return "guia de entrevista pronto";
+              return c.t("guia de entrevista pronto");
             },
             job.id,
           ),

@@ -1,6 +1,10 @@
 # Guia de uso
 
+[English](user-guide.md) · **Português**
+
 Tudo o que você precisa para usar o auto-job-finder, do zero até a candidatura enviada. Os prints usam a demonstração (`npm run demo`), com uma pessoa e empresas fictícias.
+
+> **A interface existe em português e em inglês.** Para trocar, use o **🌐** no pé da barra lateral (veja [Idioma da interface](#idioma-da-interface)). Currículos, cartas e e-mails saem no idioma de cada vaga, qualquer que seja o idioma da interface.
 
 - [1. Instalar](#1-instalar)
 - [2. Experimentar sem configurar nada](#2-experimentar-sem-configurar-nada)
@@ -59,7 +63,7 @@ O terminal mostra um link e o navegador abre sozinho. **Deixe o terminal aberto*
 npm run demo
 ```
 
-Abre a interface com a **Ana Souza**, uma pessoa fictícia, e 13 vagas inventadas em todas as etapas. Não usa IA nem os seus dados. É a melhor forma de conhecer as telas antes de montar o seu perfil. A demonstração fica na pasta `demo/` e é recriada a cada execução.
+Abre a interface com a **Ana Souza**, uma pessoa fictícia, e 15 vagas inventadas em todas as etapas. Não usa IA nem os seus dados. É a melhor forma de conhecer as telas antes de montar o seu perfil. A demonstração fica na pasta `demo/` e é recriada a cada execução.
 
 ## 3. Montar o seu perfil
 
@@ -256,6 +260,15 @@ Tarefas longas (busca, pacotes, cadastro) rodam numa fila, uma de cada vez, com 
 
 ![Tarefa em andamento](images/tarefas.jpg)
 
+### Idioma da interface
+
+A interface existe em **português** e em **inglês**. Na primeira vez, ela segue o idioma do navegador; para trocar, clique no **🌐** no pé da barra lateral (ou digite "idioma" no **Ctrl+K**), escolha o idioma e clique em **Usar este idioma**. A escolha fica salva neste navegador. No celular, a barra lateral vira uma barra no pé da tela: o **⋯ Mais** abre o mesmo menu, com o idioma e a IA.
+
+O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não muda:
+- **o que vai para o recrutador** (currículo, carta, e-mails, respostas de formulário) sai no idioma de cada vaga;
+- **o que a IA escreveu** (o motivo da triagem, o plano do LinkedIn) fica no idioma em que foi escrito;
+- **os arquivos da pasta do pacote** (LEIA-ME, `emails.md`, os relatórios), o **andamento das tarefas** no canto da tela e o **terminal** continuam em português por enquanto.
+
 ## 7. Preferências de busca
 
 ![Preferências](images/preferencias.jpg)
@@ -354,7 +367,7 @@ Para manter perfis de várias pessoas (por exemplo, ajudar alguém da família),
 
 ## 11. Pelo terminal
 
-Tudo da interface também existe no terminal.
+Tudo da interface também existe no terminal. O terminal (comandos, menu e mensagens) está em português; só a interface troca de idioma.
 
 - `ajf menu` abre um menu com setas e Enter.
 - Os comandos abaixo servem para automatizar ou para quem prefere o terminal:

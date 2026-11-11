@@ -1,10 +1,14 @@
 // Núcleo da interface: estado, chamadas à API, ações, modal, avisos e markdown.
+import { getLang, t } from "./i18n.js";
+
+export { t };
 
 export const $ = (sel, el = document) => el.querySelector(sel);
 export const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 export const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 export const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** "3 vagas": as duas formas são chaves de tradução. */
+export const plural = (n, one, many) => `${n} ${t(n === 1 ? one : many)}`;
 export const daysSince = (iso) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 86400000) : null);
 export const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -31,19 +35,20 @@ export const app = {
 export async function api(path, body, method) {
   const res = await fetch(path, {
     method: method ?? (body !== undefined ? "POST" : "GET"),
-    headers: body !== undefined ? { "Content-Type": "application/json" } : {},
+    // O servidor responde erros e rótulos no idioma da página.
+    headers: { "x-ajf-lang": getLang(), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  if (!res.ok) throw new Error(data.error || t("Erro {status}", { status: res.status }));
   return data;
 }
 
 /** Envia um arquivo (corpo bruto) para uma rota de upload e devolve o JSON da resposta. */
 export async function uploadFile(path, file) {
-  const res = await fetch(`${path}?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file });
+  const res = await fetch(`${path}?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { "Content-Type": "application/octet-stream", "x-ajf-lang": getLang() }, body: file });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  if (!res.ok) throw new Error(data.error || t("Erro {status}", { status: res.status }));
   return data;
 }
 
@@ -121,7 +126,7 @@ export function mono(text, cls = "") {
 }
 export const level = (n, good, warn) => (n >= good ? "ok" : n >= warn ? "warn" : "bad");
 export function ring(label, value, max, cls, shown = value) {
-  if (value == null) return `<div class="ring none" title="${esc(label)}: ainda não tem"><div class="dial"></div><b>–</b>${esc(label)}</div>`;
+  if (value == null) return `<div class="ring none" title="${esc(t("{label}: ainda não tem", { label }))}"><div class="dial"></div><b>–</b>${esc(label)}</div>`;
   return `<div class="ring ${cls}" style="--v:${Math.max(0, Math.min(1, value / max))}" title="${esc(label)}: ${esc(shown)}"><div class="dial"></div><b>${esc(shown)}</b>${esc(label)}</div>`;
 }
 export function btn(act, label, id, cls = "", title = "") {
@@ -140,7 +145,7 @@ export function closeModal() {
 }
 
 /** Abre um formulário. Resolve com os campos (ou null se cancelar). `onOpen(form)` liga comportamentos extras. */
-export function modal({ title, html, confirm = "Confirmar", cancel = "Cancelar", wide = false, onOpen }) {
+export function modal({ title, html, confirm = t("Confirmar"), cancel = t("Cancelar"), wide = false, onOpen }) {
   closeModal();
   return new Promise((resolve) => {
     const root = $("#modal-root");
@@ -216,16 +221,16 @@ export async function copy(text) {
     document.execCommand("copy");
     t.remove();
   }
-  toast("📋 Copiado.");
+  toast(t("📋 Copiado."));
 }
 
 /* ------------------------------------------------- campo de etiquetas (tags) */
 
 /** Campo onde cada item vira uma etiqueta: Enter ou vírgula adiciona, ✕ remove. */
-export function tagsField(name, values = [], placeholder = "Digite e aperte Enter") {
-  return `<div class="tags" data-name="${esc(name)}">${values.map(tagHtml).join("")}<input type="text" aria-label="Adicionar" placeholder="${esc(placeholder)}"></div>`;
+export function tagsField(name, values = [], placeholder = t("Digite e aperte Enter")) {
+  return `<div class="tags" data-name="${esc(name)}">${values.map(tagHtml).join("")}<input type="text" aria-label="${esc(t("Adicionar"))}" placeholder="${esc(placeholder)}"></div>`;
 }
-const tagHtml = (v) => `<span class="tag" data-value="${esc(v)}">${esc(v)}<button type="button" data-tag-remove aria-label="Remover ${esc(v)}">✕</button></span>`;
+const tagHtml = (v) => `<span class="tag" data-value="${esc(v)}">${esc(v)}<button type="button" data-tag-remove aria-label="${esc(t("Remover {item}", { item: v }))}">✕</button></span>`;
 export function tagValues(box) {
   const pending = $("input", box).value.trim();
   const values = [...box.querySelectorAll(".tag")].map((t) => t.dataset.value);
@@ -302,7 +307,7 @@ export function md(src) {
   for (const line of String(src).replace(/\r/g, "").split("\n")) {
     if (code) {
       if (/^```/.test(line)) {
-        html += `<pre><button type="button" class="small ghost copy-pre" data-act="copy-pre">📋 Copiar</button><code>${esc(code.join("\n"))}</code></pre>`;
+        html += `<pre><button type="button" class="small ghost copy-pre" data-act="copy-pre">${esc(t("📋 Copiar"))}</button><code>${esc(code.join("\n"))}</code></pre>`;
         code = null;
       } else code.push(line);
       continue;

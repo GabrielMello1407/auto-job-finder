@@ -1,5 +1,7 @@
 # Como funciona
 
+[English](how-it-works.md) · **Português**
+
 Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar", e como o código está organizado. Para usar, veja o [guia de uso](guia-de-uso.md).
 
 - [Visão geral](#visão-geral)
@@ -9,6 +11,7 @@ Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar
 - [4. O pacote de cada vaga](#4-o-pacote-de-cada-vaga)
 - [Anti-invenção](#anti-invenção)
 - [O caminho de uma vaga](#o-caminho-de-uma-vaga)
+- [Perguntas do formulário](#perguntas-do-formulário)
 - [LinkedIn](#linkedin)
 - [As IAs](#as-ias)
 - [A interface local](#a-interface-local)
@@ -103,6 +106,7 @@ A mesma vaga aparece em vários sites: Remotive e We Work Remotely, dois reposit
    - **você já tratou a outra** (pacote, candidatura, entrevista, oferta ou recusa): repetir uma candidatura custa mais que esconder uma vaga, que dá para reabrir.
 
    A repetida entra **descartada**, com `duplicateOf` apontando para a original (a primeira, se a achada já era repetida de outra), para não gastar triagem nem virar outro pacote. Reabrir, ou "Não é a mesma vaga", tira a marca e grava `notDuplicate`, para não marcar de novo. Vaga **colada** por você entra normal, só marcada, e o aviso diz qual é a parecida; o piloto automático não gera pacote de vaga marcada.
+
    **Vaga reaberta.** Os itens acima só valem dentro de uma janela (`AJF_REPEAT_WINDOW_DAYS`, 90 dias) contada da sua candidatura, ou do dia em que a outra vaga foi salva. Fora dela, ou se a vaga achada foi publicada pelo menos 14 dias depois da sua candidatura, é **outra abertura** da mesma vaga: entra normal, e se você já tinha tratado a antiga ganha `reopenedFrom` e o aviso "📨 vaga reaberta". Mesmo link continua sendo o mesmo anúncio, não importa quando.
 3. **Vagas já salvas.** Depois de cada busca, `store.ts#flagHandledTwins` procura, entre as vagas ainda não enviadas, a mesma de uma que você já tratou (`dedupe.ts#handledTwins`): pega o que escapou e o que foi salvo antes desta checagem. Sem pacote, vai para "Encerradas"; com pacote, só fica marcada. Entre duas com pacote, a mais nova é a repetida. O piloto automático confere de novo antes de cada pacote (`handledTwin`).
 
@@ -311,6 +315,12 @@ flowchart LR
   - arquivos só são servidos de dentro de `output/`.
 - **Fila de tarefas** (`src/ui/tasks.ts`): busca, pacotes e cadastro rodam um de cada vez, porque usam a mesma IA, o mesmo navegador para PDF e o mesmo `jobs.json`. O que a tarefa escreveria no terminal vira o andamento ao vivo na tela. Entre uma tarefa e outra, o navegador do PDF é fechado.
 - **Mesmas ações do terminal:** a interface chama as mesmas funções do `ajf` e do menu (`src/menu.ts`). Nada de lógica duplicada.
+- **Idioma (português e inglês):** o texto em português é a chave da tradução, no estilo gettext. O `src/ui/public/locales/en.json` liga cada texto em português ao inglês, com `{variáveis}`.
+  - Na página, o `js/i18n.js` exporta `t("Texto {n}", { n })`. O `js/boot.js` carrega o dicionário antes do `main.js`, para os textos de nível de módulo também saírem traduzidos. A escolha fica no `localStorage` (`ajf.lang`); na primeira vez, vale o idioma do navegador. Trocar recarrega a página.
+  - Toda chamada à API leva o cabeçalho `x-ajf-lang`. No servidor, o `src/ui/i18n.ts` lê o mesmo dicionário: as rotas usam `c.t(...)` no nome e no resultado das tarefas, e o `new HttpError(status, "Texto {x}", { x })` é traduzido na hora de responder.
+  - Os rótulos que o servidor manda prontos (nome dos status, canais, fontes de vagas, nome das IAs) são traduzidos na página ou na rota.
+  - O `scripts/i18n.ts` (`npm run i18n`) acha todas as chaves no código e lista o que falta ou sobra em cada dicionário; o `tests/i18n.test.ts` falha se um texto ficar sem tradução, se uma tradução tiver outras `{variáveis}` ou se uma chave não for mais usada.
+  - Ainda não traduzido: o que vai para o recrutador segue o idioma da vaga; o texto escrito pela IA, os arquivos do pacote, o andamento das tarefas e o terminal estão em português.
 
 ## Organização do código
 
@@ -332,7 +342,7 @@ src/
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
     dedupe.ts            vaga repetida: link canônico, título, empresa e texto
     open.ts              vaga encerrada: confere o link antes do pacote e no ajf conferir
-    page.ts              texto da vaga a partir da página (JobPosting, Gupy ou conteúdo principal)
+    page.ts              texto da vaga a partir da página (JobPosting, Gupy, LinkedIn ou conteúdo principal) e cleanJobText
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
     store.ts             data/jobs.json
@@ -349,13 +359,15 @@ src/
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos
+    i18n.ts              tradução no servidor (cabeçalho x-ajf-lang)
     routes/              API: vagas, perfil (cadastro e atualização), LinkedIn, preferências
     tasks.ts             fila de tarefas
-    public/              a página: index.html, app.css, logo.svg, js/
+    public/              a página: index.html, app.css, logo.svg, js/ (boot.js, i18n.js), locales/en.json
   util/                  texto, comparação linha a linha (diff), abrir links e pastas (sem shell)
 scripts/demo.ts          npm run demo: dados fictícios para testar a interface
+scripts/i18n.ts          npm run i18n: textos da interface que faltam ou sobram em cada dicionário
 examples/profile/        perfil fictício (referência de formato e testes)
 tests/                   testes offline (npm test)
 ```
 
-Quer contribuir? Veja o [CONTRIBUTING.md](../CONTRIBUTING.md).
+Quer contribuir? Veja o [CONTRIBUTING.pt-BR.md](../CONTRIBUTING.pt-BR.md).

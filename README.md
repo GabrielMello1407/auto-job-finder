@@ -5,46 +5,52 @@
 <h1 align="center">auto-job-finder</h1>
 
 <p align="center">
-  <strong>Seu agente de candidaturas, para qualquer área e qualquer vaga.</strong><br>
-  Encontra vagas, avalia se combinam com você e prepara currículo, carta e mensagens — sem inventar nada.
+  <strong>Your job-application agent, for any field and any job.</strong><br>
+  It finds jobs, checks whether they fit you and prepares your resume, cover letter and messages, without making anything up.
 </p>
 
 <p align="center">
   <a href="https://github.com/GabrielMello1407/auto-job-finder/actions/workflows/ci.yml"><img src="https://github.com/GabrielMello1407/auto-job-finder/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg" alt="Licença: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.12-339933.svg" alt="Node 22.12+">
 </p>
 
 <p align="center">
-  <a href="docs/guia-de-uso.md">Guia de uso</a> ·
-  <a href="docs/como-funciona.md">Como funciona</a> ·
-  <a href="CONTRIBUTING.md">Contribuir</a>
+  <strong>English</strong> · <a href="README.pt-BR.md">Português</a>
 </p>
 
-![A interface: vagas organizadas em etapas, com triagem, nota e ATS de cada uma](docs/images/vagas.jpg)
+<p align="center">
+  <a href="docs/user-guide.md">User guide</a> ·
+  <a href="docs/how-it-works.md">How it works</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-## O que ele faz
+![The interface: jobs organized in stages, with the triage score, rating and ATS match of each one](docs/images/en/vagas.jpg)
 
-1. **Monta o seu perfil** a partir do que você tiver: currículo (PDF ou DOCX), PDF do LinkedIn, portfólio, GitHub, um texto, ou respondendo a perguntas.
-2. **Busca vagas** em sites de vagas, no portal da Gupy e na web (LinkedIn, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas e sinais de golpe. A mesma vaga publicada em vários sites aparece uma vez só, e vaga que já acabou é descartada antes de virar pacote. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
-3. **Prepara o pacote** de cada vaga boa:
-   - currículo adaptado no padrão ATS, em PDF;
-   - carta de apresentação, quando o mercado pede;
-   - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento, com o e-mail pronto para abrir no seu programa de e-mail (já com o currículo anexado) ou no Gmail;
-   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar;
-   - o passo a passo para se candidatar pelo canal certo;
-   - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), que você ajusta conversando.
-4. **Acompanha as candidaturas:** lembra do follow-up, prepara um guia de entrevista e registra oferta ou recusa.
-5. **Cuida do seu LinkedIn:** monta um plano para atrair recrutadores e confere o seu perfil de hoje, mostrando o que já está certo, o que falta e o que corrigir.
-6. **Acompanha a sua carreira:** conte uma novidade (projeto, emprego, curso) e a IA propõe as mudanças no perfil. Você confere o antes e o depois, e os currículos são refeitos.
+> **Language note:** the interface comes in English and Brazilian Portuguese (🌐 at the bottom of the sidebar). Resumes, cover letters and e-mails come out in the language of each job (Portuguese or English). The terminal and the files the agent writes for you in each package folder are in Portuguese for now.
 
-Funciona com a IA que você **já tem**: assinatura do **Claude**, do **ChatGPT** (Codex) ou conta **Google** (Gemini), sem chave de API. Também aceita APIs: Anthropic, OpenAI ou compatível (OpenRouter, Groq, Ollama), Gemini, Amazon Bedrock e Google Vertex.
+## What it does
 
-> **Você continua no controle.** O agente prepara; você revisa e envia. Ele nunca se candidata, não manda e-mail e não mexe no seu LinkedIn.
+1. **Builds your profile** from whatever you have: a resume (PDF or DOCX), your LinkedIn PDF, a portfolio, GitHub, some text, or by answering questions.
+2. **Finds jobs** on job boards, on the Gupy portal (Brazil) and across the web (LinkedIn, Indeed), and **scores each one** against your profile: fit, gaps and scam signals. The same job posted on several sites shows up once, and jobs that already closed are dropped before a package is made. A job you got through a referral, an e-mail or WhatsApp works too, even without a link: the agent looks for the official posting and the company on the web and checks whether the job is real.
+3. **Prepares a package** for every good job:
+   - an ATS-friendly resume tailored to the job, in PDF;
+   - a cover letter, when the market expects one;
+   - the application e-mail, messages for the recruiter, a follow-up and a thank-you note, with the e-mail ready to open in your mail program (resume already attached) or in Gmail;
+   - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy;
+   - step-by-step instructions to apply through the right channel;
+   - answers to application-form questions ("Why do you want to work here?"), which you refine in a chat.
+4. **Tracks your applications:** reminds you to follow up, prepares an interview guide and records offers and rejections.
+5. **Looks after your LinkedIn:** writes a plan to attract recruiters and reviews your current profile, showing what is right, what is missing and what to fix.
+6. **Keeps up with your career:** tell it about something new (a project, a job, a course) and the AI proposes the profile changes. You review the before and after, and your resumes are rebuilt.
 
-## Experimente em 1 minuto
+It works with the AI you **already have**: a **Claude**, **ChatGPT** (Codex) or **Google** (Gemini) subscription, no API key needed. It also takes APIs: Anthropic, OpenAI or compatible (OpenRouter, Groq, Ollama), Gemini, Amazon Bedrock and Google Vertex.
 
-Sem configurar IA nem perfil, com dados fictícios:
+> **You stay in control.** The agent prepares; you review and send. It never applies for you, never sends e-mails and never touches your LinkedIn.
+
+## Try it in 1 minute
+
+No AI or profile setup, with made-up data:
 
 ```bash
 git clone https://github.com/GabrielMello1407/auto-job-finder.git
@@ -53,100 +59,100 @@ npm install
 npm run demo
 ```
 
-Abre a interface com uma pessoa e vagas inventadas, em todas as etapas.
+It opens the interface with a fictional person and fictional jobs, in every stage.
 
-## Começando de verdade
+## Getting started for real
 
-Você precisa de:
+You need:
 - [Node.js 22.12+](https://nodejs.org);
-- Chrome, Edge, Chromium ou Brave (para os PDFs);
-- **uma** IA:
+- Chrome, Edge, Chromium or Brave (for the PDFs);
+- **one** AI:
 
-| Você tem | Como ativar | Custo |
+| You have | How to turn it on | Cost |
 |---|---|---|
-| Claude Pro/Max | instale o [Claude Code](https://claude.com/claude-code) e rode `claude` para entrar | já incluso na assinatura |
-| ChatGPT Plus/Pro | `npm i -g @openai/codex` e `codex login` | já incluso na assinatura |
-| Conta Google | `npm i -g @google/gemini-cli` e rode `gemini` para entrar | cota da conta |
-| Uma chave de API | coloque no `.env` (veja o [`.env.example`](.env.example)) | por uso |
+| Claude Pro/Max | install [Claude Code](https://claude.com/claude-code) and run `claude` to sign in | included in the subscription |
+| ChatGPT Plus/Pro | `npm i -g @openai/codex` and `codex login` | included in the subscription |
+| A Google account | `npm i -g @google/gemini-cli` and run `gemini` to sign in | your account's quota |
+| An API key | put it in `.env` (see [`.env.example`](.env.example)) | pay per use |
 
-O agente encontra sozinho a IA instalada. Depois:
+The agent finds the installed AI on its own. Then:
 
 ```bash
-npm link    # uma vez: libera o comando `ajf`
-ajf         # abre a interface no navegador
+npm link    # once: makes the `ajf` command available
+ajf         # opens the interface in your browser
 ```
 
-Na primeira vez, ele abre no **cadastro do perfil**: arraste o seu currículo e responda o que a IA perguntar. Depois é o dia a dia:
+The first time, it opens the **profile setup**: drop in your resume and answer what the AI asks. After that, day to day:
 
-1. **🔎 Buscar vagas** ou **🚀 Piloto automático**: busca, avalia e gera os pacotes das melhores. Recebeu uma vaga de alguém? **➕ Colar vaga**, mesmo sem link.
-2. Em **Para decidir**, gere o pacote das vagas que valem a pena.
-3. Em **Prontas**, confira o currículo, candidate-se e clique em **✅ Já me candidatei**.
-4. Em **Em andamento**, mande o follow-up e registre entrevista, oferta ou recusa.
-5. Quando a sua carreira mudar, use **Perfil → ➕ Contar uma novidade**.
+1. **🔎 Buscar vagas** (search jobs) or **🚀 Piloto automático** (autopilot): searches, scores and builds packages for the best jobs. Got a job from someone? **➕ Colar vaga** (paste a job), even without a link.
+2. In **Para decidir** (to decide), build the package for the jobs worth it.
+3. In **Prontas** (ready), check the resume, apply and click **✅ Já me candidatei** (I applied).
+4. In **Em andamento** (in progress), send the follow-up and record interviews, offers or rejections.
+5. When your career changes, use **Perfil → ➕ Contar uma novidade** (Profile → tell something new).
 
-O passo a passo completo, com cada tela, está no **[guia de uso](docs/guia-de-uso.md)**.
+The full walkthrough, screen by screen, is in the **[user guide](docs/user-guide.md)**.
 
-## Por dentro
+## Inside
 
 | | |
 |---|---|
-| ![Detalhes da vaga: o que você já tem e as lacunas](docs/images/detalhes-resumo.jpg) | ![E-mails e mensagens prontos para copiar](docs/images/detalhes-emails.jpg) |
-| **Detalhes da vaga:** o que você já tem, com evidência no seu perfil, e as lacunas | **E-mails e mensagens:** candidatura, LinkedIn e follow-up, com botão de copiar |
-| ![Proposta de atualização do perfil com o antes e o depois](docs/images/perfil-atualizar.jpg) | ![Conferência do LinkedIn](docs/images/linkedin.jpg) |
-| **Atualizar o perfil:** conte uma novidade e confira o antes e o depois antes de salvar | **LinkedIn:** o que corrigir, o que do plano falta e o que já está certo |
-| ![Colar uma vaga recebida sem link](docs/images/colar-vaga-sem-link.jpg) | ![Vaga confirmada pela pesquisa na web](docs/images/vaga-pesquisada.jpg) |
-| **Vaga sem link:** cole o que você recebeu e peça a pesquisa na web | **Pesquisa na web:** anúncio oficial, site da empresa e se a vaga é real |
-| ![Perfil com pontos a confirmar e editor](docs/images/perfil.jpg) | ![Paleta de comandos com Ctrl+K](docs/images/paleta.jpg) |
-| **Perfil:** a fonte única de fatos, com o que falta confirmar | **Ctrl+K:** ache qualquer vaga ou ação digitando |
+| ![Job details: what you already have and the gaps](docs/images/en/detalhes-resumo.jpg) | ![E-mails and messages ready to copy](docs/images/en/detalhes-emails.jpg) |
+| **Job details:** what you already have, with evidence from your profile, and the gaps | **E-mails and messages:** application, LinkedIn and follow-up, with copy buttons |
+| ![Profile update proposal with the before and after](docs/images/en/perfil-atualizar.jpg) | ![LinkedIn review](docs/images/en/linkedin.jpg) |
+| **Profile update:** tell something new and review the before and after before saving | **LinkedIn:** what to fix, what is missing from the plan and what is already right |
+| ![Pasting a job received without a link](docs/images/en/colar-vaga-sem-link.jpg) | ![Job confirmed by the web search](docs/images/en/vaga-pesquisada.jpg) |
+| **Job without a link:** paste what you received and ask for a web search | **Web search:** official posting, company site and whether the job is real |
+| ![Profile with items to confirm and an editor](docs/images/en/perfil.jpg) | ![Command palette with Ctrl+K](docs/images/en/paleta.jpg) |
+| **Profile:** the single source of facts, with what still needs confirming | **Ctrl+K:** find any job or action by typing |
 
 ```mermaid
 flowchart LR
-    A["📄 Suas fontes"] --> B["🪪 Perfil"]
-    C["🔎 Vagas"] --> D["🧹 Filtro"] --> E["🧠 Triagem"]
-    B --> E --> F["📦 Pacote"]
-    B --> F --> G["👀 Você revisa e envia"]
+    A["📄 Your sources"] --> B["🪪 Profile"]
+    C["🔎 Jobs"] --> D["🧹 Filter"] --> E["🧠 Triage"]
+    B --> E --> F["📦 Package"]
+    B --> F --> G["👀 You review and send"]
 ```
 
-### Não inventa nada
+### It doesn't make things up
 
-Tudo o que o agente escreve sobre você sai do seu perfil (`profile/profile_truth.md`). Travas **em código**, que não dependem da IA "se comportar", barram:
-- número sem fonte;
-- cargo ou data alterados;
-- experiência, certificação ou projeto inventados;
-- as frases que você marcou como "nunca afirmar" (por exemplo, "inglês fluente" quando o seu é intermediário).
+Everything the agent writes about you comes from your profile (`profile/profile_truth.md`). Guards **in code**, which don't rely on the AI "behaving", block:
+- numbers without a source;
+- changed job titles or dates;
+- made-up experience, certifications or projects;
+- the claims you marked as "never claim" (for example, "fluent English" when yours is intermediate).
 
-Requisito da vaga sem evidência no seu perfil vira **lacuna**, nunca preenchimento. Detalhes em [como funciona](docs/como-funciona.md#anti-invenção).
+A job requirement with no evidence in your profile becomes a **gap**, never something to fill in. Details in [how it works](docs/how-it-works.md#no-made-up-facts).
 
-### Seus dados ficam com você
+### Your data stays with you
 
-- Perfil, vagas e pacotes ficam **só na sua máquina**, fora do git (`profile/`, `data/`, `output/`).
-- A interface só funciona no seu computador (`127.0.0.1`) e só abre pelo link com token que o terminal mostra.
-- As CLIs de IA rodam isoladas numa pasta temporária vazia.
-- Golpes miram quem procura emprego: a triagem marca com 🚩 vagas que pedem pagamento, documentos ou para baixar e rodar código.
+- Profile, jobs and packages stay **only on your machine**, out of git (`profile/`, `data/`, `output/`).
+- The interface only runs on your computer (`127.0.0.1`) and only opens through the tokened link the terminal shows.
+- The AI CLIs run isolated in an empty temporary folder.
+- Scams target job seekers: the triage flags with 🚩 jobs that ask for payment, documents, or to download and run code.
 
-### Custos
+### Costs
 
-- **Assinatura:** sem cobrança extra; o uso conta no limite da sua conta. Cada pacote faz de 6 a 10 chamadas.
-- **API:** por volta de US$ 0,02–0,05 por vaga avaliada e US$ 0,50–2,00 por pacote completo com modelos de ponta.
-- O arquivo `data/usage.jsonl` registra os tokens de cada chamada.
+- **Subscription:** no extra charge; usage counts against your plan's limits. Each package makes 6 to 10 calls.
+- **API:** about US$ 0.02 to 0.05 per scored job and US$ 0.50 to 2.00 per full package with frontier models.
+- `data/usage.jsonl` logs the tokens of every call.
 
-## Documentação
+## Documentation
 
 | | |
 |---|---|
-| [Guia de uso](docs/guia-de-uso.md) | Instalação, cadastro, cada tela, atalhos, preferências, arquivos, comandos do terminal e dúvidas |
-| [Como funciona](docs/como-funciona.md) | Perfil, busca, triagem, pacote, travas anti-invenção, IAs, interface e organização do código |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Como rodar, testar e contribuir |
-| [SECURITY.md](SECURITY.md) | Como reportar uma falha de segurança |
+| [User guide](docs/user-guide.md) ([pt-BR](docs/guia-de-uso.md)) | Install, setup, every screen, shortcuts, preferences, files, terminal commands and FAQ |
+| [How it works](docs/how-it-works.md) ([pt-BR](docs/como-funciona.md)) | Profile, search, triage, package, anti-fabrication guards, AIs, interface and code map |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to run, test and contribute |
+| [SECURITY.md](SECURITY.md) | How to report a security issue |
 
-Prefere o terminal? `ajf menu` abre um menu com as mesmas ações, e `ajf --help` lista todos os comandos ([referência](docs/guia-de-uso.md#11-pelo-terminal)).
+Prefer the terminal? `ajf menu` opens a menu with the same actions, and `ajf --help` lists every command ([reference](docs/user-guide.md#11-from-the-terminal)).
 
-## Contribuindo
+## Contributing
 
-Contribuições são bem-vindas, principalmente de quem é de **outras áreas**: novas fontes de vagas, textos que funcionem melhor para a sua profissão, provedores de IA, melhorias na interface. Veja o [CONTRIBUTING.md](CONTRIBUTING.md). Para bugs e ideias, abra uma [issue](https://github.com/GabrielMello1407/auto-job-finder/issues), sem dados pessoais.
+Contributions are welcome, especially from people in **other fields**: new job sources, wording that works better for your profession, AI providers, interface improvements, and translations. See [CONTRIBUTING.md](CONTRIBUTING.md). For bugs and ideas, open an [issue](https://github.com/GabrielMello1407/auto-job-finder/issues), with no personal data.
 
-Ideias de base vieram do [R238Company/meu-emprego-novo](https://github.com/R238Company/meu-emprego-novo): perfil-mestre, "a IA propõe, você decide", loop de avaliação, revisão de cobertura e checklist anti-golpe.
+Some core ideas came from [R238Company/meu-emprego-novo](https://github.com/R238Company/meu-emprego-novo): a master profile, "the AI proposes, you decide", an evaluation loop, coverage review and an anti-scam checklist.
 
-## Licença
+## License
 
-[MIT](LICENSE). Use, modifique e distribua à vontade, mantendo o aviso de autoria. O software é fornecido sem garantia: o agente prepara o material, e cada pessoa revisa e responde pelo que envia.
+[MIT](LICENSE). Use, modify and distribute freely, keeping the copyright notice. The software comes with no warranty: the agent prepares the material, and each person reviews and is responsible for what they send.

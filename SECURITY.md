@@ -1,30 +1,32 @@
-# Segurança
+# Security
 
-O auto-job-finder lida com dados pessoais (currículo, contatos, histórico de candidaturas), roda um servidor local e lê vagas publicadas por terceiros. Falhas de segurança são levadas a sério.
+**English** · [Português](SECURITY.pt-BR.md)
 
-## Como reportar
+auto-job-finder handles personal data (resume, contacts, application history), runs a local server and reads jobs published by third parties. Security issues are taken seriously.
 
-**Não abra uma issue pública.** Use o reporte privado do GitHub: aba **Security** do repositório → **Report a vulnerability**.
+## How to report
 
-Inclua:
-- o que acontece e qual o impacto;
-- os passos para reproduzir, com dados fictícios;
-- sistema operacional, versão do Node e a IA em uso, se importar.
+**Don't open a public issue.** Use GitHub's private reporting: the repository's **Security** tab → **Report a vulnerability**.
 
-A resposta é feita no tempo livre de quem mantém o projeto: a ideia é confirmar o recebimento em poucos dias e combinar a correção com você antes de qualquer divulgação.
+Include:
+- what happens and what the impact is;
+- the steps to reproduce, with made-up data;
+- operating system, Node version and the AI in use, if it matters.
 
-## O que está no escopo
+Replies happen in the maintainer's spare time: the goal is to acknowledge within a few days and agree on the fix with you before anything is disclosed.
 
-- **Servidor local (`ajf`):** acesso de outro site ou de outra máquina, burla do token, leitura de arquivos fora de `output/`, execução de comandos.
-- **Dados de terceiros:** vagas e páginas lidas da internet que consigam executar comandos, escrever fora das pastas do projeto ou injetar conteúdo na página.
-- **Injeção de instruções:** um texto de vaga que faça a IA inventar fatos sobre a pessoa, burlar as travas ou vazar dados do perfil.
-- **Vazamento de dados pessoais:** perfil, `.env` ou chaves de API indo para logs, para o git ou para algum serviço sem necessidade.
+## In scope
 
-## Fora do escopo
+- **Local server (`ajf`):** access from another site or another machine, bypassing the token, reading files outside `output/`, running commands.
+- **Third-party data:** jobs and pages read from the internet that manage to run commands, write outside the project folders or inject content into the page.
+- **Prompt injection:** a job text that makes the AI invent facts about the person, bypass the guards or leak profile data.
+- **Personal data leaks:** the profile, `.env` or API keys ending up in logs, in git or in any service without need.
 
-- Problemas dos provedores de IA, dos sites de vagas ou do navegador em si.
-- Ataques que exigem acesso prévio à sua conta do sistema operacional.
+## Out of scope
 
-## Versões
+- Problems in the AI providers, the job sites or the browser itself.
+- Attacks that require prior access to your operating system account.
 
-Só a versão mais recente do branch `main` recebe correções.
+## Versions
+
+Only the latest version of the `main` branch gets fixes.

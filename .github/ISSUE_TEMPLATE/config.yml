@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: 🔒 Reportar uma falha de segurança
+  - name: 🔒 Report a security issue / Reportar uma falha de segurança
     url: https://github.com/GabrielMello1407/auto-job-finder/security/advisories/new
-    about: Reporte em particular. Não abra issue pública para falhas de segurança.
+    about: Report it privately. Don't open a public issue for security issues. / Reporte em particular. Não abra issue pública para falhas de segurança.

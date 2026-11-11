@@ -2,14 +2,20 @@ import fs from "node:fs";
 import type http from "node:http";
 import path from "node:path";
 import { paths } from "../config.js";
+import type { Lang } from "./i18n.js";
 import type { TaskQueue } from "./tasks.js";
 
 /** Peças compartilhadas pelas rotas da interface local. */
 
+/**
+ * Erro com status HTTP. A mensagem é a chave de tradução (texto em português, com {variáveis}):
+ * o servidor responde no idioma da página (src/ui/i18n.ts).
+ */
 export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    public vars?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -26,6 +32,10 @@ export interface App {
 
 export interface Ctx {
   req: http.IncomingMessage;
+  /** Idioma da página que chamou (cabeçalho x-ajf-lang). */
+  lang: Lang;
+  /** Texto no idioma da página: o português é a chave (src/ui/i18n.ts). */
+  t(text: string, vars?: Record<string, unknown>): string;
   res: http.ServerResponse;
   url: URL;
   /** Grupos capturados pela expressão da rota. */
@@ -70,7 +80,7 @@ export async function readRaw(req: http.IncomingMessage, limit: number): Promise
   let size = 0;
   for await (const c of req) {
     size += (c as Buffer).length;
-    if (size > limit) throw new HttpError(413, `Arquivo grande demais (máximo ${Math.round(limit / 1_000_000)} MB).`);
+    if (size > limit) throw new HttpError(413, "Arquivo grande demais (máximo {mb} MB).", { mb: Math.round(limit / 1_000_000) });
     chunks.push(c as Buffer);
   }
   return Buffer.concat(chunks);
