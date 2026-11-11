@@ -1,35 +1,36 @@
 // Página de vagas: funil de etapas, cartões, gaveta de detalhes e as ações de cada vaga.
-import { $, $$, action, api, app, btn, copy, daysSince, esc, link, md, modal, mono, norm, plural, ring, level, S, store, toast } from "./core.js";
+import { $, $$, action, api, app, btn, copy, daysSince, esc, link, md, modal, mono, norm, plural, ring, level, S, store, t, toast } from "./core.js";
+import { dateText, getLang } from "./i18n.js";
 
 export const STAGES = [
   {
-    id: "decide", cls: "s-decide", label: "Para decidir", sub: "achadas pela busca", statuses: ["shortlisted", "triaged", "new"],
-    hint: "A IA já avaliou cada vaga contra o seu perfil. Gere o pacote das que valem a pena.",
-    empty: ["🔎", "Nenhuma vaga para avaliar agora.", ["search", "🔎 Buscar vagas"]],
+    id: "decide", cls: "s-decide", label: t("Para decidir"), sub: t("achadas pela busca"), statuses: ["shortlisted", "triaged", "new"],
+    hint: t("A IA já avaliou cada vaga contra o seu perfil. Gere o pacote das que valem a pena."),
+    empty: ["🔎", t("Nenhuma vaga para avaliar agora."), ["search", t("🔎 Buscar vagas")]],
   },
   {
-    id: "ready", cls: "s-ready", label: "Prontas", sub: "pacote pronto", statuses: ["tailored"],
-    hint: "Confira o currículo, candidate-se no site da vaga e marque “Já me candidatei”.",
-    empty: ["📦", "Nenhum pacote pronto. Gere um em “Para decidir”.", ["stage:decide", "Ver vagas para decidir"]],
+    id: "ready", cls: "s-ready", label: t("Prontas"), sub: t("pacote pronto"), statuses: ["tailored"],
+    hint: t("Confira o currículo, candidate-se no site da vaga e marque “Já me candidatei”."),
+    empty: ["📦", t("Nenhum pacote pronto. Gere um em “Para decidir”."), ["stage:decide", t("Ver vagas para decidir")]],
   },
   {
-    id: "active", cls: "s-active", label: "Em andamento", sub: "candidaturas enviadas", statuses: ["applied", "interview", "offer"],
-    hint: "Atualize quando chamarem para entrevista ou responderem. O follow-up aparece depois de 7 dias.",
-    empty: ["📨", "Você ainda não marcou nenhuma candidatura como enviada."],
+    id: "active", cls: "s-active", label: t("Em andamento"), sub: t("candidaturas enviadas"), statuses: ["applied", "interview", "offer"],
+    hint: t("Atualize quando chamarem para entrevista ou responderem. O follow-up aparece depois de 7 dias."),
+    empty: ["📨", t("Você ainda não marcou nenhuma candidatura como enviada.")],
   },
   {
-    id: "low", cls: "s-low", label: "Baixa aderência", sub: "nota abaixo do mínimo", statuses: ["low_fit"],
-    hint: "Pacotes com nota abaixo do mínimo. Não é recomendado enviar, mas a decisão é sua.",
-    empty: ["✨", "Nada aqui."],
+    id: "low", cls: "s-low", label: t("Baixa aderência"), sub: t("nota abaixo do mínimo"), statuses: ["low_fit"],
+    hint: t("Pacotes com nota abaixo do mínimo ({min}). Não é recomendado enviar, mas a decisão é sua."),
+    empty: ["✨", t("Nada aqui.")],
   },
   {
-    id: "closed", cls: "s-closed", label: "Encerradas", sub: "recusadas e descartadas", statuses: ["rejected", "discarded"],
-    hint: "Recusadas e descartadas. Dá para reabrir qualquer uma.",
-    empty: ["🗄", "Nada aqui."],
+    id: "closed", cls: "s-closed", label: t("Encerradas"), sub: t("recusadas e descartadas"), statuses: ["rejected", "discarded"],
+    hint: t("Recusadas e descartadas. Dá para reabrir qualquer uma."),
+    empty: ["🗄", t("Nada aqui.")],
   },
 ];
 export const stageOf = (status) => STAGES.find((s) => s.statuses.includes(status));
-export const jobTask = (id) => S.tasks.find((t) => t.jobId === id && (t.status === "queued" || t.status === "running"));
+export const jobTask = (id) => S.tasks.find((k) => k.jobId === id && (k.status === "queued" || k.status === "running"));
 export const findJob = (id) => S.jobs.find((j) => j.id === id);
 const salary = (s) => (s && !/n[aã]o informad|not (specified|disclosed)/i.test(s) ? s : "");
 const SENDABLE = ["tailored", "low_fit", "shortlisted", "triaged", "new"];
@@ -40,22 +41,26 @@ let cursor = -1;
 
 /* ------------------------------------------------------------------- cartão */
 
+/** Nota com vírgula em português, ponto em inglês. */
+const decimal = (n) => (getLang() === "pt-BR" ? String(n).replace(".", ",") : String(n));
+const FIT = { alta: t("alta"), media: t("média"), baixa: t("baixa") };
+
 function gauges(j) {
-  const t = j.triage;
-  return `<div class="gauges">${ring("Triagem", t?.score, 100, t ? level(t.score, S.settings.minTriageScore, 50) : "")}${ring(
-    "Nota",
+  const tri = j.triage;
+  return `<div class="gauges">${ring(t("Triagem"), tri?.score, 100, tri ? level(tri.score, S.settings.minTriageScore, 50) : "")}${ring(
+    t("Nota"),
     j.rating,
     10,
     j.rating != null ? level(j.rating, S.settings.minRating, 5) : "",
-    j.rating != null ? String(j.rating).replace(".", ",") : "",
+    j.rating != null ? decimal(j.rating) : "",
   )}${ring("ATS", j.atsScore, 100, j.atsScore != null ? level(j.atsScore, 80, 60) : "", j.atsScore != null ? `${j.atsScore}` : "")}</div>`;
 }
 
 function meta(j) {
   const parts = [j.location, j.triage?.market, salary(j.salary)].filter(Boolean).map(esc);
-  const flags = j.triage?.scam?.length ? `<span class="chip bad" title="${esc(j.triage.scam.join("; "))}">🚩 sinais de golpe</span>` : "";
-  const fresh = j.status === "new" ? `<span class="chip accent">nova · sem triagem</span>` : "";
-  const outdated = j.pkg?.outdated ? `<span class="chip warn" title="O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades.">perfil mudou depois</span>` : "";
+  const flags = j.triage?.scam?.length ? `<span class="chip bad" title="${esc(j.triage.scam.join("; "))}">${t("🚩 sinais de golpe")}</span>` : "";
+  const fresh = j.status === "new" ? `<span class="chip accent">${t("nova · sem triagem")}</span>` : "";
+  const outdated = j.pkg?.outdated ? `<span class="chip warn" title="${esc(t("O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades."))}">${t("perfil mudou depois")}</span>` : "";
   const research = j.research ? researchChip(j.research) : "";
   return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}</div>`;
 }
@@ -65,24 +70,26 @@ const CHECKABLE = ["new", "triaged", "shortlisted", "tailored", "low_fit"];
 const original = (j) => (j.duplicateOf ? findJob(j.duplicateOf) : null);
 function duplicateChip(j) {
   const o = original(j);
-  return o ? `<span class="chip warn" title="${esc(`Parece a mesma vaga que ${o.company} — ${o.title} (${stageOf(o.status)?.label ?? o.statusLabel})`)}">🔁 repetida</span>` : "";
+  return o ? `<span class="chip warn" title="${esc(t("Parece a mesma vaga que {job} ({stage})", { job: `${o.company} — ${o.title}`, stage: stageOf(o.status)?.label ?? t(o.statusLabel) }))}">${t("🔁 repetida")}</span>` : "";
 }
 const SENT_STATUSES = ["applied", "interview", "offer", "rejected"];
 const reopenedFrom = (j) => (j.reopenedFrom ? findJob(j.reopenedFrom) : null);
-const reopenedText = (o) =>
-  `${SENT_STATUSES.includes(o.status) ? "Você se candidatou a uma vaga igual" : "Você gerou um pacote para uma vaga igual"} em ${new Date(o.appliedAt ?? o.addedAt).toLocaleDateString("pt-BR")}`;
+const reopenedText = (o) => {
+  const date = dateText(o.appliedAt ?? o.addedAt);
+  return SENT_STATUSES.includes(o.status) ? t("Você se candidatou a uma vaga igual em {date}", { date }) : t("Você gerou um pacote para uma vaga igual em {date}", { date });
+};
 function reopenedChip(j) {
   const o = reopenedFrom(j);
-  return o ? `<span class="chip accent" title="${esc(`${reopenedText(o)} (${o.company} — ${o.title}). Foi há tempo: conta como vaga nova.`)}">📨 vaga reaberta</span>` : "";
+  return o ? `<span class="chip accent" title="${esc(`${reopenedText(o)} (${o.company} — ${o.title}). ${t("Foi há tempo: conta como vaga nova.")}`)}">${t("📨 vaga reaberta")}</span>` : "";
 }
 const isClosed = (j) => j.openCheck?.verdict === "encerrada" && (CHECKABLE.includes(j.status) || j.status === "discarded");
-const closedChip = (j) => (isClosed(j) ? `<span class="chip bad" title="${esc(j.openCheck.reason)}">🔒 vaga encerrada</span>` : "");
-const OPEN_TEXT = { aberta: ["ok", "✓ aberta"], encerrada: ["bad", "🔒 parece encerrada"], sem_confirmacao: ["", "sem confirmação"] };
+const closedChip = (j) => (isClosed(j) ? `<span class="chip bad" title="${esc(j.openCheck.reason)}">${t("🔒 vaga encerrada")}</span>` : "");
+const OPEN_TEXT = { aberta: ["ok", t("✓ aberta")], encerrada: ["bad", t("🔒 parece encerrada")], sem_confirmacao: ["", t("sem confirmação")] };
 
 const RESEARCH = {
-  confirmada: ["ok", "✓ vaga confirmada na web", "O agente achou o anúncio oficial desta vaga."],
-  nao_encontrada: ["", "não achada na web", "O agente não achou o anúncio oficial. A vaga segue com o que foi informado."],
-  suspeita: ["bad", "🚩 vaga suspeita", "A pesquisa na web achou sinais de golpe. Veja os detalhes."],
+  confirmada: ["ok", t("✓ vaga confirmada na web"), t("O agente achou o anúncio oficial desta vaga.")],
+  nao_encontrada: ["", t("não achada na web"), t("O agente não achou o anúncio oficial. A vaga segue com o que foi informado.")],
+  suspeita: ["bad", t("🚩 vaga suspeita"), t("A pesquisa na web achou sinais de golpe. Veja os detalhes.")],
 };
 function researchChip(r) {
   const [cls, text, title] = RESEARCH[r.verdict] ?? RESEARCH.nao_encontrada;
@@ -92,14 +99,14 @@ function researchChip(r) {
 function statusLine(j) {
   const d = daysSince(j.appliedAt);
   if (j.status === "applied") {
-    const when = d == null ? "Enviada" : d === 0 ? "Enviada hoje" : `Enviada há ${plural(d, "dia", "dias")}`;
+    const when = d == null ? t("Enviada") : d === 0 ? t("Enviada hoje") : t("Enviada há {days}", { days: plural(d, "dia", "dias") });
     const late = d != null && d >= 7;
-    return `<div class="status-line"><span class="chip ${late ? "warn" : "accent"}">${late ? "⏰ hora do follow-up" : "📨 aguardando resposta"}</span><span>${when}${j.appliedViaLabel ? ` via ${esc(j.appliedViaLabel)}` : ""}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
+    return `<div class="status-line"><span class="chip ${late ? "warn" : "accent"}">${late ? t("⏰ hora do follow-up") : t("📨 aguardando resposta")}</span><span>${esc(when)}${j.appliedViaLabel ? ` ${esc(t("via {channel}", { channel: t(j.appliedViaLabel) }))}` : ""}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
   }
-  if (j.status === "interview") return `<div class="status-line"><span class="chip accent">🎤 em entrevista</span></div>`;
-  if (j.status === "offer") return `<div class="status-line"><span class="chip ok">🎉 oferta recebida</span></div>`;
-  if (j.status === "rejected") return `<div class="status-line"><span class="chip">recusada</span></div>`;
-  if (j.status === "discarded") return `<div class="status-line"><span class="chip">descartada</span></div>`;
+  if (j.status === "interview") return `<div class="status-line"><span class="chip accent">${t("🎤 em entrevista")}</span></div>`;
+  if (j.status === "offer") return `<div class="status-line"><span class="chip ok">${t("🎉 oferta recebida")}</span></div>`;
+  if (j.status === "rejected") return `<div class="status-line"><span class="chip">${t("recusada")}</span></div>`;
+  if (j.status === "discarded") return `<div class="status-line"><span class="chip">${t("descartada")}</span></div>`;
   return "";
 }
 
@@ -107,11 +114,11 @@ export function actionsFor(j) {
   const task = jobTask(j.id);
   if (task) {
     const what =
-      { tailor: "Gerando o pacote…", interview: "Preparando o guia de entrevista…", triage: "A IA está avaliando…", research: "Pesquisando na web…", render: "Gerando o PDF…", check: "Conferindo se está aberta…" }[task.kind] ??
-      "Trabalhando…";
-    return `<span class="busy"><span class="spin"></span>${task.status === "running" ? what : "Na fila…"}</span>`;
+      { tailor: t("Gerando o pacote…"), interview: t("Preparando o guia de entrevista…"), triage: t("A IA está avaliando…"), research: t("Pesquisando na web…"), render: t("Gerando o PDF…"), check: t("Conferindo se está aberta…") }[task.kind] ??
+      t("Trabalhando…");
+    return `<span class="busy"><span class="spin"></span>${task.status === "running" ? what : t("Na fila…")}</span>`;
   }
-  const pdf = (label = "📄 Currículo") => link(j.pkg?.resume, label);
+  const pdf = (label = t("📄 Currículo")) => link(j.pkg?.resume, label);
   const A = [];
   switch (j.status) {
     case "new":
@@ -119,39 +126,39 @@ export function actionsFor(j) {
     case "shortlisted":
       A.push(
         isClosed(j)
-          ? btn("tailor-anyway", "📦 Gerar mesmo assim", j.id, "", "A página da vaga diz que ela acabou. Confira o link antes.")
-          : btn("tailor", "📦 Gerar pacote", j.id, "primary", ""),
-        link(j.url, "🔗 Ver vaga"),
-        btn("applied", "✅ Já me candidatei", j.id),
-        btn("discard", "Descartar", j.id, "ghost danger"),
+          ? btn("tailor-anyway", t("📦 Gerar mesmo assim"), j.id, "", t("A página da vaga diz que ela acabou. Confira o link antes."))
+          : btn("tailor", t("📦 Gerar pacote"), j.id, "primary", ""),
+        link(j.url, t("🔗 Ver vaga")),
+        btn("applied", t("✅ Já me candidatei"), j.id),
+        btn("discard", t("Descartar"), j.id, "ghost danger"),
       );
       break;
     case "tailored":
-      A.push(j.url ? link(j.url, "🔗 Candidatar-se", "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, "✉️ Carta") : "");
-      if (j.pkg?.emails) A.push(btn("open:emails", "📧 E-mails", j.id));
-      A.push(btn("open:ficha", "📋 Ficha", j.id, "", "Os campos do formulário de candidatura, prontos para copiar"));
-      A.push(btn("applied", "✅ Já me candidatei", j.id, j.url ? "" : "primary"));
-      if (j.pkg?.outdated) A.push(btn("tailor", "🔄 Gerar de novo", j.id, "", "O seu perfil mudou depois deste pacote"));
-      A.push(btn("discard", "Descartar", j.id, "ghost danger"));
+      A.push(j.url ? link(j.url, t("🔗 Candidatar-se"), "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, t("✉️ Carta")) : "");
+      if (j.pkg?.emails) A.push(btn("open:emails", t("📧 E-mails"), j.id));
+      A.push(btn("open:ficha", t("📋 Ficha"), j.id, "", t("Os campos do formulário de candidatura, prontos para copiar")));
+      A.push(btn("applied", t("✅ Já me candidatei"), j.id, j.url ? "" : "primary"));
+      if (j.pkg?.outdated) A.push(btn("tailor", t("🔄 Gerar de novo"), j.id, "", t("O seu perfil mudou depois deste pacote")));
+      A.push(btn("discard", t("Descartar"), j.id, "ghost danger"));
       break;
     case "low_fit":
-      A.push(btn("open:pacote", "🔍 Por que a nota baixa?", j.id), pdf(), btn("tailor", "🔄 Gerar de novo", j.id), btn("applied", "✅ Me candidatei assim mesmo", j.id), btn("discard", "Descartar", j.id, "ghost danger"));
+      A.push(btn("open:pacote", t("🔍 Por que a nota baixa?"), j.id), pdf(), btn("tailor", t("🔄 Gerar de novo"), j.id), btn("applied", t("✅ Me candidatei assim mesmo"), j.id), btn("discard", t("Descartar"), j.id, "ghost danger"));
       break;
     case "applied":
-      A.push(btn("interview", "🎤 Fui chamado para entrevista", j.id, "primary"));
-      if (j.pkg?.emails) A.push(btn("open:emails", "📧 Follow-up", j.id));
-      A.push(pdf("📄 Currículo enviado"), btn("status:rejected", "Fui recusado", j.id, "ghost danger"));
+      A.push(btn("interview", t("🎤 Fui chamado para entrevista"), j.id, "primary"));
+      if (j.pkg?.emails) A.push(btn("open:emails", t("📧 Follow-up"), j.id));
+      A.push(pdf(t("📄 Currículo enviado")), btn("status:rejected", t("Fui recusado"), j.id, "ghost danger"));
       break;
     case "interview":
-      A.push(j.pkg?.interview ? btn("open:entrevista", "🎤 Guia de entrevista", j.id, "primary") : btn("guide", "🎤 Gerar guia de entrevista", j.id, "primary"));
-      if (j.pkg?.emails) A.push(btn("open:emails", "🙏 Agradecimento", j.id));
-      A.push(btn("status:offer", "🎉 Recebi oferta", j.id), btn("status:rejected", "Fui recusado", j.id, "ghost danger"));
+      A.push(j.pkg?.interview ? btn("open:entrevista", t("🎤 Guia de entrevista"), j.id, "primary") : btn("guide", t("🎤 Gerar guia de entrevista"), j.id, "primary"));
+      if (j.pkg?.emails) A.push(btn("open:emails", t("🙏 Agradecimento"), j.id));
+      A.push(btn("status:offer", t("🎉 Recebi oferta"), j.id), btn("status:rejected", t("Fui recusado"), j.id, "ghost danger"));
       break;
     case "offer":
-      A.push(pdf("📄 Currículo enviado"), btn("status:rejected", "Não deu certo", j.id, "ghost"));
+      A.push(pdf(t("📄 Currículo enviado")), btn("status:rejected", t("Não deu certo"), j.id, "ghost"));
       break;
     default:
-      A.push(btn("reopen", "↩ Reabrir", j.id), link(j.url, "🔗 Ver vaga"));
+      A.push(btn("reopen", t("↩ Reabrir"), j.id), link(j.url, t("🔗 Ver vaga")));
   }
   return A.filter(Boolean).join("");
 }
@@ -203,16 +210,16 @@ export function renderJobsPage() {
   const view = $("#view");
   view.innerHTML = `
   <header class="page-head">
-    <div><h1>Vagas</h1><p id="jobs-summary"></p></div>
+    <div><h1>${t("Vagas")}</h1><p id="jobs-summary"></p></div>
     <div class="btn-row">
-      ${btn("paste", "➕ Colar vaga")}
-      ${btn("search", "🔎 Buscar vagas")}
-      ${btn("auto", "🚀 Piloto automático", null, "primary")}
+      ${btn("paste", t("➕ Colar vaga"))}
+      ${btn("search", t("🔎 Buscar vagas"))}
+      ${btn("auto", t("🚀 Piloto automático"), null, "primary")}
     </div>
   </header>
-  <div class="pipeline" id="pipeline" role="tablist" aria-label="Etapas"></div>
+  <div class="pipeline" id="pipeline" role="tablist" aria-label="${esc(t("Etapas"))}"></div>
   <div class="toolbar">
-    <label class="search"><input id="filter" type="search" placeholder="Filtrar por empresa ou cargo" autocomplete="off" aria-label="Filtrar vagas" value="${esc(filterText)}"><kbd>/</kbd></label>
+    <label class="search"><input id="filter" type="search" placeholder="${esc(t("Filtrar por empresa ou cargo"))}" autocomplete="off" aria-label="${esc(t("Filtrar vagas"))}" value="${esc(filterText)}"><kbd>/</kbd></label>
     <p class="hint" id="stage-hint"></p>
   </div>
   <div id="jobs" class="jobs"></div>`;
@@ -230,21 +237,21 @@ export function paintJobs() {
   const ready = countIn("ready");
   const active = countIn("active");
   $("#jobs-summary").textContent = ready
-    ? `${plural(ready, "pacote pronto", "pacotes prontos")} para enviar · ${active} em andamento`
-    : `${countIn("decide")} para decidir · ${active} em andamento`;
+    ? t("{ready} para enviar · {active} em andamento", { ready: plural(ready, "pacote pronto", "pacotes prontos"), active })
+    : t("{decide} para decidir · {active} em andamento", { decide: countIn("decide"), active });
   $("#pipeline").innerHTML = STAGES.map(
     (s) => `<button type="button" class="stage ${s.cls}" role="tab" aria-selected="${s.id === st.id}" data-act="stage:${s.id}" data-nolock>
       <span class="label"><i></i>${s.label}</span><span class="count">${countIn(s.id)}</span><span class="sub">${s.sub}</span><span class="bar"></span></button>`,
   ).join("");
-  $("#stage-hint").textContent = st.id === "low" ? st.hint.replace("mínimo", `mínimo (${S.settings.minRating})`) : st.hint;
+  $("#stage-hint").textContent = st.hint.replace("{min}", decimal(S.settings.minRating));
   paintList();
 }
 
 let busyKey = "";
 const currentBusyKey = () =>
   S.tasks
-    .filter((t) => t.status === "queued" || t.status === "running")
-    .map((t) => `${t.kind}:${t.jobId ?? ""}:${t.status}`)
+    .filter((k) => k.status === "queued" || k.status === "running")
+    .map((k) => `${k.kind}:${k.jobId ?? ""}:${k.status}`)
     .join("|");
 export const busyChanged = () => currentBusyKey() !== busyKey;
 
@@ -256,16 +263,17 @@ function paintList() {
   let html = "";
   if (st.id === "decide") {
     const fresh = S.jobs.filter((j) => j.status === "new").length;
-    const triaging = S.tasks.some((t) => t.kind === "triage" && !t.jobId && (t.status === "queued" || t.status === "running"));
-    if (fresh && !triaging) html += `<div class="banner"><span>🧠 ${plural(fresh, "vaga nova ainda não foi avaliada", "vagas novas ainda não foram avaliadas")} pela IA.</span>${btn("triage", "Avaliar agora", null, "primary small")}</div>`;
+    const triaging = S.tasks.some((k) => k.kind === "triage" && !k.jobId && (k.status === "queued" || k.status === "running"));
+    if (fresh && !triaging)
+      html += `<div class="banner"><span>🧠 ${fresh === 1 ? t("1 vaga nova ainda não foi avaliada pela IA.") : t("{n} vagas novas ainda não foram avaliadas pela IA.", { n: fresh })}</span>${btn("triage", t("Avaliar agora"), null, "primary small")}</div>`;
     if (jobs.length > 1 && !filterText)
-      html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn("tailor-many", "📦 Gerar vários pacotes de uma vez", null, "small ghost")}</div>`;
+      html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn("tailor-many", t("📦 Gerar vários pacotes de uma vez"), null, "small ghost")}</div>`;
   }
   if (st.id === "ready" && jobs.length && !filterText) html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}</div>`;
   if (!jobs.length) {
     const [icon, text, cta] = st.empty;
     html += filterText
-      ? `<div class="empty"><div class="big">🔍</div><p>Nenhuma vaga com “${esc(filterText)}” nesta etapa.</p></div>`
+      ? `<div class="empty"><div class="big">🔍</div><p>${t("Nenhuma vaga com “{q}” nesta etapa.", { q: esc(filterText) })}</p></div>`
       : `<div class="empty"><div class="big">${icon}</div><p>${esc(text)}</p>${cta ? btn(cta[0], cta[1], null, "primary") : ""}</div>`;
   } else html += jobs.map(card).join("");
   box.innerHTML = html;
@@ -278,9 +286,9 @@ function paintList() {
 let animateNext = true;
 
 const checkAllButton = () =>
-  S.tasks.some((t) => t.kind === "check" && !t.jobId && (t.status === "queued" || t.status === "running"))
-    ? `<span class="busy"><span class="spin"></span>Conferindo as vagas…</span>`
-    : btn("check-open", "🔒 Conferir se ainda estão abertas", null, "small ghost", "Abre o link de cada vaga que você ainda não enviou e marca as encerradas");
+  S.tasks.some((k) => k.kind === "check" && !k.jobId && (k.status === "queued" || k.status === "running"))
+    ? `<span class="busy"><span class="spin"></span>${t("Conferindo as vagas…")}</span>`
+    : btn("check-open", t("🔒 Conferir se ainda estão abertas"), null, "small ghost", t("Abre o link de cada vaga que você ainda não enviou e marca as encerradas"));
 
 /** Teclado na página de vagas: j/k andam entre as vagas (setas também, quando uma vaga está selecionada), Enter abre. */
 export function jobsKeydown(e) {
@@ -307,20 +315,20 @@ export function jobsKeydown(e) {
 const drawer = { id: null, tab: "resumo", data: null };
 export const drawerOpen = () => Boolean(drawer.id);
 const DRAWER_TABS = [
-  ["resumo", "Resumo", () => true],
-  ["pacote", "Pacote", (d) => Boolean(d.pkg)],
-  ["emails", "E-mails e mensagens", (d) => Boolean(d.docs?.emails)],
-  ["ficha", "Ficha", (d) => Boolean(d.sheet)],
-  ["entrevista", "Entrevista", (d) => Boolean(d.docs?.interview)],
-  ["perguntas", "Perguntas", () => true],
-  ["descricao", "Descrição da vaga", () => true],
+  ["resumo", t("Resumo"), () => true],
+  ["pacote", t("Pacote"), (d) => Boolean(d.pkg)],
+  ["emails", t("E-mails e mensagens"), (d) => Boolean(d.docs?.emails)],
+  ["ficha", t("Ficha"), (d) => Boolean(d.sheet)],
+  ["entrevista", t("Entrevista"), (d) => Boolean(d.docs?.interview)],
+  ["perguntas", t("Perguntas"), () => true],
+  ["descricao", t("Descrição da vaga"), () => true],
 ];
 
 export async function openDrawer(id, tab = "resumo") {
   drawer.id = id;
   drawer.tab = tab;
   drawer.data = null;
-  $("#drawer-root").innerHTML = `<div class="scrim" data-act="close-drawer" data-nolock></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><div class="drawer-body"><span class="busy"><span class="spin"></span>Carregando…</span></div></aside>`;
+  $("#drawer-root").innerHTML = `<div class="scrim" data-act="close-drawer" data-nolock></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"><div class="drawer-body"><span class="busy"><span class="spin"></span>${t("Carregando…")}</span></div></aside>`;
   await reloadDrawer();
 }
 
@@ -360,8 +368,8 @@ export function paintDrawer() {
     <div class="drawer-top">
       ${mono(d.company, "lg")}
       <div>${meta(job)}<h2 id="drawer-title">${esc(d.title)}</h2>
-        <div class="status-line"><span class="chip">${esc(st?.label ?? d.statusLabel)}</span>${d.url ? link(d.url, "🔗 Vaga original", "small ghost") : ""}</div></div>
-      ${btn("close-drawer", "✕", null, "ghost icon", "Fechar (Esc)")}
+        <div class="status-line"><span class="chip">${esc(st?.label ?? t(d.statusLabel))}</span>${d.url ? link(d.url, t("🔗 Vaga original"), "small ghost") : ""}</div></div>
+      ${btn("close-drawer", "✕", null, "ghost icon", t("Fechar (Esc)"))}
     </div>
     <div class="job-actions">${actionsFor(job)}${jobTask(job.id) ? "" : drawerExtras(job)}</div>
     <nav class="tabs" role="tablist">${tabs
@@ -380,11 +388,11 @@ export function paintDrawer() {
 function drawerExtras(j) {
   const out = [];
   if (!["applied", "interview", "offer", "rejected"].includes(j.status))
-    out.push(btn("tailor-options", j.pkg ? "⚙ Gerar de novo com opções" : "⚙ Gerar com opções", j.id, "ghost small"));
-  if (["new", "triaged", "shortlisted", "discarded"].includes(j.status)) out.push(btn("retriage", "🧠 Avaliar de novo", j.id, "ghost small"));
+    out.push(btn("tailor-options", j.pkg ? t("⚙ Gerar de novo com opções") : t("⚙ Gerar com opções"), j.id, "ghost small"));
+  if (["new", "triaged", "shortlisted", "discarded"].includes(j.status)) out.push(btn("retriage", t("🧠 Avaliar de novo"), j.id, "ghost small"));
   if (S.webSearch && !["rejected", "discarded"].includes(j.status))
-    out.push(btn("research", j.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar na web", j.id, "ghost small", "Anúncio oficial, site da empresa e se a vaga é real"));
-  if (CHECKABLE.includes(j.status) && j.url) out.push(btn("check-one", "🔒 Conferir se está aberta", j.id, "ghost small", "Abre o link da vaga e procura sinais de que ela acabou"));
+    out.push(btn("research", j.research ? t("🔎 Pesquisar de novo na web") : t("🔎 Pesquisar na web"), j.id, "ghost small", t("Anúncio oficial, site da empresa e se a vaga é real")));
+  if (CHECKABLE.includes(j.status) && j.url) out.push(btn("check-one", t("🔒 Conferir se está aberta"), j.id, "ghost small", t("Abre o link da vaga e procura sinais de que ela acabou")));
   return out.join("");
 }
 
@@ -393,19 +401,22 @@ function flagsPanels(d) {
   let html = "";
   const o = original(d);
   if (o)
-    html += `<div class="panel"><h3>🔁 Vaga repetida</h3><p class="muted">Parece a mesma vaga que ${btn("open", `${esc(o.company)} — ${esc(o.title)}`, o.id, "small")} <span class="faint">(${esc(stageOf(o.status)?.label ?? o.statusLabel)}, ${esc(o.source)})</span>: mesma empresa, mesmo cargo e o mesmo texto, em outro site.</p>
-      <p class="faint" style="margin-top:8px">${d.status === "discarded" ? "Por isso ela entrou já descartada. Se não for a mesma, reabra." : "Confira antes de gerar outro pacote ou se candidatar de novo."}</p>
-      ${d.status === "discarded" ? "" : `<div class="btn-row" style="margin-top:10px">${btn("not-duplicate", "Não é a mesma vaga", d.id, "small ghost")}</div>`}</div>`;
+    html += `<div class="panel"><h3>${t("🔁 Vaga repetida")}</h3><p class="muted">${t("Parece a mesma vaga que {job} {info}: mesma empresa, mesmo cargo e o mesmo texto, em outro site.", {
+      job: btn("open", `${esc(o.company)} — ${esc(o.title)}`, o.id, "small"),
+      info: `<span class="faint">(${esc(stageOf(o.status)?.label ?? t(o.statusLabel))}, ${esc(o.source)})</span>`,
+    })}</p>
+      <p class="faint" style="margin-top:8px">${d.status === "discarded" ? t("Por isso ela entrou já descartada. Se não for a mesma, reabra.") : t("Confira antes de gerar outro pacote ou se candidatar de novo.")}</p>
+      ${d.status === "discarded" ? "" : `<div class="btn-row" style="margin-top:10px">${btn("not-duplicate", t("Não é a mesma vaga"), d.id, "small ghost")}</div>`}</div>`;
   const r = reopenedFrom(d);
   if (r)
-    html += `<div class="panel"><h3>📨 Vaga reaberta</h3><p class="muted">${esc(reopenedText(r))}: ${btn("open", `${esc(r.company)} — ${esc(r.title)}`, r.id, "small")} <span class="faint">(${esc(stageOf(r.status)?.label ?? r.statusLabel)})</span>.</p>
-      <p class="faint" style="margin-top:8px">Como foi há mais de ${S.settings.repeatWindowDays ?? 90} dias, ou esta foi publicada depois, o agente trata como uma vaga nova da mesma empresa. Confira se vale se candidatar de novo.</p></div>`;
+    html += `<div class="panel"><h3>${t("📨 Vaga reaberta")}</h3><p class="muted">${esc(reopenedText(r))}: ${btn("open", `${esc(r.company)} — ${esc(r.title)}`, r.id, "small")} <span class="faint">(${esc(stageOf(r.status)?.label ?? t(r.statusLabel))})</span>.</p>
+      <p class="faint" style="margin-top:8px">${t("Como foi há mais de {days} dias, ou esta foi publicada depois, o agente trata como uma vaga nova da mesma empresa. Confira se vale se candidatar de novo.", { days: S.settings.repeatWindowDays ?? 90 })}</p></div>`;
   const c = d.openCheck;
   if (c && (CHECKABLE.includes(d.status) || d.status === "discarded")) {
     const [cls, text] = OPEN_TEXT[c.verdict] ?? OPEN_TEXT.sem_confirmacao;
-    html += `<div class="panel"${c.verdict === "encerrada" ? ' style="border-color:var(--bad)"' : ""}><h3>🔒 A vaga está aberta? <span class="faint" style="font-weight:400">· conferida em ${new Date(c.at).toLocaleDateString("pt-BR")}</span></h3>
+    html += `<div class="panel"${c.verdict === "encerrada" ? ' style="border-color:var(--bad)"' : ""}><h3>${t("🔒 A vaga está aberta?")} <span class="faint" style="font-weight:400">· ${t("conferida em {date}", { date: dateText(c.at) })}</span></h3>
       <div class="status-line"><span class="chip ${cls}">${text}</span><span>${esc(c.reason)}</span></div>
-      ${c.verdict === "encerrada" ? `<p class="faint" style="margin-top:8px">Abra o link para ter certeza. Se ainda estiver aberta, use “Gerar mesmo assim”.</p>` : ""}</div>`;
+      ${c.verdict === "encerrada" ? `<p class="faint" style="margin-top:8px">${t("Abra o link para ter certeza. Se ainda estiver aberta, use “Gerar mesmo assim”.")}</p>` : ""}</div>`;
   }
   return html;
 }
@@ -414,15 +425,15 @@ function flagsPanels(d) {
 function sheetTab(s) {
   const from =
     s.from === "pacote"
-      ? "Do currículo adaptado para esta vaga."
-      : "Do seu currículo-base (esta vaga ainda não tem pacote; gerado o pacote, a ficha usa o currículo adaptado).";
-  return `<div class="panel"><p class="muted">Os campos que formulários como Gupy, InHire, Greenhouse e Workday pedem de novo, prontos para copiar. ${from} Perguntas como “por que você quer trabalhar aqui?” ficam na aba Perguntas.</p></div>
+      ? t("Do currículo adaptado para esta vaga.")
+      : t("Do seu currículo-base (esta vaga ainda não tem pacote; gerado o pacote, a ficha usa o currículo adaptado).");
+  return `<div class="panel"><p class="muted">${t("Os campos que formulários como Gupy, InHire, Greenhouse e Workday pedem de novo, prontos para copiar.")} ${from} ${t("Perguntas como “por que você quer trabalhar aqui?” ficam na aba Perguntas.")}</p></div>
   ${s.sections
     .map(
       (sec, i) => `<section class="panel sheet"><h3>${esc(sec.title)}</h3>${sec.fields
         .map(
-          (f, k) => `<div class="sheet-row${f.long ? " long" : ""}"><span class="sheet-label">${esc(f.label)}${f.long ? `<small>${f.value.length} caracteres</small>` : ""}</span>
-          <div class="sheet-value">${esc(f.value)}</div>${btn("copy-sheet", "📋", `${i}:${k}`, "small ghost icon", `Copiar: ${f.label}`)}</div>`,
+          (f, k) => `<div class="sheet-row${f.long ? " long" : ""}"><span class="sheet-label">${esc(f.label)}${f.long ? `<small>${t("{n} caracteres", { n: f.value.length })}</small>` : ""}</span>
+          <div class="sheet-value">${esc(f.value)}</div>${btn("copy-sheet", "📋", `${i}:${k}`, "small ghost icon", t("Copiar: {label}", { label: f.label }))}</div>`,
         )
         .join("")}</section>`,
     )
@@ -433,17 +444,17 @@ function sheetTab(s) {
 function answersTab(d) {
   const list = [...(d.answers ?? [])].reverse();
   return `<div class="panel answer-new">
-    <h3>Pergunta do formulário</h3>
-    <p class="muted">Cole a pergunta que o formulário de candidatura faz, como "Por que você quer trabalhar aqui?" ou "Fale de um projeto de que você se orgulha". A IA responde com o seu perfil e com o que a vaga diz da empresa.</p>
-    <label class="field"><span>Pergunta</span><textarea id="ans-q" data-keep="ans-q" rows="3" placeholder="ex.: Por que você gostaria de trabalhar na ${esc(d.company)}?"></textarea></label>
-    <label class="field"><span>Limite de caracteres <small>(se o formulário tiver)</small></span><input id="ans-limit" data-keep="ans-limit" type="number" min="50" max="20000" step="10" placeholder="ex.: 500" style="max-width:180px"></label>
-    <label class="field"><span>O que só você sabe <small>(opcional)</small></span><small>Motivação, opinião sobre o produto, algo que não está no perfil. Vale só para esta resposta.</small><textarea id="ans-ctx" data-keep="ans-ctx" rows="2" placeholder="ex.: Uso o app deles há um ano e gosto de como resolvem X."></textarea></label>
-    <div class="btn-row">${btn("answer-ask", "✍️ Responder", d.id, "primary")}</div>
+    <h3>${t("Pergunta do formulário")}</h3>
+    <p class="muted">${t("Cole a pergunta que o formulário de candidatura faz, como “Por que você quer trabalhar aqui?” ou “Fale de um projeto de que você se orgulha”. A IA responde com o seu perfil e com o que a vaga diz da empresa.")}</p>
+    <label class="field"><span>${t("Pergunta")}</span><textarea id="ans-q" data-keep="ans-q" rows="3" placeholder="${esc(t("ex.: Por que você gostaria de trabalhar na {company}?", { company: d.company }))}"></textarea></label>
+    <label class="field"><span>${t("Limite de caracteres")} <small>${t("(se o formulário tiver)")}</small></span><input id="ans-limit" data-keep="ans-limit" type="number" min="50" max="20000" step="10" placeholder="${esc(t("ex.: 500"))}" style="max-width:180px"></label>
+    <label class="field"><span>${t("O que só você sabe")} <small>${t("(opcional)")}</small></span><small>${t("Motivação, opinião sobre o produto, algo que não está no perfil. Vale só para esta resposta.")}</small><textarea id="ans-ctx" data-keep="ans-ctx" rows="2" placeholder="${esc(t("ex.: Uso o app deles há um ano e gosto de como resolvem X."))}"></textarea></label>
+    <div class="btn-row">${btn("answer-ask", t("✍️ Responder"), d.id, "primary")}</div>
   </div>
   ${
     list.length
       ? list.map(answerCard).join("")
-      : `<p class="faint" style="margin:4px 2px">Nenhuma pergunta respondida ainda. As respostas ficam salvas aqui e em <code>perguntas_e_respostas.md</code>, na pasta do pacote.</p>`
+      : `<p class="faint" style="margin:4px 2px">${t("Nenhuma pergunta respondida ainda. As respostas ficam salvas aqui e em <code>perguntas_e_respostas.md</code>, na pasta do pacote.")}</p>`
   }`;
 }
 
@@ -453,15 +464,15 @@ function answerCard(a) {
     <h3>${esc(a.question)}</h3>
     <div class="message">${esc(a.answer)}</div>
     <div class="status-line" style="margin-top:8px">
-      <span class="chip ${over ? "bad" : ""}">${a.answer.length} caracteres${a.limit ? ` de ${a.limit}` : ""}</span>
-      ${btn("answer-copy", "📋 Copiar", a.id, "small")}${btn("answer-delete", "🗑 Apagar", a.id, "small ghost")}
+      <span class="chip ${over ? "bad" : ""}">${a.limit ? t("{n} de {limit} caracteres", { n: a.answer.length, limit: a.limit }) : t("{n} caracteres", { n: a.answer.length })}</span>
+      ${btn("answer-copy", t("📋 Copiar"), a.id, "small")}${btn("answer-delete", t("🗑 Apagar"), a.id, "small ghost")}
     </div>
-    ${a.adjustments?.length ? `<p class="faint answer-history">Ajustes pedidos: ${a.adjustments.map((x) => `“${esc(x)}”`).join(" · ")}</p>` : ""}
-    ${a.warnings?.length ? `<p class="answer-warn">⚠ Confira antes de usar: ${esc(a.warnings.join("; "))}</p>` : ""}
-    ${a.needsYou?.length ? `<div class="answer-needs"><strong>Para ficar com a sua cara, conte:</strong><ul>${a.needsYou.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
+    ${a.adjustments?.length ? `<p class="faint answer-history">${t("Ajustes pedidos:")} ${a.adjustments.map((x) => `“${esc(x)}”`).join(" · ")}</p>` : ""}
+    ${a.warnings?.length ? `<p class="answer-warn">${t("⚠ Confira antes de usar:")} ${esc(a.warnings.join("; "))}</p>` : ""}
+    ${a.needsYou?.length ? `<div class="answer-needs"><strong>${t("Para ficar com a sua cara, conte:")}</strong><ul>${a.needsYou.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
     <div class="answer-refine">
-      <input type="text" data-keep="refine-${esc(a.id)}" maxlength="1000" placeholder="Ajustar: mais curto, cite o projeto X, em inglês… ou responda o que falta acima" aria-label="O que ajustar nesta resposta">
-      ${btn("answer-refine", "Ajustar", a.id, "small")}
+      <input type="text" data-keep="refine-${esc(a.id)}" maxlength="1000" placeholder="${esc(t("Ajustar: mais curto, cite o projeto X, em inglês… ou responda o que falta acima"))}" aria-label="${esc(t("O que ajustar nesta resposta"))}">
+      ${btn("answer-refine", t("Ajustar"), a.id, "small")}
     </div>
   </section>`;
 }
@@ -469,7 +480,7 @@ function answerCard(a) {
 /** Botão com "escrevendo…" enquanto a IA trabalha (leva de 20 a 60 segundos). */
 async function writingButton(el, run) {
   const label = el.innerHTML;
-  el.innerHTML = `<span class="spin"></span> Escrevendo…`;
+  el.innerHTML = `<span class="spin"></span> ${t("Escrevendo…")}`;
   try {
     return await run();
   } finally {
@@ -481,31 +492,31 @@ function drawerBody(d, job) {
   if (drawer.tab === "perguntas") return answersTab(d);
   if (drawer.tab === "pacote") {
     const reports = [
-      ["Relatório ATS (palavras-chave da vaga)", d.docs.ats],
-      ["Nota do recrutador e o que faltou", d.docs.rating],
-      ["Conferência com o seu perfil", d.docs.coverage],
+      [t("Relatório ATS (palavras-chave da vaga)"), d.docs.ats],
+      [t("Nota do recrutador e o que faltou"), d.docs.rating],
+      [t("Conferência com o seu perfil"), d.docs.coverage],
     ].filter(([, v]) => v);
-    return `<div class="panel"><h3>Arquivos</h3><div class="btn-row">${d.files.map((f) => link(f.url, `📄 ${esc(f.name)}`, "small")).join("")}${btn("folder", "📁 Abrir pasta", d.id, "small")}</div>
+    return `<div class="panel"><h3>${t("Arquivos")}</h3><div class="btn-row">${d.files.map((f) => link(f.url, `📄 ${esc(f.name)}`, "small")).join("")}${btn("folder", t("📁 Abrir pasta"), d.id, "small")}</div>
       <p class="faint" style="margin-top:8px">output/${esc(d.pkg.folder)}</p>
-      <p class="muted" style="margin-top:10px">Editou o <code>resume.json</code> ou o <code>cover_letter.json</code> na pasta? ${btn("rerender", "🔄 Gerar o PDF de novo", d.id, "small")}</p></div>
+      <p class="muted" style="margin-top:10px">${t("Editou o <code>resume.json</code> ou o <code>cover_letter.json</code> na pasta?")} ${btn("rerender", t("🔄 Gerar o PDF de novo"), d.id, "small")}</p></div>
       ${d.docs.readme ? `<div class="panel md">${md(d.docs.readme)}</div>` : ""}
-      ${reports.map(([t, v], i) => `<details class="panel md"${d.status === "low_fit" && i === 1 ? " open" : ""}><summary>${t}</summary>${md(v)}</details>`).join("")}`;
+      ${reports.map(([title, v], i) => `<details class="panel md"${d.status === "low_fit" && i === 1 ? " open" : ""}><summary>${title}</summary>${md(v)}</details>`).join("")}`;
   }
   if (drawer.tab === "emails") {
     const e = d.docs.emails;
     const a = d.apply;
     const send = a
-      ? `<div class="panel"><h3>✉️ Enviar o e-mail de candidatura</h3>
-        <p class="muted">${a.to ? `Para <strong>${esc(a.to)}</strong>. ` : "A vaga não traz um e-mail de contato: preencha o destinatário. "}Nada é enviado sozinho: o e-mail abre pronto, você confere e clica em Enviar.</p>
-        <div class="btn-row" style="margin-top:10px">${btn("email-draft", "✉️ Abrir no programa de e-mail, com o currículo anexado", d.id, "primary small", "Outlook, Thunderbird ou o programa de e-mail do computador")}${link(a.gmail, "Abrir no Gmail", "small")}${btn("folder", "📁 Pasta do PDF", d.id, "small ghost")}</div>
-        <p class="faint" style="margin-top:8px">No programa de e-mail, ${a.attachments.length ? `${esc(a.attachments.join(" e "))} já vai anexado` : "anexe o currículo"}. No Gmail pelo navegador, arraste o PDF da pasta para o e-mail.</p></div>`
+      ? `<div class="panel"><h3>${t("✉️ Enviar o e-mail de candidatura")}</h3>
+        <p class="muted">${a.to ? t("Para <strong>{to}</strong>.", { to: esc(a.to) }) : t("A vaga não traz um e-mail de contato: preencha o destinatário.")} ${t("Nada é enviado sozinho: o e-mail abre pronto, você confere e clica em Enviar.")}</p>
+        <div class="btn-row" style="margin-top:10px">${btn("email-draft", t("✉️ Abrir no programa de e-mail, com o currículo anexado"), d.id, "primary small", t("Outlook, Thunderbird ou o programa de e-mail do computador"))}${link(a.gmail, t("Abrir no Gmail"), "small")}${btn("folder", t("📁 Pasta do PDF"), d.id, "small ghost")}</div>
+        <p class="faint" style="margin-top:8px">${a.attachments.length ? t("No programa de e-mail, {files} já vai anexado.", { files: esc(a.attachments.join(t(" e "))) }) : t("No programa de e-mail, anexe o currículo.")} ${t("No Gmail pelo navegador, arraste o PDF da pasta para o e-mail.")}</p></div>`
       : "";
     return `${send}${e.intro ? `<div class="panel md">${md(e.intro)}</div>` : ""}${e.sections
       .map(
         (s, i) => `<section class="email"><h3>${esc(s.title)}</h3>
-        ${s.subjects.map((sub, k) => `<div class="subject"><span><span class="faint">Assunto</span> ${esc(sub)}</span>${btn("copy-email", "📋", `s:${i}:${k}`, "small ghost icon", "Copiar assunto")}</div>`).join("")}
+        ${s.subjects.map((sub, k) => `<div class="subject"><span><span class="faint">${t("Assunto")}</span> ${esc(sub)}</span>${btn("copy-email", "📋", `s:${i}:${k}`, "small ghost icon", t("Copiar assunto"))}</div>`).join("")}
         ${s.notes ? `<div class="md muted">${md(s.notes)}</div>` : ""}
-        <div class="message">${esc(s.message)}</div><div class="btn-row">${btn("copy-email", "📋 Copiar mensagem", `m:${i}`, "small")}${s.gmail ? link(s.gmail, "Abrir no Gmail", "small ghost") : ""}</div>
+        <div class="message">${esc(s.message)}</div><div class="btn-row">${btn("copy-email", t("📋 Copiar mensagem"), `m:${i}`, "small")}${s.gmail ? link(s.gmail, t("Abrir no Gmail"), "small ghost") : ""}</div>
       </section>`,
       )
       .join("")}`;
@@ -514,26 +525,26 @@ function drawerBody(d, job) {
   if (drawer.tab === "entrevista") return `<div class="panel md">${md(d.docs.interview)}</div>`;
   if (drawer.tab === "descricao") return `<div class="panel desc">${esc(d.description)}</div>`;
 
-  const t = d.triage;
+  const tri = d.triage;
   let html = `<div class="panel" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">${gauges(job)}<p class="muted" style="flex:1;min-width:220px">${
-    t ? `Aderência <strong>${esc(t.fit)}</strong> segundo a IA. ${esc(t.reason)}` : "Esta vaga ainda não foi avaliada pela IA."
+    tri ? `${t("Aderência <strong>{fit}</strong> segundo a IA.", { fit: esc(FIT[tri.fit] ?? tri.fit) })} ${esc(tri.reason)}` : t("Esta vaga ainda não foi avaliada pela IA.")
   }</p></div>`;
   if (["applied", "interview", "offer", "rejected"].includes(d.status) && (d.appliedAt || d.notes))
-    html += `<div class="panel"><h3>Sua candidatura</h3><p>${d.appliedAt ? `Enviada em ${new Date(d.appliedAt).toLocaleDateString("pt-BR")}` : ""}${d.appliedViaLabel ? ` via ${esc(d.appliedViaLabel)}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
-  if (t?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>🚩 Sinais de golpe</h3><p>${esc(t.scam.join("; "))}</p></div>`;
+    html += `<div class="panel"><h3>${t("Sua candidatura")}</h3><p>${d.appliedAt ? esc(t("Enviada em {date}", { date: dateText(d.appliedAt) })) : ""}${d.appliedViaLabel ? ` ${esc(t("via {channel}", { channel: t(d.appliedViaLabel) }))}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
+  if (tri?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>${t("🚩 Sinais de golpe")}</h3><p>${esc(tri.scam.join("; "))}</p></div>`;
   html += flagsPanels(d);
   if (d.research) {
     const r = d.research;
-    html += `<div class="panel"${r.verdict === "suspeita" ? ' style="border-color:var(--bad)"' : ""}><h3>🔎 Pesquisa na web <span class="faint" style="font-weight:400">· ${new Date(r.at).toLocaleDateString("pt-BR")}</span></h3>
+    html += `<div class="panel"${r.verdict === "suspeita" ? ' style="border-color:var(--bad)"' : ""}><h3>${t("🔎 Pesquisa na web")} <span class="faint" style="font-weight:400">· ${dateText(r.at)}</span></h3>
       <div class="status-line">${researchChip(r)}</div>
-      <div class="btn-row" style="margin-top:10px">${link(r.postingUrl, "🔗 Anúncio oficial", "small")}${link(r.companySite, "🏢 Site da empresa", "small")}</div>
+      <div class="btn-row" style="margin-top:10px">${link(r.postingUrl, t("🔗 Anúncio oficial"), "small")}${link(r.companySite, t("🏢 Site da empresa"), "small")}</div>
       ${r.notes?.length ? `<ul class="${r.verdict === "confirmada" ? "list-ok" : "list-gap"}" style="margin-top:10px">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
-      <p class="faint" style="margin-top:8px">Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem e o pacote.</p></div>`;
+      <p class="faint" style="margin-top:8px">${t("Os detalhes encontrados estão no fim da descrição da vaga e já valem para a triagem e o pacote.")}</p></div>`;
   }
-  if (d.evidence.length) html += `<div class="panel"><h3>O que você já tem</h3><ul class="list-ok">${d.evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
-  if (d.gaps.length) html += `<div class="panel"><h3>Lacunas: requisitos sem evidência no seu perfil</h3><ul class="list-gap">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
-  html += `<div class="panel"><h3>Descrição</h3><div class="desc">${esc(d.description.slice(0, 1400))}${d.description.length > 1400 ? "…" : ""}</div>
-    ${d.description.length > 1400 ? `<div style="margin-top:10px">${btn("dtab", "Ler a descrição completa", "descricao", "small")}</div>` : ""}</div>`;
+  if (d.evidence.length) html += `<div class="panel"><h3>${t("O que você já tem")}</h3><ul class="list-ok">${d.evidence.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  if (d.gaps.length) html += `<div class="panel"><h3>${t("Lacunas: requisitos sem evidência no seu perfil")}</h3><ul class="list-gap">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  html += `<div class="panel"><h3>${t("Descrição")}</h3><div class="desc">${esc(d.description.slice(0, 1400))}${d.description.length > 1400 ? "…" : ""}</div>
+    ${d.description.length > 1400 ? `<div style="margin-top:10px">${btn("dtab", t("Ler a descrição completa"), "descricao", "small")}</div>` : ""}</div>`;
   return html;
 }
 
@@ -543,9 +554,9 @@ async function setStatus(id, status, note = "", { quiet = false, via } = {}) {
   const r = await api(`/api/jobs/${encodeURIComponent(id)}/status`, { status, note, via });
   if (!quiet) {
     const dest = stageOf(status);
-    toast(`${r.job.company} → ${dest?.label ?? r.job.statusLabel}`, "", {
-      label: "Desfazer",
-      run: () => setStatus(id, r.previous, "", { quiet: true }).then(() => toast("Desfeito.")),
+    toast(`${r.job.company} → ${dest?.label ?? t(r.job.statusLabel)}`, "", {
+      label: t("Desfazer"),
+      run: () => setStatus(id, r.previous, "", { quiet: true }).then(() => toast(t("Desfeito."))),
     });
   }
   await app.refresh();
@@ -561,8 +572,8 @@ function reopenStatus(j) {
 function webOption(withHint = false) {
   const on = S.webSearch && S.webDefault;
   return `<label class="switch"><input type="checkbox" name="web"${on ? " checked" : ""}${S.webSearch ? "" : " disabled"}>
-    <span>Incluir busca na web com IA (LinkedIn, Gupy, Indeed)<small>${S.webSearch ? "Acha mais vagas no Brasil, mas é mais lenta e usa mais a IA." : "A IA escolhida não faz busca na web."}</small></span></label>
-    ${withHint ? `<label class="field" id="web-hint"${on ? "" : " hidden"}><span>Instrução extra para a busca na web <small>(opcional)</small></span><input name="hint" placeholder="ex.: só vagas em Londrina, ou empresas de saúde" autocomplete="off"></label>` : ""}`;
+    <span>${t("Incluir busca na web com IA (LinkedIn, Gupy, Indeed)")}<small>${S.webSearch ? t("Acha mais vagas no Brasil, mas é mais lenta e usa mais a IA.") : t("A IA escolhida não faz busca na web.")}</small></span></label>
+    ${withHint ? `<label class="field" id="web-hint"${on ? "" : " hidden"}><span>${t("Instrução extra para a busca na web")} <small>${t("(opcional)")}</small></span><input name="hint" placeholder="${esc(t("ex.: só vagas em Londrina, ou empresas de saúde"))}" autocomplete="off"></label>` : ""}`;
 }
 const toggleHint = (form) => {
   const web = form.elements.web;
@@ -573,15 +584,15 @@ export async function markApplied(id) {
   const j = findJob(id);
   const channels = Object.entries(S.applyChannels ?? {});
   const r = await modal({
-    title: "Marcar como enviada",
+    title: t("Marcar como enviada"),
     html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
-      <p class="muted" style="margin-top:6px">A vaga vai para “Em andamento”${j.pkg ? " e a pasta do pacote para <code>output/2-em-andamento</code>" : ""}. Daqui a 7 dias aparece o lembrete de follow-up.</p>
-      <div class="field"><span>Por onde você se candidatou?</span><small>Com isso dá para ver depois qual canal responde mais.</small>
+      <p class="muted" style="margin-top:6px">${j.pkg ? t("A vaga vai para “Em andamento” e a pasta do pacote para <code>output/2-em-andamento</code>.") : t("A vaga vai para “Em andamento”.")} ${t("Daqui a 7 dias aparece o lembrete de follow-up.")}</p>
+      <div class="field"><span>${t("Por onde você se candidatou?")}</span><small>${t("Com isso dá para ver depois qual canal responde mais.")}</small>
         <div class="via-grid">${channels
-          .map(([v, label]) => `<label class="option"><input type="radio" name="via" value="${esc(v)}"${v === j.applyGuess ? " checked" : ""}><span>${esc(label)}</span></label>`)
+          .map(([v, label]) => `<label class="option"><input type="radio" name="via" value="${esc(v)}"${v === j.applyGuess ? " checked" : ""}><span>${esc(t(label))}</span></label>`)
           .join("")}</div></div>
-      <label class="field"><span>Observação <small>(opcional)</small></span><input name="note" placeholder="ex.: indicação do Fulano, código da vaga 123" autocomplete="off"></label>`,
-    confirm: "✅ Já me candidatei",
+      <label class="field"><span>${t("Observação")} <small>${t("(opcional)")}</small></span><input name="note" placeholder="${esc(t("ex.: indicação do Fulano, código da vaga 123"))}" autocomplete="off"></label>`,
+    confirm: t("✅ Já me candidatei"),
   });
   if (r) await setStatus(id, "applied", r.note, { via: r.via });
 }
@@ -602,56 +613,57 @@ action("dtab", (id) => {
 action("tailor", async (id) => {
   const j = findJob(id);
   await api(`/api/jobs/${encodeURIComponent(id)}/tailor`, {});
-  toast(`📦 Pacote de ${j?.company ?? "vaga"} na fila. Leva alguns minutos; pode continuar usando.`);
+  toast(t("📦 Pacote de {company} na fila. Leva alguns minutos; pode continuar usando.", { company: j?.company ?? t("vaga") }));
   await app.refresh();
 });
 action("tailor-anyway", async (id) => {
   const j = findJob(id);
   const ok = await modal({
-    title: "Gerar mesmo com a vaga encerrada?",
+    title: t("Gerar mesmo com a vaga encerrada?"),
     html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
-      <p class="muted" style="margin-top:6px">Na última conferência, ${esc(j.openCheck?.reason ?? "a página disse que a vaga acabou")}. Abra o link e confira: se ela ainda aceita candidaturas, gere o pacote.</p>
-      ${j.url ? `<div class="btn-row" style="margin-top:10px">${link(j.url, "🔗 Abrir a vaga", "small")}</div>` : ""}`,
-    confirm: "📦 Gerar mesmo assim",
+      <p class="muted" style="margin-top:6px">${t("Na última conferência: {reason}. Abra o link e confira: se ela ainda aceita candidaturas, gere o pacote.", { reason: esc(j.openCheck?.reason ?? t("a página disse que a vaga acabou")) })}</p>
+      ${j.url ? `<div class="btn-row" style="margin-top:10px">${link(j.url, t("🔗 Abrir a vaga"), "small")}</div>` : ""}`,
+    confirm: t("📦 Gerar mesmo assim"),
   });
   if (!ok) return;
   await api(`/api/jobs/${encodeURIComponent(id)}/tailor`, { ignoreClosed: true });
-  toast(`📦 Pacote de ${j.company} na fila.`);
+  toast(t("📦 Pacote de {company} na fila.", { company: j.company }));
   await app.refresh();
 });
 action("check-open", async () => {
   await api("/api/check-open", {});
-  toast("🔒 Conferindo as vagas que você ainda não enviou. As encerradas sem pacote vão para “Encerradas”.");
+  toast(t("🔒 Conferindo as vagas que você ainda não enviou. As encerradas sem pacote vão para “Encerradas”."));
   await app.refresh();
 });
 action("not-duplicate", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/not-duplicate`, {});
-  toast("Marca de repetida tirada. O agente não marca esta vaga de novo.");
+  toast(t("Marca de repetida tirada. O agente não marca esta vaga de novo."));
   await app.refresh();
   if (drawer.id === id) await reloadDrawer();
 });
 action("check-one", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/check-open`, {});
-  toast("🔒 Conferindo se a vaga ainda está aberta.");
+  toast(t("🔒 Conferindo se a vaga ainda está aberta."));
   await app.refresh();
 });
 action("tailor-options", async (id) => {
   const j = findJob(id);
   const sel = (name, label, options) =>
-    `<label class="field"><span>${label}</span><select name="${name}">${options.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label>`;
+    `<label class="field"><span>${label}</span><select name="${name}">${options.map(([v, text]) => `<option value="${v}">${text}</option>`).join("")}</select></label>`;
+  const auto = t("Automático");
   const r = await modal({
-    title: j.pkg ? "Gerar o pacote de novo" : "Gerar o pacote com opções",
+    title: j.pkg ? t("Gerar o pacote de novo") : t("Gerar o pacote com opções"),
     html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
-      <p class="muted" style="margin-top:6px">Deixe em “automático” para o agente decidir pela vaga.${j.pkg ? " O pacote atual continua na pasta; o novo vai para uma pasta própria." : ""}</p>
-      <div class="grid2">${sel("lang", "Idioma do currículo", [["", "Automático"], ["pt-BR", "Português"], ["en", "Inglês"]])}${sel("paper", "Papel", [["", "Automático"], ["A4", "A4"], ["Letter", "Letter (EUA/Canadá)"]])}</div>
-      <div class="grid2">${sel("market", "Mercado", [["", "Automático"], ["BR", "Brasil"], ["US", "EUA"], ["CA", "Canadá"], ["UK", "Reino Unido"], ["EU", "Europa"], ["LATAM", "América Latina"], ["GLOBAL", "Global"]])}${sel("cover", "Carta de apresentação", [["", "Automático"], ["sim", "Gerar"], ["nao", "Não gerar"]])}</div>
-      <label class="switch"><input type="checkbox" name="interview"><span>Gerar também o guia de entrevista</span></label>
-      ${isClosed(j) ? `<label class="switch"><input type="checkbox" name="ignoreClosed"><span>Gerar mesmo com a vaga parecendo encerrada<small>${esc(j.openCheck.reason)}</small></span></label>` : ""}`,
-    confirm: "📦 Gerar",
+      <p class="muted" style="margin-top:6px">${t("Deixe em “automático” para o agente decidir pela vaga.")}${j.pkg ? ` ${t("O pacote atual continua na pasta; o novo vai para uma pasta própria.")}` : ""}</p>
+      <div class="grid2">${sel("lang", t("Idioma do currículo"), [["", auto], ["pt-BR", t("Português")], ["en", t("Inglês")]])}${sel("paper", t("Papel"), [["", auto], ["A4", "A4"], ["Letter", t("Letter (EUA/Canadá)")]])}</div>
+      <div class="grid2">${sel("market", t("Mercado"), [["", auto], ["BR", t("Brasil")], ["US", t("EUA")], ["CA", t("Canadá")], ["UK", t("Reino Unido")], ["EU", t("Europa")], ["LATAM", t("América Latina")], ["GLOBAL", t("Global")]])}${sel("cover", t("Carta de apresentação"), [["", auto], ["sim", t("Gerar")], ["nao", t("Não gerar")]])}</div>
+      <label class="switch"><input type="checkbox" name="interview"><span>${t("Gerar também o guia de entrevista")}</span></label>
+      ${isClosed(j) ? `<label class="switch"><input type="checkbox" name="ignoreClosed"><span>${t("Gerar mesmo com a vaga parecendo encerrada")}<small>${esc(j.openCheck.reason)}</small></span></label>` : ""}`,
+    confirm: t("📦 Gerar"),
   });
   if (!r) return;
   await api(`/api/jobs/${encodeURIComponent(id)}/tailor`, r);
-  toast(`📦 Pacote de ${j.company} na fila.`);
+  toast(t("📦 Pacote de {company} na fila.", { company: j.company }));
   await app.refresh();
 });
 action("tailor-many", async () => {
@@ -659,16 +671,16 @@ action("tailor-many", async () => {
   const jobs = sorted(st, S.jobs.filter((j) => st.statuses.includes(j.status))).slice(0, 25);
   const top = new Set(jobs.filter((j) => (j.triage?.score ?? 0) >= S.settings.minTriageScore && !j.triage?.scam?.length).slice(0, 3).map((j) => j.id));
   const r = await modal({
-    title: "Gerar vários pacotes",
+    title: t("Gerar vários pacotes"),
     wide: true,
-    html: `<p class="muted">Marque as vagas. Os pacotes entram na fila e são gerados um de cada vez (alguns minutos cada).</p>
+    html: `<p class="muted">${t("Marque as vagas. Os pacotes entram na fila e são gerados um de cada vez (alguns minutos cada).")}</p>
       ${jobs
         .map(
           (j) => `<label class="option"><input type="checkbox" name="ids" data-list value="${esc(j.id)}"${top.has(j.id) ? " checked" : ""}>
-          <span><b>${esc(j.company)}</b> — ${esc(j.title)}<br><small class="muted">${j.triage ? `triagem ${j.triage.score}` : "sem triagem"}${j.triage?.scam?.length ? " · 🚩 sinais de golpe" : ""}</small></span></label>`,
+          <span><b>${esc(j.company)}</b> — ${esc(j.title)}<br><small class="muted">${j.triage ? t("triagem {score}", { score: j.triage.score }) : t("sem triagem")}${j.triage?.scam?.length ? ` · ${t("🚩 sinais de golpe")}` : ""}</small></span></label>`,
         )
         .join("")}`,
-    confirm: "📦 Gerar os marcados",
+    confirm: t("📦 Gerar os marcados"),
   });
   if (!r?.ids?.length) return;
   const res = await api("/api/tailor-many", { ids: r.ids });
@@ -677,17 +689,17 @@ action("tailor-many", async () => {
 });
 action("retriage", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/triage`, {});
-  toast("🧠 Avaliando a vaga de novo.");
+  toast(t("🧠 Avaliando a vaga de novo."));
   await app.refresh();
 });
 action("research", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/research`, {});
-  toast("🔎 Pesquisando a vaga e a empresa na web.");
+  toast(t("🔎 Pesquisando a vaga e a empresa na web."));
   await app.refresh();
 });
 action("rerender", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/render`, {});
-  toast("🔄 Gerando o PDF de novo.");
+  toast(t("🔄 Gerando o PDF de novo."));
   await app.refresh();
 });
 action("applied", (id) => markApplied(id));
@@ -698,28 +710,28 @@ action("interview", async (id) => {
   const j = findJob(id);
   await setStatus(id, "interview", "", { quiet: true });
   const ok = await modal({
-    title: "Boa! Quer o guia de entrevista?",
-    html: `<p>A IA prepara perguntas prováveis e respostas com base ${j?.pkg ? "no currículo que você enviou para essa vaga" : "no seu currículo-base"}. Leva alguns minutos e roda em segundo plano.</p>`,
-    confirm: "🎤 Gerar guia",
-    cancel: "Agora não",
+    title: t("Boa! Quer o guia de entrevista?"),
+    html: `<p>${j?.pkg ? t("A IA prepara perguntas prováveis e respostas com base no currículo que você enviou para essa vaga.") : t("A IA prepara perguntas prováveis e respostas com base no seu currículo-base.")} ${t("Leva alguns minutos e roda em segundo plano.")}</p>`,
+    confirm: t("🎤 Gerar guia"),
+    cancel: t("Agora não"),
   });
   if (ok) await ACTIONS_guide(id);
 });
 async function ACTIONS_guide(id) {
   await api(`/api/jobs/${encodeURIComponent(id)}/interview`, {});
-  toast("🎤 Guia de entrevista na fila.");
+  toast(t("🎤 Guia de entrevista na fila."));
   await app.refresh();
 }
 action("guide", (id) => ACTIONS_guide(id));
 action("folder", (id) => api(`/api/jobs/${encodeURIComponent(id)}/open-folder`, {}));
 action("answer-ask", async (jobId, _arg, el) => {
   const question = $("#ans-q").value.trim();
-  if (question.length < 5) return toast("Escreva a pergunta do formulário.", "bad");
+  if (question.length < 5) return toast(t("Escreva a pergunta do formulário."), "bad");
   const limit = Number($("#ans-limit").value) || undefined;
   const context = $("#ans-ctx").value.trim();
   await writingButton(el, () => api(`/api/jobs/${encodeURIComponent(jobId)}/answers`, { question, limit, context }));
   for (const f of ["#ans-q", "#ans-limit", "#ans-ctx"]) if ($(f)) $(f).value = "";
-  toast("✍️ Resposta pronta. Revise antes de colar no formulário.");
+  toast(t("✍️ Resposta pronta. Revise antes de colar no formulário."));
   if (drawer.id === jobId) await reloadDrawer();
 });
 
@@ -748,7 +760,7 @@ action("answer-copy", async (answerId) => {
 action("answer-delete", async (answerId) => {
   const jobId = drawer.id;
   const a = drawer.data?.answers?.find((x) => x.id === answerId);
-  if (!a || !(await modal({ title: "Apagar esta resposta?", html: `<p class="muted">${esc(a.question)}</p>`, confirm: "Apagar" }))) return;
+  if (!a || !(await modal({ title: t("Apagar esta resposta?"), html: `<p class="muted">${esc(a.question)}</p>`, confirm: t("Apagar") }))) return;
   await api(`/api/jobs/${encodeURIComponent(jobId)}/answers/${encodeURIComponent(answerId)}/delete`, {});
   if (drawer.id === jobId) await reloadDrawer();
 });
@@ -760,7 +772,7 @@ action("copy-sheet", async (ref) => {
 });
 action("email-draft", async (id) => {
   await api(`/api/jobs/${encodeURIComponent(id)}/email-draft`, {});
-  toast("✉️ Abrindo o e-mail no seu programa de e-mail. Confira e clique em Enviar.");
+  toast(t("✉️ Abrindo o e-mail no seu programa de e-mail. Confira e clique em Enviar."));
 });
 action("copy-email", async (ref) => {
   const e = drawer.data?.docs?.emails;
@@ -771,58 +783,58 @@ action("copy-email", async (ref) => {
 
 action("search", async () => {
   const r = await modal({
-    title: "Buscar vagas novas",
-    html: `<p class="muted">Procura nas fontes das suas preferências. Depois a IA avalia cada vaga contra o seu perfil.</p>${webOption(true)}`,
-    confirm: "🔎 Buscar",
+    title: t("Buscar vagas novas"),
+    html: `<p class="muted">${t("Procura nas fontes das suas preferências. Depois a IA avalia cada vaga contra o seu perfil.")}</p>${webOption(true)}`,
+    confirm: t("🔎 Buscar"),
     onOpen: toggleHint,
   });
   if (!r) return;
   await api("/api/search", { web: r.web, hint: r.web ? r.hint : "" });
-  toast("🔎 Busca começou. As vagas aparecem em “Para decidir”.");
+  toast(t("🔎 Busca começou. As vagas aparecem em “Para decidir”."));
   await app.refresh();
 });
 action("auto", async () => {
   const r = await modal({
-    title: "Piloto automático",
-    html: `<p class="muted">Busca vagas, a IA avalia e gera os pacotes das melhores (triagem ≥ ${S.settings.minTriageScore}). Nada é enviado: no fim você só revisa.</p>
+    title: t("Piloto automático"),
+    html: `<p class="muted">${t("Busca vagas, a IA avalia e gera os pacotes das melhores (triagem ≥ {min}). Nada é enviado: no fim você só revisa.", { min: S.settings.minTriageScore })}</p>
       ${webOption()}
-      <label class="field"><span>Quantos pacotes gerar no máximo</span><input type="number" name="max" min="0" max="15" value="3" required></label>
-      <label class="switch"><input type="checkbox" name="interview"><span>Gerar também o guia de entrevista de cada pacote</span></label>`,
-    confirm: "🚀 Começar",
+      <label class="field"><span>${t("Quantos pacotes gerar no máximo")}</span><input type="number" name="max" min="0" max="15" value="3" required></label>
+      <label class="switch"><input type="checkbox" name="interview"><span>${t("Gerar também o guia de entrevista de cada pacote")}</span></label>`,
+    confirm: t("🚀 Começar"),
   });
   if (!r) return;
   await api("/api/auto", { web: r.web, max: Number(r.max), interview: r.interview });
-  toast("🚀 Piloto automático começou. Acompanhe no canto da tela.");
+  toast(t("🚀 Piloto automático começou. Acompanhe no canto da tela."));
   await app.refresh();
 });
 action("triage", async () => {
   await api("/api/triage", {});
-  toast("🧠 Avaliando as vagas novas.");
+  toast(t("🧠 Avaliando as vagas novas."));
   await app.refresh();
 });
 action("paste", async () => {
   const r = await modal({
-    title: "Colar uma vaga",
+    title: t("Colar uma vaga"),
     wide: true,
-    html: `<p class="muted">Para vagas do LinkedIn, da Gupy, ou que chegaram por indicação, e-mail ou WhatsApp, mesmo sem link. A IA avalia na hora e você gera o pacote como qualquer outra vaga.</p>
-      <label class="field"><span>Texto da vaga</span><small>Cole tudo o que você recebeu: requisitos, como é a equipe, e-mail para enviar o currículo, prazo. Se a página da vaga abre sem login (Gupy, site da empresa), pode informar só o link. Do LinkedIn, cole o texto.</small><textarea name="text" rows="9" placeholder="ex.: A Empresa X está contratando Desenvolvedor Full Stack Pleno para o time de pagamentos. Requisitos: Node.js, React… Currículo para vagas@empresax.com.br até 20/11."></textarea></label>
-      <label class="field"><span>Link da vaga <small>(se tiver)</small></span><input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
-      <div class="grid2"><label class="field"><span>Empresa</span><input name="company" autocomplete="off"></label><label class="field"><span>Cargo</span><input name="title" autocomplete="off"></label></div>
-      <label class="field"><span>Local <small>(opcional)</small></span><input name="location" placeholder="ex.: Remoto, Londrina (híbrido)" autocomplete="off"></label>
+    html: `<p class="muted">${t("Para vagas do LinkedIn, da Gupy, ou que chegaram por indicação, e-mail ou WhatsApp, mesmo sem link. A IA avalia na hora e você gera o pacote como qualquer outra vaga.")}</p>
+      <label class="field"><span>${t("Texto da vaga")}</span><small>${t("Cole tudo o que você recebeu: requisitos, como é a equipe, e-mail para enviar o currículo, prazo. Se a página da vaga abre sem login (Gupy, site da empresa), pode informar só o link. Do LinkedIn, cole o texto.")}</small><textarea name="text" rows="9" placeholder="${esc(t("ex.: A Empresa X está contratando Desenvolvedor Full Stack Pleno para o time de pagamentos. Requisitos: Node.js, React… Currículo para vagas@empresax.com.br até 20/11."))}"></textarea></label>
+      <label class="field"><span>${t("Link da vaga")} <small>${t("(se tiver)")}</small></span><input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
+      <div class="grid2"><label class="field"><span>${t("Empresa")}</span><input name="company" autocomplete="off"></label><label class="field"><span>${t("Cargo")}</span><input name="title" autocomplete="off"></label></div>
+      <label class="field"><span>${t("Local")} <small>${t("(opcional)")}</small></span><input name="location" placeholder="${esc(t("ex.: Remoto, Londrina (híbrido)"))}" autocomplete="off"></label>
       <label class="switch"><input type="checkbox" name="research"${S.webSearch ? " checked" : " disabled"}>
-        <span>🔎 Pesquisar a vaga e a empresa na web<small>${
+        <span>${t("🔎 Pesquisar a vaga e a empresa na web")}<small>${
           S.webSearch
-            ? "Acha o anúncio oficial e o site da empresa, completa o que faltar (requisitos, como se candidatar) e confere se a vaga é real — por exemplo, se o e-mail bate com o domínio da empresa."
-            : "A IA escolhida não faz busca na web."
+            ? t("Acha o anúncio oficial e o site da empresa, completa o que faltar (requisitos, como se candidatar) e confere se a vaga é real. Por exemplo, se o e-mail bate com o domínio da empresa.")
+            : t("A IA escolhida não faz busca na web.")
         }</small></span></label>`,
-    confirm: "Adicionar e avaliar",
+    confirm: t("Adicionar e avaliar"),
     onOpen: (form) => {
       // Texto completo, ou só o link (o agente lê a página). Valida antes de fechar a janela, sem perder o que foi colado.
       const check = () => {
         const text = form.elements.text.value.trim();
         const url = form.elements.url.value.trim();
         form.elements.text.setCustomValidity(
-          text && text.length < 80 ? "O texto está curto demais: cole a descrição inteira." : !text && !url ? "Cole o texto completo da vaga ou informe o link." : "",
+          text && text.length < 80 ? t("O texto está curto demais: cole a descrição inteira.") : !text && !url ? t("Cole o texto completo da vaga ou informe o link.") : "",
         );
       };
       form.addEventListener("input", check);
@@ -833,8 +845,8 @@ action("paste", async () => {
   const res = await api("/api/paste", r);
   const same = res.job.duplicateOf ? findJob(res.job.duplicateOf) : null;
   toast(
-    `➕ ${res.job.company} adicionada. ${r.research && S.webSearch ? "A IA vai pesquisar a vaga na web e avaliar." : "A IA está avaliando."}${
-      same ? ` 🔁 Parece a mesma vaga que ${same.company} — ${same.title}: confira antes de gerar outro pacote.` : ""
+    `${t("➕ {company} adicionada.", { company: res.job.company })} ${r.research && S.webSearch ? t("A IA vai pesquisar a vaga na web e avaliar.") : t("A IA está avaliando.")}${
+      same ? ` ${t("🔁 Parece a mesma vaga que {job}: confira antes de gerar outro pacote.", { job: `${same.company} — ${same.title}` })}` : ""
     }`,
   );
   stage = "decide";
@@ -851,10 +863,10 @@ export function paletteJobs(query) {
     .filter((j) => words.every((w) => norm(`${j.company} ${j.title}`).includes(w)))
     .slice(0, 6)
     .flatMap((j) => [
-      { group: "Vagas", ico: "💼", text: `${j.company} — ${j.title}`, sub: stageOf(j.status)?.label, run: () => openDrawer(j.id) },
-      ...(SENDABLE.includes(j.status) ? [{ group: "Vagas", ico: "✅", text: `Já me candidatei: ${j.company}`, sub: j.title, run: () => markApplied(j.id) }] : []),
+      { group: t("Vagas"), ico: "💼", text: `${j.company} — ${j.title}`, sub: stageOf(j.status)?.label, run: () => openDrawer(j.id) },
+      ...(SENDABLE.includes(j.status) ? [{ group: t("Vagas"), ico: "✅", text: t("Já me candidatei: {company}", { company: j.company }), sub: j.title, run: () => markApplied(j.id) }] : []),
       ...(["discarded", "rejected"].includes(j.status)
         ? []
-        : [{ group: "Vagas", ico: "📝", text: `Responder pergunta do formulário: ${j.company}`, sub: j.title, run: () => openDrawer(j.id, "perguntas") }]),
+        : [{ group: t("Vagas"), ico: "📝", text: t("Responder pergunta do formulário: {company}", { company: j.company }), sub: j.title, run: () => openDrawer(j.id, "perguntas") }]),
     ]);
 }

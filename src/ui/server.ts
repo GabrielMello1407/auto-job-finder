@@ -6,6 +6,7 @@ import { paths } from "../config.js";
 import { writeDashboard } from "../dashboard.js";
 import { closeBrowser } from "../render/pdf.js";
 import { openExternal } from "../util/open.js";
+import { langOf, tr } from "./i18n.js";
 import { CONTENT_TYPES, HttpError, inside, readJson, readRaw, send, sendJson, serveFile, type App, type Ctx, type Route } from "./http.js";
 import { jobRoutes } from "./routes/jobs.js";
 import { linkedinRoutes } from "./routes/linkedin.js";
@@ -20,12 +21,15 @@ import { TaskQueue } from "./tasks.js";
  */
 
 const PUBLIC_DIR = fileURLToPath(new URL("./public/", import.meta.url));
-const STATIC = /^\/(app\.css|logo\.svg|js\/[\w-]+\.js)$/;
+// Arquivos da página, inclusive os dicionários de idioma (locales/en.json).
+const STATIC = /^\/(app\.css|logo\.svg|js\/[\w-]+\.js|locales\/[\w-]+\.json)$/;
 
 const FORBIDDEN_PAGE = `<!doctype html><meta charset="utf-8"><title>auto-job-finder</title>
 <body style="font:16px system-ui;max-width:560px;margin:15vh auto;padding:0 16px">
 <h1>Abra pelo terminal</h1><p>Por segurança, a interface só abre pelo link que o comando <code>ajf</code> mostra no terminal.
-Rode <code>ajf</code> de novo para abrir.</p></body>`;
+Rode <code>ajf</code> de novo para abrir.</p>
+<h1 lang="en">Open it from the terminal</h1><p lang="en">For security, the interface only opens through the link the <code>ajf</code> command shows in the terminal.
+Run <code>ajf</code> again to open it.</p></body>`;
 
 export interface UiOptions {
   port?: number;
@@ -67,7 +71,7 @@ export async function startUi(opts: UiOptions = {}) {
 
   async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
     const host = req.headers.host ?? "";
-    if (!allowedHosts.has(host)) return send(res, 421, "Host não permitido.", "text/plain; charset=utf-8");
+    if (!allowedHosts.has(host)) return send(res, 421, tr(langOf(req), "Host não permitido."),"text/plain; charset=utf-8");
     const url = new URL(req.url ?? "/", `http://${host}`);
     const method = req.method ?? "GET";
 
@@ -116,7 +120,8 @@ export async function startUi(opts: UiOptions = {}) {
       if (m !== method) continue;
       const match = p.match(pattern);
       if (!match) continue;
-      const ctx: Ctx = { req, res, url, params: match.slice(1), app, body: () => readJson(req), raw: (limit) => readRaw(req, limit) };
+      const lang = langOf(req);
+      const ctx: Ctx = { req, res, url, lang, t: (text, vars) => tr(lang, text, vars), params: match.slice(1), app, body: () => readJson(req), raw: (limit) => readRaw(req, limit) };
       const data = await handler(ctx);
       if (data !== undefined && !res.headersSent) sendJson(res, data);
       return;
@@ -128,7 +133,9 @@ export async function startUi(opts: UiOptions = {}) {
     handle(req, res).catch((e) => {
       const status = e instanceof HttpError ? e.status : 500;
       if (status === 500) console.error(e);
-      if (!res.headersSent) sendJson(res, { error: e instanceof Error ? e.message : String(e) }, status);
+      // Erro de rota: a mensagem é a chave de tradução; vai no idioma da página que chamou.
+      const message = e instanceof HttpError ? tr(langOf(req), e.message, e.vars) : e instanceof Error ? e.message : String(e);
+      if (!res.headersSent) sendJson(res, { error: message }, status);
       else res.end();
     });
   });

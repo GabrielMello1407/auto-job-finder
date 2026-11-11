@@ -53,7 +53,8 @@ CI runs the same checks on Ubuntu, macOS and Windows for every PR.
 - Touched `src/render/`? Run `npm run ajf -- base` and check the PDFs in `output/base/`.
 - Touched an AI provider? Run `npm run ajf -- ia --testar`.
 - Touched the interface? Run `npm run demo` and use the real screen, in the light and dark themes.
-- Changed something shown in the documentation screenshots (`docs/images/`)? Take new screenshots **from the demo**, never with real data.
+- Changed something shown in the documentation screenshots? Take new screenshots **from the demo**, never with real data, in both languages: `docs/images/` with the interface in Portuguese and `docs/images/en/` (same file names) with it in English.
+- Touched the layout? Check it narrow too (phone and tablet widths) and in both languages, since the English labels have a different length.
 
 Tests live in `tests/` (`*.test.ts` files), run offline and never call an AI. Every bug fix should come with a test when possible.
 
@@ -71,14 +72,16 @@ They are the same as in [CLAUDE.md](CLAUDE.md) (also [AGENTS.md](AGENTS.md)), wh
    - every text that comes from outside goes through `esc()` before reaching the page.
 6. **Language:**
    - code identifiers in English;
-   - the interface and the files generated for the user are in Brazilian Portuguese for now (an English interface is planned);
+   - the interface is in English and Brazilian Portuguese: every text on screen goes through `t("Texto em português")` (page) or `c.t(...)` / `new HttpError(status, "...")` (server), and gets its English entry in `src/ui/public/locales/en.json`. `npm run i18n` lists what is missing, and `npm test` fails while something is;
+   - the terminal and the files generated for the user are in Brazilian Portuguese for now; what goes to recruiters follows the language of each job;
+   - in the English docs, buttons and screens are named by their English label on screen;
    - the main documentation (README, CONTRIBUTING, SECURITY, `docs/`) is in English, with a Brazilian Portuguese copy next to it (`README.pt-BR.md`, `CONTRIBUTING.pt-BR.md`, `SECURITY.pt-BR.md`, `docs/guia-de-uso.md`, `docs/como-funciona.md`). When you change one, change the other.
 
 ## Where to make changes
 
 - **New AI provider:** implement `LlmProvider` in `src/providers/` and register it in `PROVIDERS` and `createProvider` (`src/providers/index.ts`). Every call goes through `src/llm.ts`.
 - **New job source:** create a `JobSource` in `src/jobs/sources/` (with a `description`) and register it in `SOURCES`.
-- **Interface:** routes in `src/ui/routes/`, page in `src/ui/public/` (HTML, CSS and JS modules, no build step). Keep the interface and the terminal menu (`src/menu.ts`) offering the same actions.
+- **Interface:** routes in `src/ui/routes/`, page in `src/ui/public/` (HTML, CSS and JS modules, no build step). Keep the interface and the terminal menu (`src/menu.ts`) offering the same actions. New text on screen: write it in Portuguese inside `t()` and add the English to `locales/en.json`. Pass a literal, not a variable, so the key can be found (`cond ? t("a") : t("b")`, not `t(cond ? "a" : "b")`).
 
 The full structure and how each part works are in [docs/how-it-works.md](docs/how-it-works.md). The user walkthrough is in [docs/user-guide.md](docs/user-guide.md): update it (and the Portuguese copy) when something users see changes.
 

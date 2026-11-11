@@ -315,6 +315,12 @@ flowchart LR
   - files are only served from inside `output/`.
 - **Task queue** (`src/ui/tasks.ts`): search, packages and setup run one at a time, because they use the same AI, the same browser for PDFs and the same `jobs.json`. What a task would print in the terminal becomes live progress on screen. Between tasks, the PDF browser is closed.
 - **Same actions as the terminal:** the interface calls the same functions as `ajf` and the menu (`src/menu.ts`). No duplicated logic.
+- **Language (English and Portuguese):** the Portuguese text is the translation key, gettext style. `src/ui/public/locales/en.json` maps each Portuguese text to English, with `{variables}`.
+  - On the page, `js/i18n.js` exports `t("Texto {n}", { n })`. `js/boot.js` loads the dictionary before `main.js`, so module-level texts are translated too. The choice lives in `localStorage` (`ajf.lang`); the first visit follows the browser's language. Switching reloads the page.
+  - Every API call carries the `x-ajf-lang` header. On the server, `src/ui/i18n.ts` reads the same dictionary: routes use `c.t(...)` for task names and results, and `new HttpError(status, "Texto {x}", { x })` is translated when the error is sent.
+  - Labels the server sends ready-made (status names, channels, job sources, AI names) are translated on the page or in the route.
+  - `scripts/i18n.ts` (`npm run i18n`) finds every key in the code and lists what is missing or unused in each dictionary; `tests/i18n.test.ts` fails if a text has no translation, if a translation has other `{variables}` or if a key is no longer used.
+  - Not translated yet: what goes to recruiters follows the job's language; AI-written text, package files, task progress and the terminal are in Portuguese.
 
 ## Code map
 
@@ -353,11 +359,13 @@ src/
   render/                HTML template → PDF (headless browser)
   ui/
     server.ts http.ts    local server, security, files
+    i18n.ts              server-side translation (x-ajf-lang header)
     routes/              API: jobs, profile (setup and update), LinkedIn, preferences
     tasks.ts             task queue
-    public/              the page: index.html, app.css, logo.svg, js/
+    public/              the page: index.html, app.css, logo.svg, js/ (boot.js, i18n.js), locales/en.json
   util/                  text, line-by-line diff, opening links and folders (no shell)
 scripts/demo.ts          npm run demo: fictional data to test the interface
+scripts/i18n.ts          npm run i18n: interface texts missing or unused in each dictionary
 examples/profile/        fictional profile (format reference and tests)
 tests/                   offline tests (npm test)
 ```

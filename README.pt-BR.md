@@ -27,6 +27,8 @@
 
 ![A interface: vagas organizadas em etapas, com triagem, nota e ATS de cada uma](docs/images/vagas.jpg)
 
+> **Idioma:** a interface existe em português e em inglês (🌐 no pé da barra lateral). Currículos, cartas e e-mails saem no idioma de cada vaga (português ou inglês).
+
 ## O que ele faz
 
 1. **Monta o seu perfil** a partir do que você tiver: currículo (PDF ou DOCX), PDF do LinkedIn, portfólio, GitHub, um texto, ou respondendo a perguntas.

@@ -61,10 +61,10 @@ export function linkedinRoutes(app: App): Route[] {
         if (queue.has("linkedin")) throw new HttpError(409, "O plano já está sendo gerado.");
         const current = str((await c.body()).current, 40_000);
         return {
-          task: queue.add("linkedin", "Plano de LinkedIn", async () => {
+          task: queue.add("linkedin", c.t("Plano de LinkedIn"), async () => {
             await linkedinPlan({ current: current.length > 40 ? current : undefined });
             app.broadcast("profile", {});
-            return "plano pronto";
+            return c.t("plano pronto");
           }),
         };
       },
@@ -78,10 +78,10 @@ export function linkedinRoutes(app: App): Route[] {
         const current = str((await c.body()).current, 40_000);
         if (current.length < 200) throw new HttpError(400, "Mande o PDF do seu LinkedIn ou cole o texto do perfil: sem ele não há o que conferir.");
         return {
-          task: queue.add("linkedin-check", "Conferindo o seu LinkedIn", async () => {
+          task: queue.add("linkedin-check", c.t("Conferindo o seu LinkedIn"), async () => {
             await linkedinCheck(current);
             app.broadcast("profile", {});
-            return "conferência pronta";
+            return c.t("conferência pronta");
           }),
         };
       },

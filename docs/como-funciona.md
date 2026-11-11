@@ -315,6 +315,12 @@ flowchart LR
   - arquivos só são servidos de dentro de `output/`.
 - **Fila de tarefas** (`src/ui/tasks.ts`): busca, pacotes e cadastro rodam um de cada vez, porque usam a mesma IA, o mesmo navegador para PDF e o mesmo `jobs.json`. O que a tarefa escreveria no terminal vira o andamento ao vivo na tela. Entre uma tarefa e outra, o navegador do PDF é fechado.
 - **Mesmas ações do terminal:** a interface chama as mesmas funções do `ajf` e do menu (`src/menu.ts`). Nada de lógica duplicada.
+- **Idioma (português e inglês):** o texto em português é a chave da tradução, no estilo gettext. O `src/ui/public/locales/en.json` liga cada texto em português ao inglês, com `{variáveis}`.
+  - Na página, o `js/i18n.js` exporta `t("Texto {n}", { n })`. O `js/boot.js` carrega o dicionário antes do `main.js`, para os textos de nível de módulo também saírem traduzidos. A escolha fica no `localStorage` (`ajf.lang`); na primeira vez, vale o idioma do navegador. Trocar recarrega a página.
+  - Toda chamada à API leva o cabeçalho `x-ajf-lang`. No servidor, o `src/ui/i18n.ts` lê o mesmo dicionário: as rotas usam `c.t(...)` no nome e no resultado das tarefas, e o `new HttpError(status, "Texto {x}", { x })` é traduzido na hora de responder.
+  - Os rótulos que o servidor manda prontos (nome dos status, canais, fontes de vagas, nome das IAs) são traduzidos na página ou na rota.
+  - O `scripts/i18n.ts` (`npm run i18n`) acha todas as chaves no código e lista o que falta ou sobra em cada dicionário; o `tests/i18n.test.ts` falha se um texto ficar sem tradução, se uma tradução tiver outras `{variáveis}` ou se uma chave não for mais usada.
+  - Ainda não traduzido: o que vai para o recrutador segue o idioma da vaga; o texto escrito pela IA, os arquivos do pacote, o andamento das tarefas e o terminal estão em português.
 
 ## Organização do código
 
@@ -353,11 +359,13 @@ src/
   render/                template HTML → PDF (navegador headless)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos
+    i18n.ts              tradução no servidor (cabeçalho x-ajf-lang)
     routes/              API: vagas, perfil (cadastro e atualização), LinkedIn, preferências
     tasks.ts             fila de tarefas
-    public/              a página: index.html, app.css, logo.svg, js/
+    public/              a página: index.html, app.css, logo.svg, js/ (boot.js, i18n.js), locales/en.json
   util/                  texto, comparação linha a linha (diff), abrir links e pastas (sem shell)
 scripts/demo.ts          npm run demo: dados fictícios para testar a interface
+scripts/i18n.ts          npm run i18n: textos da interface que faltam ou sobram em cada dicionário
 examples/profile/        perfil fictício (referência de formato e testes)
 tests/                   testes offline (npm test)
 ```

@@ -25,9 +25,9 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-![The interface: jobs organized in stages, with the triage score, rating and ATS match of each one](docs/images/vagas.jpg)
+![The interface: jobs organized in stages, with the triage score, rating and ATS match of each one](docs/images/en/vagas.jpg)
 
-> **Language note:** the interface and the files the agent writes for you are in Brazilian Portuguese for now. Resumes, cover letters and e-mails already come out in the language of each job (Portuguese or English). An English interface is planned.
+> **Language note:** the interface comes in English and Brazilian Portuguese (🌐 at the bottom of the sidebar). Resumes, cover letters and e-mails come out in the language of each job (Portuguese or English). The terminal and the files the agent writes for you in each package folder are in Portuguese for now.
 
 ## What it does
 
@@ -96,13 +96,13 @@ The full walkthrough, screen by screen, is in the **[user guide](docs/user-guide
 
 | | |
 |---|---|
-| ![Job details: what you already have and the gaps](docs/images/detalhes-resumo.jpg) | ![E-mails and messages ready to copy](docs/images/detalhes-emails.jpg) |
+| ![Job details: what you already have and the gaps](docs/images/en/detalhes-resumo.jpg) | ![E-mails and messages ready to copy](docs/images/en/detalhes-emails.jpg) |
 | **Job details:** what you already have, with evidence from your profile, and the gaps | **E-mails and messages:** application, LinkedIn and follow-up, with copy buttons |
-| ![Profile update proposal with the before and after](docs/images/perfil-atualizar.jpg) | ![LinkedIn review](docs/images/linkedin.jpg) |
+| ![Profile update proposal with the before and after](docs/images/en/perfil-atualizar.jpg) | ![LinkedIn review](docs/images/en/linkedin.jpg) |
 | **Profile update:** tell something new and review the before and after before saving | **LinkedIn:** what to fix, what is missing from the plan and what is already right |
-| ![Pasting a job received without a link](docs/images/colar-vaga-sem-link.jpg) | ![Job confirmed by the web search](docs/images/vaga-pesquisada.jpg) |
+| ![Pasting a job received without a link](docs/images/en/colar-vaga-sem-link.jpg) | ![Job confirmed by the web search](docs/images/en/vaga-pesquisada.jpg) |
 | **Job without a link:** paste what you received and ask for a web search | **Web search:** official posting, company site and whether the job is real |
-| ![Profile with items to confirm and an editor](docs/images/perfil.jpg) | ![Command palette with Ctrl+K](docs/images/paleta.jpg) |
+| ![Profile with items to confirm and an editor](docs/images/en/perfil.jpg) | ![Command palette with Ctrl+K](docs/images/en/paleta.jpg) |
 | **Profile:** the single source of facts, with what still needs confirming | **Ctrl+K:** find any job or action by typing |
 
 ```mermaid

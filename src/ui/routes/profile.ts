@@ -173,12 +173,12 @@ export function profileRoutes(app: App): Route[] {
           }
           if (body.type === "text") {
             const text = str(body.text, 40_000);
-            if (text.length < 40) throw new Error("Cole um texto um pouco maior.");
+            if (text.length < 40) throw new HttpError(400, "Cole um texto um pouco maior.");
             return addSource({ kind: "texto", label: "Texto colado", origin: "colado na interface", text });
           }
           if (body.type === "interview") {
             const doc = interviewSource((body.answers ?? {}) as InterviewAnswers, "interface");
-            if (doc.text.length < 40) throw new Error("Responda pelo menos algumas perguntas.");
+            if (doc.text.length < 40) throw new HttpError(400, "Responda pelo menos algumas perguntas.");
             return addSource(doc);
           }
         } catch (e) {
@@ -202,20 +202,20 @@ export function profileRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/profile\/read$/,
-      () => {
+      (c) => {
         busy();
         if (!draft.sources.length) throw new HttpError(400, "Adicione pelo menos uma fonte.");
         const sources = [...draft.sources];
         return {
-          task: queue.add("profile-read", "Lendo suas fontes", async () => {
+          task: queue.add("profile-read", c.t("Lendo suas fontes"), async () => {
             console.log(`Lendo ${sources.length} fonte(s) com a IA...`);
             const intake = await readIntake(sources);
             // Fontes mudaram enquanto a IA lia: essa leitura já não vale.
             const same = draft.sources.length === sources.length && sources.every((s, i) => draft.sources[i] === s);
-            if (!same) throw new Error("As fontes mudaram durante a leitura. Clique em “Ler minhas fontes” de novo.");
+            if (!same) throw new Error(c.t("As fontes mudaram durante a leitura. Clique em “Ler minhas fontes” de novo."));
             draft.intake = intake;
             app.broadcast("profile", {});
-            return intake.questions.length ? `${intake.questions.length} pergunta(s) para completar` : "tudo entendido";
+            return intake.questions.length ? c.t("{n} pergunta(s) para completar", { n: intake.questions.length }) : c.t("tudo entendido");
           }),
         };
       },
@@ -244,14 +244,14 @@ export function profileRoutes(app: App): Route[] {
         const sources = [...draft.sources];
         const intake = draft.intake;
         return {
-          task: queue.add("profile-build", "Montando seu perfil", async () => {
+          task: queue.add("profile-build", c.t("Montando seu perfil"), async () => {
             saveSources(sources);
             const { backup } = await buildAndSaveProfile({ sources, answers, choices, intake });
             draft.sources = [];
             draft.intake = null;
             app.broadcast("profile", {});
             app.jobsChanged();
-            return backup ? "perfil pronto (o anterior foi para um backup)" : "perfil pronto";
+            return backup ? c.t("perfil pronto (o anterior foi para um backup)") : c.t("perfil pronto");
           }),
         };
       },
@@ -276,14 +276,14 @@ export function profileRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/profile\/render$/,
-      () => {
+      (c) => {
         if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
         if (queue.has("render-base")) throw new HttpError(409, "Os PDFs já estão sendo gerados.");
         return {
-          task: queue.add("render-base", "PDFs do currículo-base", async () => {
+          task: queue.add("render-base", c.t("PDFs do currículo-base"), async () => {
             const files = await renderBaseResumes();
             app.broadcast("profile", {});
-            return `${files.length} PDF(s) em output/base`;
+            return c.t("{n} PDF(s) em output/base", { n: files.length });
           }),
         };
       },
@@ -315,7 +315,7 @@ export function profileRoutes(app: App): Route[] {
           }
           if (body.type === "text") {
             const text = str(body.text, 40_000);
-            if (text.length < 15) throw new Error("Conte a novidade com um pouco mais de detalhe.");
+            if (text.length < 15) throw new HttpError(400, "Conte a novidade com um pouco mais de detalhe.");
             return addUpdateSource({ kind: "respostas", label: "Novidade contada", origin: "interface", text });
           }
         } catch (e) {
@@ -327,17 +327,17 @@ export function profileRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/profile\/update\/propose$/,
-      () => {
+      (c) => {
         if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
         busy();
         if (!updateSources.length) throw new HttpError(400, "Conte a novidade: escreva, mande um arquivo ou um link.");
         const news = updateSources;
         updateSources = [];
         return {
-          task: queue.add("profile-update", "Preparando a atualização do perfil", async () => {
+          task: queue.add("profile-update", c.t("Preparando a atualização do perfil"), async () => {
             const p = await proposeProfileUpdate(news);
             app.broadcast("profile", {});
-            return `${p.changes.length} mudança(s) para você conferir`;
+            return c.t("{n} mudança(s) para você conferir", { n: p.changes.length });
           }),
         };
       },
@@ -345,17 +345,17 @@ export function profileRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/profile\/update\/apply$/,
-      () => {
+      (c) => {
         busy();
         const p = loadProposal();
         if (!p) throw new HttpError(404, "Não há proposta de atualização.");
         if (proposalOutdated(p)) throw new HttpError(409, "Você editou o perfil depois da proposta. Descarte e gere de novo.");
         return {
-          task: queue.add("profile-apply", "Atualizando o perfil e os currículos-base", async () => {
+          task: queue.add("profile-apply", c.t("Atualizando o perfil e os currículos-base"), async () => {
             await applyProposal();
             app.broadcast("profile", {});
             app.jobsChanged();
-            return "perfil e currículos-base atualizados";
+            return c.t("perfil e currículos-base atualizados");
           }),
         };
       },
@@ -372,16 +372,16 @@ export function profileRoutes(app: App): Route[] {
     [
       "POST",
       /^\/api\/profile\/rebuild-base$/,
-      () => {
+      (c) => {
         if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
         busy();
         if (queue.has("rebuild-base")) throw new HttpError(409, "Os currículos-base já estão sendo refeitos.");
         return {
-          task: queue.add("rebuild-base", "Refazendo os currículos-base", async () => {
+          task: queue.add("rebuild-base", c.t("Refazendo os currículos-base"), async () => {
             await rebuildBaseResumes();
             app.broadcast("profile", {});
             app.jobsChanged();
-            return "currículos-base refeitos a partir do perfil";
+            return c.t("currículos-base refeitos a partir do perfil");
           }),
         };
       },
