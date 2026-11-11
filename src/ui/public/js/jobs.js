@@ -1,5 +1,5 @@
 // Página de vagas: funil de etapas, cartões, gaveta de detalhes e as ações de cada vaga.
-import { $, $$, action, api, app, btn, copy, daysSince, esc, link, md, modal, mono, norm, plural, ring, level, S, store, t, toast } from "./core.js";
+import { $, $$, action, api, app, btn, copy, daysSince, esc, link, md, modal, mono, norm, plural, ring, level, S, store, t, toast, uploadFile } from "./core.js";
 import { dateText, getLang } from "./i18n.js";
 
 export const STAGES = [
@@ -447,6 +447,8 @@ function answersTab(d) {
     <h3>${t("Pergunta do formulário")}</h3>
     <p class="muted">${t("Cole a pergunta que o formulário de candidatura faz, como “Por que você quer trabalhar aqui?” ou “Fale de um projeto de que você se orgulha”. A IA responde com o seu perfil e com o que a vaga diz da empresa.")}</p>
     <label class="field"><span>${t("Pergunta")}</span><textarea id="ans-q" data-keep="ans-q" rows="3" placeholder="${esc(t("ex.: Por que você gostaria de trabalhar na {company}?", { company: d.company }))}"></textarea></label>
+    <div class="ans-image"><label class="btn small">${t("📷 Ler a pergunta de um print")}<input type="file" id="ans-img" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label><span class="faint">${t("ou cole (Ctrl+V) ou arraste o print aqui")}</span></div>
+    <div id="ans-found"></div>
     <label class="field"><span>${t("Limite de caracteres")} <small>${t("(se o formulário tiver)")}</small></span><input id="ans-limit" data-keep="ans-limit" type="number" min="50" max="20000" step="10" placeholder="${esc(t("ex.: 500"))}" style="max-width:180px"></label>
     <label class="field"><span>${t("O que só você sabe")} <small>${t("(opcional)")}</small></span><small>${t("Motivação, opinião sobre o produto, algo que não está no perfil. Vale só para esta resposta.")}</small><textarea id="ans-ctx" data-keep="ans-ctx" rows="2" placeholder="${esc(t("ex.: Uso o app deles há um ano e gosto de como resolvem X."))}"></textarea></label>
     <div class="btn-row">${btn("answer-ask", t("✍️ Responder"), d.id, "primary")}</div>
@@ -792,6 +794,85 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing || !e.target.matches?.(".answer-refine input")) return;
   e.preventDefault();
   e.target.parentElement.querySelector("button")?.click();
+});
+
+/* Print da pergunta: a IA lê o texto e o limite de caracteres; a pessoa confere antes de responder. */
+let foundQuestions = [];
+
+/** Reduz prints grandes (lado maior até 2000 px) para caber no limite das IAs e subir rápido. */
+async function shrinkImage(file) {
+  try {
+    const img = await createImageBitmap(file);
+    const scale = Math.min(1, 2000 / Math.max(img.width, img.height));
+    if (scale === 1 && file.size < 3_000_000) return file;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    const png = await new Promise((r) => canvas.toBlob(r, "image/png"));
+    return png && png.size < 4_000_000 ? png : await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+  } catch {
+    return file;
+  }
+}
+
+function useFoundQuestion(q) {
+  if ($("#ans-q")) $("#ans-q").value = q.question;
+  if ($("#ans-limit")) $("#ans-limit").value = q.limit ?? "";
+}
+
+async function readQuestionImage(file) {
+  const jobId = drawer.id;
+  const box = $("#ans-found");
+  if (!jobId || !box || !file) return;
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return toast(t("Mande uma imagem PNG, JPG, WEBP ou GIF."), "bad");
+  box.innerHTML = `<span class="busy"><span class="spin"></span>${t("Lendo a pergunta da imagem…")}</span>`;
+  try {
+    const blob = await shrinkImage(file);
+    const r = await uploadFile(`/api/jobs/${encodeURIComponent(jobId)}/answers/image`, new File([blob], "pergunta", { type: blob.type }));
+    foundQuestions = r.questions ?? [];
+    const unreadable = r.unreadable ? `<p class="answer-warn">${esc(t("⚠ Parte da imagem não deu para ler: {what}", { what: r.unreadable }))}</p>` : "";
+    if (!foundQuestions.length) box.innerHTML = `<p class="answer-warn">${t("Não achei uma pergunta de formulário na imagem.")}</p>${unreadable}`;
+    else if (foundQuestions.length === 1) {
+      useFoundQuestion(foundQuestions[0]);
+      box.innerHTML = `<p class="faint">${t("✓ Pergunta lida da imagem. Confira o texto antes de responder.")}</p>${unreadable}`;
+    } else
+      box.innerHTML = `<div class="found-questions"><p class="faint">${t("{n} perguntas na imagem. Escolha qual responder:", { n: foundQuestions.length })}</p>${foundQuestions
+        .map((q, i) => btn("use-found-question", `${esc(q.question)}${q.limit ? ` <small>(${esc(t("{n} caracteres", { n: q.limit }))})</small>` : ""}`, i, "small ghost"))
+        .join("")}</div>${unreadable}`;
+  } catch (e) {
+    box.innerHTML = "";
+    toast(e.message, "bad");
+  }
+}
+
+action("use-found-question", (i) => {
+  const q = foundQuestions[Number(i)];
+  if (!q) return;
+  useFoundQuestion(q);
+  $("#ans-q")?.focus();
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id !== "ans-img") return;
+  readQuestionImage(e.target.files?.[0]);
+  e.target.value = "";
+});
+document.addEventListener("paste", (e) => {
+  if (!e.target.closest?.(".answer-new")) return;
+  const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith("image/"));
+  if (!item) return;
+  e.preventDefault();
+  readQuestionImage(item.getAsFile());
+});
+document.addEventListener("dragover", (e) => {
+  if (e.target.closest?.(".answer-new") && [...(e.dataTransfer?.types ?? [])].includes("Files")) e.preventDefault();
+});
+document.addEventListener("drop", (e) => {
+  if (!e.target.closest?.(".answer-new")) return;
+  const file = [...(e.dataTransfer?.files ?? [])].find((f) => f.type.startsWith("image/"));
+  if (!file) return;
+  e.preventDefault();
+  readQuestionImage(file);
 });
 
 action("answer-copy", async (answerId) => {

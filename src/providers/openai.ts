@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { postJson, postSse } from "./http.js";
+import { openaiChatContent, openaiResponsesInput } from "./images.js";
 import { strictJsonSchema, structuredViaText, validate } from "./jsonText.js";
 import type { CallOptions, Effort, LlmProvider, SearchOptions } from "./types.js";
 import { logUsage } from "./usage.js";
@@ -30,7 +31,7 @@ async function responses({ opts, model, format, search }: ResponsesCall): Promis
   const body: Record<string, unknown> = {
     model,
     instructions: opts.system.join("\n\n"),
-    input: opts.user,
+    input: openaiResponsesInput(opts.user, opts.images),
     max_output_tokens: opts.maxTokens ?? 32000,
     stream: true,
   };
@@ -65,7 +66,7 @@ async function chat(opts: CallOptions, model: string, extra = ""): Promise<strin
     model,
     messages: [
       { role: "system", content: opts.system.join("\n\n") },
-      { role: "user", content: extra ? `${opts.user}\n\n${extra}` : opts.user },
+      { role: "user", content: openaiChatContent(extra ? `${opts.user}\n\n${extra}` : opts.user, opts.images) },
     ],
     max_tokens: opts.maxTokens ?? 16000,
   });

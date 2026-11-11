@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { ImageInput } from "./images.js";
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -23,6 +24,8 @@ export interface CallOptions {
   tier?: "main" | "fast";
   effort?: Effort;
   maxTokens?: number;
+  /** Imagens junto com o pedido (ex.: print de uma pergunta de formulário). Ver providers/images.ts. */
+  images?: ImageInput[];
 }
 
 export interface SearchOptions extends CallOptions {

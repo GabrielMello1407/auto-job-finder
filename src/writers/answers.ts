@@ -6,6 +6,7 @@ import { paths } from "../config.js";
 import { cleanJobText } from "../jobs/page.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { canWebSearch, structured } from "../llm.js";
+import { IMAGE_MAX_BYTES, imageMime, type ImageInput } from "../providers/images.js";
 import { forbiddenPatterns, profileTruthEvidence } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import type { Job, JobAnalysis, JobAnswer } from "../schemas.js";
@@ -119,6 +120,67 @@ export function isCompanyQuestion(question: string, company = ""): boolean {
  */
 export function shouldSuggestResearch(job: Job, question: string, webSearch = canWebSearch()): boolean {
   return webSearch && isCompanyQuestion(question, job.company) && job.research?.culture === undefined;
+}
+
+/* ----------------------------------------- pergunta lida de um print ----------------------------------------- */
+
+const ImageQuestionsSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        question: z.string().describe("A pergunta exatamente como está escrita na imagem, completa, sem o texto de ajuda do campo"),
+        limit: z.number().describe("Limite de caracteres que a imagem mostra para essa pergunta (ex.: 'máximo 500 caracteres'); 0 se não mostra"),
+      }),
+    )
+    .describe("Perguntas do formulário que pedem uma resposta escrita pela pessoa, na ordem em que aparecem; vazio se não há nenhuma"),
+  unreadable: z.string().describe("O que apareceu cortado ou ilegível na imagem; vazio se deu para ler tudo"),
+});
+export interface ImageQuestion {
+  question: string;
+  limit?: number;
+}
+
+/**
+ * Lê as perguntas de um print do formulário de candidatura (só transcreve: nada do perfil vai junto).
+ * A pessoa confere o texto lido antes de responder.
+ */
+export async function readQuestionsFromImage(image: ImageInput): Promise<{ questions: ImageQuestion[]; unreadable: string }> {
+  if (fs.statSync(image.path).size > IMAGE_MAX_BYTES) throw new Error("Imagem grande demais (máximo 5 MB). Recorte o print só na pergunta.");
+  const r = await structured(ImageQuestionsSchema, {
+    label: "read:question-image",
+    effort: "low",
+    system: [
+      "Você lê prints de formulários de candidatura a vagas de emprego e transcreve as perguntas. Copie o texto como está na imagem, no idioma dela, sem traduzir, corrigir ou completar. Não invente pergunta que não está na imagem.",
+    ],
+    user: "Liste as perguntas deste formulário que pedem uma resposta escrita pela pessoa (abertas ou curtas), com o limite de caracteres quando a imagem mostrar. Não inclua campos de dados pessoais (nome, e-mail, telefone, endereço, LinkedIn, CPF), botões nem menus.",
+    images: [image],
+  });
+  return { questions: cleanImageQuestions(r.questions), unreadable: r.unreadable.trim() };
+}
+
+/** Perguntas lidas da imagem: sem espaços sobrando, sem repetidas, limite 0 = sem limite, no máximo 10. */
+export function cleanImageQuestions(raw: { question: string; limit: number }[]): ImageQuestion[] {
+  const seen = new Set<string>();
+  return raw
+    .map((q) => ({ question: q.question.replace(/\s+/g, " ").trim(), limit: q.limit > 0 ? Math.min(20000, Math.round(q.limit)) : undefined }))
+    .filter((q) => q.question.length >= 5 && !seen.has(norm(q.question)) && Boolean(seen.add(norm(q.question))))
+    .slice(0, 10);
+}
+
+/** Caminho de imagem digitado ou arrastado no terminal ("C:\print.png", 'print.png', & 'print.png'), se existir. */
+export function imageFile(typed: string): string | null {
+  const p = typed
+    .trim()
+    .replace(/^&\s+/, "")
+    .replace(/^(['"])(.*)\1$/, "$2");
+  return /\.(png|jpe?g|webp|gif)$/i.test(p) && fs.existsSync(p) && fs.statSync(p).isFile() ? p : null;
+}
+
+/** Imagem de um arquivo, conferindo o tipo pelos primeiros bytes. */
+export function imageFromFile(file: string): ImageInput {
+  const mime = imageMime(fs.readFileSync(file).subarray(0, 16));
+  if (!mime) throw new Error(`${path.basename(file)} não é uma imagem PNG, JPG, WEBP ou GIF.`);
+  return { path: file, mime };
 }
 
 const NUM_RE = /\d+(?:[.,]\d+)*/g;

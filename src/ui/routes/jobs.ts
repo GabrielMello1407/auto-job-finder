@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { autopilot } from "../../auto.js";
 import { hasProfile, paths, setEnvVar, settings } from "../../config.js";
@@ -16,7 +17,8 @@ import { researchJob } from "../../jobs/research.js";
 import { interviewGuide, rerender, tailorJob, type TailorOptions } from "../../tailor/index.js";
 import { openExternal } from "../../util/open.js";
 import { cleanJobText } from "../../jobs/page.js";
-import { answerQuestion, deleteAnswer, refineAnswer, shouldSuggestResearch } from "../../writers/answers.js";
+import { answerQuestion, deleteAnswer, readQuestionsFromImage, refineAnswer, shouldSuggestResearch } from "../../writers/answers.js";
+import { IMAGE_EXT, IMAGE_MAX_BYTES, imageMime } from "../../providers/images.js";
 import { applicationSheet } from "../../writers/applicationSheet.js";
 import { applicationDraft, DRAFT_FILE, gmailComposeUrl, parseEmails, writeApplicationDraft } from "../../writers/emailDraft.js";
 import { clamp, fileUrl, HttpError, isHttp, str, strList, type App, type Ctx, type Route } from "../http.js";
@@ -580,6 +582,30 @@ export function jobRoutes(app: App): Route[] {
           return { suggestResearch: true, researching: queue.has("research", job.id) || queue.has("triage", job.id) };
         const limit = body.limit ? clamp(body.limit, 50, 20000, 0) || undefined : undefined;
         return { answer: await answering(job.id, () => answerQuestion(job.id, { question, limit, context: str(body.context, 4000) })) };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/answers\/image$/,
+      async (c) => {
+        // Print da pergunta do formulário: a IA só lê o texto; a pessoa confere antes de responder.
+        requireProfileForTasks();
+        const job = jobFrom(c.params[0]);
+        const buf = await c.raw(IMAGE_MAX_BYTES + 1_000_000);
+        const mime = imageMime(buf.subarray(0, 16));
+        if (!mime) throw new HttpError(400, "Mande uma imagem PNG, JPG, WEBP ou GIF.");
+        if (buf.length > IMAGE_MAX_BYTES) throw new HttpError(413, "Imagem grande demais (máximo 5 MB). Recorte o print só na pergunta.");
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ajf-print-"));
+        const file = path.join(dir, `pergunta${IMAGE_EXT[mime]}`);
+        fs.writeFileSync(file, buf);
+        try {
+          return await answering(job.id, () => readQuestionsFromImage({ path: file, mime }));
+        } catch (e) {
+          if (e instanceof HttpError) throw e;
+          throw new HttpError(502, "A IA não conseguiu ler a imagem: {error}", { error: (e as Error).message });
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
       },
     ],
     [

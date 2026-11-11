@@ -79,7 +79,7 @@ They are the same as in [CLAUDE.md](CLAUDE.md) (also [AGENTS.md](AGENTS.md)), wh
 
 ## Where to make changes
 
-- **New AI provider:** implement `LlmProvider` in `src/providers/` and register it in `PROVIDERS` and `createProvider` (`src/providers/index.ts`). Every call goes through `src/llm.ts`.
+- **New AI provider:** implement `LlmProvider` in `src/providers/` and register it in `PROVIDERS` and `createProvider` (`src/providers/index.ts`). Every call goes through `src/llm.ts`. Handle `CallOptions.images` too (helpers in `src/providers/images.ts`).
 - **New job source:** create a `JobSource` in `src/jobs/sources/` (with a `description`) and register it in `SOURCES`.
 - **Interface:** routes in `src/ui/routes/`, page in `src/ui/public/` (HTML, CSS and JS modules, no build step). Keep the interface and the terminal menu (`src/menu.ts`) offering the same actions. New text on screen: write it in Portuguese inside `t()` and add the English to `locales/en.json`. Pass a literal, not a variable, so the key can be found (`cond ? t("a") : t("b")`, not `t(cond ? "a" : "b")`).
 

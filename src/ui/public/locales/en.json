@@ -763,5 +763,15 @@
   "Esperar": "Wait",
   "🔎 Pesquisando a empresa. Quando terminar, clique em ✍️ Responder de novo.": "🔎 Researching the company. When it finishes, click ✍️ Answer again.",
   "🏢 Missão e valores (página oficial)": "🏢 Mission and values (official page)",
-  "fonte": "source"
+  "fonte": "source",
+  "📷 Ler a pergunta de um print": "📷 Read the question from a screenshot",
+  "ou cole (Ctrl+V) ou arraste o print aqui": "or paste (Ctrl+V) or drop the screenshot here",
+  "Lendo a pergunta da imagem…": "Reading the question from the image…",
+  "⚠ Parte da imagem não deu para ler: {what}": "⚠ Part of the image couldn't be read: {what}",
+  "Não achei uma pergunta de formulário na imagem.": "I didn't find a form question in the image.",
+  "✓ Pergunta lida da imagem. Confira o texto antes de responder.": "✓ Question read from the image. Check the text before answering.",
+  "{n} perguntas na imagem. Escolha qual responder:": "{n} questions in the image. Choose which one to answer:",
+  "Mande uma imagem PNG, JPG, WEBP ou GIF.": "Send a PNG, JPG, WEBP or GIF image.",
+  "Imagem grande demais (máximo 5 MB). Recorte o print só na pergunta.": "Image too large (maximum 5 MB). Crop the screenshot to just the question.",
+  "A IA não conseguiu ler a imagem: {error}": "The AI couldn't read the image: {error}"
 }

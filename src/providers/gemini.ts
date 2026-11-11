@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { HttpError, postSse } from "./http.js";
+import { geminiParts } from "./images.js";
 import { extractJson, geminiJsonSchema, validate } from "./jsonText.js";
 import type { CallOptions, LlmProvider, SearchOptions } from "./types.js";
 import { logUsage } from "./usage.js";
@@ -24,7 +25,7 @@ async function generate({ opts, model, schema, search }: GenCall): Promise<strin
   if (schema) Object.assign(generationConfig, { responseMimeType: "application/json", responseJsonSchema: schema });
   const body: Record<string, unknown> = {
     systemInstruction: { parts: [{ text: opts.system.join("\n\n") }] },
-    contents: [{ role: "user", parts: [{ text: opts.user }] }],
+    contents: [{ role: "user", parts: geminiParts(opts.user, opts.images) }],
     generationConfig,
   };
   if (search) body.tools = [{ google_search: {} }];

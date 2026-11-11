@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { settings } from "../config.js";
+import { anthropicContent } from "./images.js";
 import type { CallOptions, LlmProvider, SearchOptions } from "./types.js";
 import { logUsage } from "./usage.js";
 
@@ -55,6 +56,9 @@ function buildSystem(blocks: string[]): Anthropic.Beta.BetaTextBlockParam[] {
   }));
 }
 
+/** Texto do pedido, com as imagens antes dele quando houver. */
+const userContent = (opts: CallOptions) => anthropicContent(opts.user, opts.images) as NonNullable<Anthropic.Beta.BetaMessageParam["content"]>;
+
 function fallbackParams(platform: Platform) {
   // `fallbacks` server-side só existe na API Anthropic.
   return platform === "anthropic" && settings.fallbacks
@@ -101,7 +105,7 @@ export function anthropicProvider(platform: Platform, modelFor: (o: CallOptions)
           thinking: { type: "adaptive" },
           output_config: { effort: opts.effort ?? "high", format: betaZodOutputFormat(schema) },
           system: buildSystem(opts.system),
-          messages: [{ role: "user", content: opts.user }],
+          messages: [{ role: "user", content: userContent(opts) }],
           ...fallbackParams(platform),
         })
         .finalMessage();
@@ -120,7 +124,7 @@ export function anthropicProvider(platform: Platform, modelFor: (o: CallOptions)
           thinking: { type: "adaptive" },
           output_config: { effort: opts.effort ?? "medium" },
           system: buildSystem(opts.system),
-          messages: [{ role: "user", content: opts.user }],
+          messages: [{ role: "user", content: userContent(opts) }],
           ...fallbackParams(platform),
         })
         .finalMessage();
@@ -146,7 +150,7 @@ export function anthropicProvider(platform: Platform, modelFor: (o: CallOptions)
               max_uses: opts.maxSearches ?? 8,
               ...(opts.blockedDomains?.length ? { blocked_domains: opts.blockedDomains } : {}),
             };
-      const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: opts.user }];
+      const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: userContent(opts) }];
       for (let turn = 0; turn < 6; turn++) {
         const msg = await c.beta.messages
           .stream({

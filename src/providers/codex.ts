@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { z } from "zod";
+import { copyImages } from "./images.js";
 import { extractJson, strictJsonSchema, validate } from "./jsonText.js";
 import { isolatedDir, runCli, tempFile } from "./spawn.js";
 import type { CallOptions, Effort, LlmProvider } from "./types.js";
@@ -29,8 +30,11 @@ async function run(opts: CallOptions, model: string | undefined, schema?: object
   const dir = isolatedDir("codex");
   const outFile = tempFile(dir, "last", ".txt");
   const schemaFile = schema ? tempFile(dir, "schema", ".json", JSON.stringify(schema)) : undefined;
+  const images = copyImages(dir, opts.images);
   const args = [
     "exec",
+    // Imagem anexada ao pedido (a forma --image=arquivo não engole o "-" do stdin no fim).
+    ...images.map((f) => `--image=${f}`),
     "--json",
     "--ephemeral",
     "--skip-git-repo-check",
@@ -76,6 +80,7 @@ async function run(opts: CallOptions, model: string | undefined, schema?: object
   } finally {
     fs.rmSync(outFile, { force: true });
     if (schemaFile) fs.rmSync(schemaFile, { force: true });
+    for (const f of images) fs.rmSync(f, { force: true });
   }
 }
 

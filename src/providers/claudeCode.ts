@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import type { z } from "zod";
+import { copyImages, imageNote } from "./images.js";
 import { toJsonSchema, validate } from "./jsonText.js";
 import { isolatedDir, runCli, tempFile } from "./spawn.js";
 import type { CallOptions, LlmProvider, SearchOptions } from "./types.js";
@@ -25,9 +26,12 @@ interface ClaudeCodeResult {
 const bin = () => process.env.AJF_CLAUDE_BIN || "claude";
 const INSTALL = "Instale o Claude Code (https://claude.com/claude-code) e faça login rodando 'claude', ou defina AJF_CLAUDE_BIN.";
 
-async function run(opts: CallOptions, model: string | undefined, jsonSchema?: object, tools: string[] = []): Promise<ClaudeCodeResult> {
+async function run(opts: CallOptions, model: string | undefined, jsonSchema?: object, searchTools: string[] = []): Promise<ClaudeCodeResult> {
   const dir = isolatedDir("claude-code");
   const sysFile = tempFile(dir, "system", ".txt", opts.system.join("\n\n"));
+  // Imagem: copiada para a pasta da chamada e aberta pela ferramenta Read (a única liberada além da busca).
+  const images = copyImages(dir, opts.images);
+  const tools = images.length ? [...searchTools, "Read"] : searchTools;
   const args = [
     "-p",
     "--output-format", "json",
@@ -43,7 +47,7 @@ async function run(opts: CallOptions, model: string | undefined, jsonSchema?: ob
   if (tools.length) args.push("--allowedTools", ...tools);
   if (jsonSchema) args.push("--json-schema", JSON.stringify(jsonSchema));
   try {
-    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: opts.user, cwd: dir, name: "claude -p", installHint: INSTALL });
+    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: opts.user + imageNote(images, "Read"), cwd: dir, name: "claude -p", installHint: INSTALL });
     if (!stdout.trim()) throw new Error(`claude -p saiu com código ${code}: ${stderr.trim().slice(0, 800)}`);
     let parsed: ClaudeCodeResult;
     try {
@@ -67,6 +71,7 @@ async function run(opts: CallOptions, model: string | undefined, jsonSchema?: ob
     return parsed;
   } finally {
     fs.rmSync(sysFile, { force: true });
+    for (const f of images) fs.rmSync(f, { force: true });
   }
 }
 

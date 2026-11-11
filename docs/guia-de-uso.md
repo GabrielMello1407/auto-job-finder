@@ -230,6 +230,8 @@ Clique no título de uma vaga para abrir os detalhes.
 Muitos formulários pedem mais que o currículo: "Por que você quer trabalhar aqui?", "Fale de um projeto de que você se orgulha", "O que você acha do nosso app?". Na aba **Perguntas** da vaga:
 
 1. **Cole a pergunta.** Se o campo tiver limite de caracteres, informe. Se quiser, conte algo que só você sabe (motivação, opinião sobre o produto).
+
+   **Ou use um print do formulário:** cole (Ctrl+V), arraste no campo da pergunta ou clique em **📷 Ler a pergunta de um print**. A IA só lê o texto: preenche a pergunta e o limite de caracteres, quando o print mostra, e ignora campos de dados pessoais (nome, e-mail, telefone). Com várias perguntas no print, você escolhe qual responder. Confira o texto lido antes de responder; nesta etapa só o print vai para a IA, nada do seu perfil.
 2. **✍️ Responder.** Em alguns segundos sai a resposta, no idioma da pergunta. Ela usa fatos do seu perfil e o que a vaga diz da empresa, e passa pelas mesmas travas do currículo (número sem fonte, frases de "nunca afirmar").
 3. **Ajuste conversando.** No campo **Ajustar**, peça "mais curto", "cite o projeto X", "em inglês", ou responda o que a IA pediu em **Para ficar com a sua cara, conte**. O que você conta ali vale como fato seu nos próximos ajustes.
 4. **📋 Copiar** e colar no formulário.
@@ -394,7 +396,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Gera o pacote. Antes, confere se a vaga ainda está aberta; `--mesmo-encerrada` gera mesmo assim |
 | `ajf conferir [empresa, cargo ou id]` | Confere se as vagas ainda aceitam candidaturas. Sem nada, confere todas que você ainda não enviou |
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
-| `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."] [--pesquisar]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter. Em pergunta sobre a empresa, oferece pesquisar a missão e os valores antes; `--pesquisar` pesquisa sem perguntar |
+| `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter. `--imagem` lê a pergunta (e o limite) de um print; sem opções, também dá para arrastar o arquivo do print no terminal em vez de digitar. Em pergunta sobre a empresa, oferece pesquisar a missão e os valores antes; `--pesquisar` pesquisa sem perguntar |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
 | `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |

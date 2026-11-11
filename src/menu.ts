@@ -19,7 +19,16 @@ import type { Job, JobStatus } from "./schemas.js";
 import { interviewGuide, JobClosedError, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
-import { ANSWERS_FILE, answerQuestion, refineAnswer, shouldSuggestResearch } from "./writers/answers.js";
+import {
+  ANSWERS_FILE,
+  answerQuestion,
+  imageFile,
+  imageFromFile,
+  readQuestionsFromImage,
+  refineAnswer,
+  shouldSuggestResearch,
+  type ImageQuestion,
+} from "./writers/answers.js";
 import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
 import { writeApplicationDraft } from "./writers/emailDraft.js";
 import type { JobAnswer } from "./schemas.js";
@@ -62,15 +71,46 @@ function printAnswer(a: JobAnswer) {
   if (a.needsYou.length) console.log(`Para ficar com a sua cara, conte:\n${a.needsYou.map((n) => `  - ${n}`).join("\n")}`);
 }
 
-/** Pergunta do formulário de candidatura: responde e deixa ajustar até a pessoa dar Enter. Também usado pelo `ajf responder`. */
-export async function answerFlow(job: Job, given?: { question: string; limit?: number; context?: string; research?: boolean }) {
-  const question = given?.question ?? (await input({ message: "Pergunta do formulário:", required: true }));
-  const limit = given ? given.limit : Number(await input({ message: "Limite de caracteres (Enter se não tiver):" })) || undefined;
-  const context = given ? given.context : await input({ message: "Algo que só você sabe para esta resposta (motivação, opinião sobre o produto; Enter para pular):" });
+/** Lê a pergunta de um print; com várias perguntas na imagem, deixa escolher qual responder. */
+async function questionFromImage(file: string): Promise<ImageQuestion> {
+  console.log("📷 Lendo a pergunta da imagem...");
+  const r = await readQuestionsFromImage(imageFromFile(file));
+  if (!r.questions.length) throw new Error(`Não achei uma pergunta de formulário na imagem.${r.unreadable ? ` ${r.unreadable}` : ""}`);
+  const q =
+    r.questions.length === 1 || !process.stdin.isTTY
+      ? r.questions[0]
+      : await select({ message: "Qual pergunta responder?", choices: r.questions.map((x) => ({ name: cut(x.question, 110), value: x })) });
+  console.log(`💬 Pergunta lida: ${q.question}${q.limit ? ` (limite de ${q.limit} caracteres)` : ""}`);
+  if (r.unreadable) console.log(`⚠ Parte da imagem não deu para ler: ${r.unreadable}`);
+  return q;
+}
+
+/**
+ * Pergunta do formulário de candidatura: responde e deixa ajustar até a pessoa dar Enter. Também usado
+ * pelo `ajf responder`. A pergunta pode vir escrita ou de um print (--imagem, ou o arquivo arrastado no terminal).
+ */
+export async function answerFlow(job: Job, given: { question?: string; limit?: number; context?: string; research?: boolean; image?: string } = {}) {
+  let question = given.question;
+  let limit = given.limit;
+  let image = given.image;
+  const talk = !question && !image;
+  if (talk) {
+    const typed = await input({ message: "Pergunta do formulário (ou arraste aqui o print dela):", required: true });
+    image = imageFile(typed) ?? undefined;
+    if (!image) question = typed.trim();
+  }
+  if (image) {
+    const read = await questionFromImage(image);
+    question = read.question;
+    limit ??= read.limit;
+  }
+  if (!question) throw new Error("Sem pergunta para responder.");
+  if (talk && limit == null) limit = Number(await input({ message: "Limite de caracteres (Enter se não tiver):" })) || undefined;
+  const context = talk ? await input({ message: "Algo que só você sabe para esta resposta (motivação, opinião sobre o produto; Enter para pular):" }) : given.context;
   // Pergunta sobre a empresa sem a missão e os valores pesquisados: sugere pesquisar antes (a mesma regra da interface).
-  if (given?.research || shouldSuggestResearch(job, question)) {
+  if (given.research || shouldSuggestResearch(job, question)) {
     const go =
-      given?.research ||
+      given.research ||
       (process.stdin.isTTY &&
         (await confirm({
           message: "Essa pergunta é sobre a empresa, e a missão e os valores dela ainda não foram pesquisados na página oficial. Pesquisar na web antes? (cerca de 1 minuto)",
