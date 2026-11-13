@@ -62,7 +62,51 @@ function meta(j) {
   const fresh = j.status === "new" ? `<span class="chip accent">${t("nova · sem triagem")}</span>` : "";
   const outdated = j.pkg?.outdated ? `<span class="chip warn" title="${esc(t("O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades."))}">${t("perfil mudou depois")}</span>` : "";
   const research = j.research ? researchChip(j.research) : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}</div>`;
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}${ageChip(j)}${ghostChip(j)}${knockoutChip(j)}${referralChip(j)}</div>`;
+}
+
+/* Prioridade: frescor, vaga fantasma, critérios eliminatórios e indicação (src/jobs/priority.ts e referral.ts). */
+export const STAGE_TEXT = {
+  sem_resposta: t("sem resposta"),
+  triagem: t("na triagem, antes de qualquer conversa"),
+  rh: t("depois da conversa com o RH"),
+  tecnica: t("depois do teste ou da entrevista técnica"),
+  final: t("depois da entrevista final"),
+  desconhecida: t("etapa desconhecida"),
+};
+const GHOST_TEXT = {
+  antiga: t("publicada há mais de 30 dias"),
+  republicada: t("a mesma vaga já tinha aparecido antes (republicada)"),
+  banco_de_talentos: t("parece banco de talentos, sem uma vaga específica"),
+  sem_detalhes: t("anúncio com pouquíssimos detalhes"),
+};
+const TO_SEND = ["new", "triaged", "shortlisted", "tailored", "low_fit"];
+const postedText = (d) => (d === 0 ? t("publicada hoje") : t("publicada há {days}", { days: plural(d, "dia", "dias") }));
+function ageChip(j) {
+  if (j.ageDays == null || !TO_SEND.includes(j.status)) return "";
+  if (j.ageDays <= 3) return `<span class="chip ok" title="${esc(t("Quem se candidata nos primeiros dias é visto antes. Esta vaga sobe na lista."))}">🆕 ${esc(postedText(j.ageDays))}</span>`;
+  if (j.ageDays > 14) return `<span class="chip warn" title="${esc(t("Vagas antigas já receberam muitas candidaturas. Esta vaga desce na lista."))}">⏳ ${esc(postedText(j.ageDays))}</span>`;
+  return "";
+}
+function ghostChip(j) {
+  if (!j.ghost?.length || !TO_SEND.includes(j.status)) return "";
+  return `<span class="chip warn" title="${esc(j.ghost.map((g) => GHOST_TEXT[g] ?? g).join("; "))}">${t("👻 pode ser vaga fantasma")}</span>`;
+}
+const failedKnockouts = (j) => (j.knockouts ?? []).filter((k) => k.meets === "nao");
+function knockoutChip(j) {
+  const failed = failedKnockouts(j);
+  if (!failed.length || !TO_SEND.includes(j.status)) return "";
+  return `<span class="chip bad" title="${esc(failed.map((k) => k.requirement).join("; "))}">${esc(t("⛔ eliminatório: {what}", { what: failed[0].requirement }))}</span>`;
+}
+function referralChip(j) {
+  const r = j.referral;
+  if (!r?.status || !TO_SEND.includes(j.status)) return "";
+  if (r.status === "recebida") return `<span class="chip ok">${t("🤝 indicação recebida")}</span>`;
+  if (r.status === "pedida")
+    return r.overdue
+      ? `<span class="chip warn" title="${esc(t("Ninguém respondeu ainda. Não espere mais: candidate-se pela plataforma, chegar cedo pesa mais."))}">${t("🤝 indicação sem resposta")}</span>`
+      : `<span class="chip accent">${t("🤝 indicação pedida")}</span>`;
+  return "";
 }
 
 /* Vaga repetida (a mesma vaga em outro site) e vaga encerrada (a página diz que acabou). */
@@ -100,12 +144,24 @@ function statusLine(j) {
   const d = daysSince(j.appliedAt);
   if (j.status === "applied") {
     const when = d == null ? t("Enviada") : d === 0 ? t("Enviada hoje") : t("Enviada há {days}", { days: plural(d, "dia", "dias") });
-    const late = d != null && d >= 7;
-    return `<div class="status-line"><span class="chip ${late ? "warn" : "accent"}">${late ? t("⏰ hora do follow-up") : t("📨 aguardando resposta")}</span><span>${esc(when)}${j.appliedViaLabel ? ` ${esc(t("via {channel}", { channel: t(j.appliedViaLabel) }))}` : ""}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
+    const chip = j.noReply
+      ? `<span class="chip warn">${t("📭 sem retorno")}</span>`
+      : j.followUpDue === 1
+        ? `<span class="chip warn">${t("⏰ hora do follow-up")}</span>`
+        : j.followUpDue === 2
+          ? `<span class="chip warn">${t("⏰ hora do 2º follow-up")}</span>`
+          : `<span class="chip accent">${t("📨 aguardando resposta")}</span>`;
+    const sent = j.followUps ? ` · ${esc(t("{n} follow-up(s) enviado(s)", { n: j.followUps }))}` : "";
+    return `<div class="status-line">${chip}<span>${esc(when)}${j.appliedViaLabel ? ` ${esc(t("via {channel}", { channel: t(j.appliedViaLabel) }))}` : ""}${sent}${j.notes ? ` · ${esc(j.notes)}` : ""}</span></div>`;
   }
   if (j.status === "interview") return `<div class="status-line"><span class="chip accent">${t("🎤 em entrevista")}</span></div>`;
   if (j.status === "offer") return `<div class="status-line"><span class="chip ok">${t("🎉 oferta recebida")}</span></div>`;
-  if (j.status === "rejected") return `<div class="status-line"><span class="chip">${t("recusada")}</span></div>`;
+  if (j.status === "rejected")
+    return `<div class="status-line"><span class="chip">${t("recusada")}</span>${
+      j.outcome
+        ? `<span>${esc(STAGE_TEXT[j.outcome.stage] ?? j.outcome.stage)}${j.outcome.reason ? ` · ${esc(j.outcome.reason)}` : ""}</span>`
+        : `<span class="faint">${t("etapa não registrada")}</span>`
+    }</div>`;
   if (j.status === "discarded") return `<div class="status-line"><span class="chip">${t("descartada")}</span></div>`;
   return "";
 }
@@ -129,6 +185,7 @@ export function actionsFor(j) {
           ? btn("tailor-anyway", t("📦 Gerar mesmo assim"), j.id, "", t("A página da vaga diz que ela acabou. Confira o link antes."))
           : btn("tailor", t("📦 Gerar pacote"), j.id, "primary", ""),
         link(j.url, t("🔗 Ver vaga")),
+        j.status === "new" ? "" : referralButton(j),
         btn("applied", t("✅ Já me candidatei"), j.id),
         btn("discard", t("Descartar"), j.id, "ghost danger"),
       );
@@ -137,6 +194,7 @@ export function actionsFor(j) {
       A.push(j.url ? link(j.url, t("🔗 Candidatar-se"), "primary") : "", pdf(), j.pkg?.cover ? link(j.pkg.cover, t("✉️ Carta")) : "");
       if (j.pkg?.emails) A.push(btn("open:emails", t("📧 E-mails"), j.id));
       A.push(btn("open:ficha", t("📋 Ficha"), j.id, "", t("Os campos do formulário de candidatura, prontos para copiar")));
+      A.push(referralButton(j));
       A.push(btn("applied", t("✅ Já me candidatei"), j.id, j.url ? "" : "primary"));
       if (j.pkg?.outdated) A.push(btn("tailor", t("🔄 Gerar de novo"), j.id, "", t("O seu perfil mudou depois deste pacote")));
       A.push(btn("discard", t("Descartar"), j.id, "ghost danger"));
@@ -147,21 +205,27 @@ export function actionsFor(j) {
     case "applied":
       A.push(btn("interview", t("🎤 Fui chamado para entrevista"), j.id, "primary"));
       if (j.pkg?.emails) A.push(btn("open:emails", t("📧 Follow-up"), j.id));
-      A.push(pdf(t("📄 Currículo enviado")), btn("status:rejected", t("Fui recusado"), j.id, "ghost danger"));
+      if (j.followUpDue) A.push(btn("followup-sent", t("✅ Enviei o follow-up"), j.id));
+      if (j.noReply) A.push(btn("no-reply", t("📭 Fechar como sem retorno"), j.id, "", t("Sem resposta há muito tempo: conta como sem retorno nos resultados")));
+      A.push(pdf(t("📄 Currículo enviado")), btn("reject", t("Fui recusado"), j.id, "ghost danger"));
       break;
     case "interview":
       A.push(j.pkg?.interview ? btn("open:entrevista", t("🎤 Guia de entrevista"), j.id, "primary") : btn("guide", t("🎤 Gerar guia de entrevista"), j.id, "primary"));
       if (j.pkg?.emails) A.push(btn("open:emails", t("🙏 Agradecimento"), j.id));
-      A.push(btn("status:offer", t("🎉 Recebi oferta"), j.id), btn("status:rejected", t("Fui recusado"), j.id, "ghost danger"));
+      A.push(btn("status:offer", t("🎉 Recebi oferta"), j.id), btn("reject", t("Fui recusado"), j.id, "ghost danger"));
       break;
     case "offer":
-      A.push(pdf(t("📄 Currículo enviado")), btn("status:rejected", t("Não deu certo"), j.id, "ghost"));
+      A.push(pdf(t("📄 Currículo enviado")), btn("reject", t("Não deu certo"), j.id, "ghost"));
       break;
     default:
+      if (j.status === "rejected") A.push(btn("reject", j.outcome ? t("📝 Corrigir a etapa") : t("📝 Registrar como foi"), j.id, j.outcome ? "ghost" : ""));
       A.push(btn("reopen", t("↩ Reabrir"), j.id), link(j.url, t("🔗 Ver vaga")));
   }
   return A.filter(Boolean).join("");
 }
+
+const referralButton = (j) =>
+  btn("referral", j.referral?.status ? t("🤝 Indicação") : t("🤝 Pedir indicação"), j.id, "", t("Indicação é o caminho que mais vira contratação"));
 
 function card(j, i) {
   const showReason = j.triage?.reason && !["applied", "interview", "offer"].includes(j.status);
@@ -183,9 +247,11 @@ function card(j, i) {
 function sorted(st, jobs) {
   const score = (j) => j.triage?.score ?? -1;
   const rank = { shortlisted: 0, triaged: 1, new: 2 };
+  // Prioridade (src/jobs/priority.ts): aderência + frescor, menos vaga fantasma e eliminatório.
+  const priority = (j) => j.priority ?? score(j);
   const by = {
-    decide: (a, b) => rank[a.status] - rank[b.status] || score(b) - score(a),
-    ready: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+    decide: (a, b) => rank[a.status] - rank[b.status] || priority(b) - priority(a),
+    ready: (a, b) => priority(b) - priority(a) || (b.rating ?? 0) - (a.rating ?? 0),
     active: (a, b) => String(b.appliedAt ?? "").localeCompare(String(a.appliedAt ?? "")),
     low: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
     closed: (a, b) => String(b.addedAt ?? "").localeCompare(String(a.addedAt ?? "")),
@@ -270,6 +336,12 @@ function paintList() {
       html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn("tailor-many", t("📦 Gerar vários pacotes de uma vez"), null, "small ghost")}</div>`;
   }
   if (st.id === "ready" && jobs.length && !filterText) html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}</div>`;
+  if (st.id === "active" && !filterText) {
+    const due = jobs.filter((j) => j.followUpDue).length;
+    const quiet = jobs.filter((j) => j.noReply).length;
+    if (due || quiet)
+      html += `<div class="banner"><span>${[due ? t("⏰ {n} follow-up(s) para mandar.", { n: due }) : "", quiet ? t("📭 {n} sem retorno há mais de {days} dias: feche para os resultados ficarem certos.", { n: quiet, days: S.settings.noReplyDays ?? 30 }) : ""].filter(Boolean).join(" ")}</span>${btn("go:resultados", t("📊 Ver resultados"), null, "small")}</div>`;
+  }
   if (!jobs.length) {
     const [icon, text, cta] = st.empty;
     html += filterText
@@ -421,6 +493,37 @@ function flagsPanels(d) {
   return html;
 }
 
+/** Quadros de critérios eliminatórios, vaga fantasma e resultado da candidatura no resumo da gaveta. */
+function priorityPanels(d) {
+  let html = "";
+  const MEETS = { sim: ["ok", "✓"], nao: ["bad", "✗"], incerto: ["", "?"] };
+  if (d.knockouts?.length)
+    html += `<div class="panel"${failedKnockouts(d).length ? ' style="border-color:var(--bad)"' : ""}><h3>${t("⛔ Critérios eliminatórios da vaga")}</h3>
+      <ul class="knockouts">${d.knockouts
+        .map((k) => {
+          const [cls, mark] = MEETS[k.meets] ?? MEETS.incerto;
+          return `<li><span class="chip ${cls}">${mark}</span><span>${esc(k.requirement)}${k.evidence ? `<small class="faint">${esc(k.evidence)}</small>` : ""}</span></li>`;
+        })
+        .join("")}</ul>
+      <p class="faint" style="margin-top:8px">${
+        failedKnockouts(d).length
+          ? t("Plataformas costumam filtrar por esses critérios antes de alguém ler o currículo. A IA não descarta a vaga sozinha: a decisão é sua.")
+          : t("✓ = o perfil comprova · ✗ = o perfil mostra que não atende · ? = o perfil não diz (confira antes de se candidatar)")
+      }</p></div>`;
+  if (d.ghost?.length && TO_SEND.includes(d.status))
+    html += `<div class="panel"><h3>${t("👻 Pode ser vaga fantasma")}</h3><ul class="list-gap">${d.ghost.map((g) => `<li>${esc(GHOST_TEXT[g] ?? g)}</li>`).join("")}</ul>
+      <p class="faint" style="margin-top:8px">${t("Nem todo anúncio tem contratação de verdade. A vaga desce na lista; se quiser, confira no site da empresa se ela ainda existe.")}</p></div>`;
+  if (d.status === "rejected")
+    html += `<div class="panel"><h3>${t("📝 Como terminou")}</h3><p>${
+      d.outcome
+        ? `${esc(STAGE_TEXT[d.outcome.stage] ?? d.outcome.stage)}${d.outcome.reason ? ` · ${esc(d.outcome.reason)}` : ""}`
+        : `<span class="faint">${t("Etapa não registrada.")}</span>`
+    }${d.respondedAt && d.appliedAt ? ` <span class="faint">· ${esc(t("resposta em {days}", { days: plural(daysBetween(d.appliedAt, d.respondedAt), "dia", "dias") }))}</span>` : ""}</p>
+      <div class="btn-row" style="margin-top:10px">${btn("reject", d.outcome ? t("📝 Corrigir a etapa") : t("📝 Registrar como foi"), d.id, "small")}</div></div>`;
+  return html;
+}
+const daysBetween = (a, b) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000));
+
 /* Ficha de candidatura: os campos que os formulários pedem, cada um com o botão de copiar. */
 function sheetTab(s) {
   const from =
@@ -535,6 +638,7 @@ function drawerBody(d, job) {
     html += `<div class="panel"><h3>${t("Sua candidatura")}</h3><p>${d.appliedAt ? esc(t("Enviada em {date}", { date: dateText(d.appliedAt) })) : ""}${d.appliedViaLabel ? ` ${esc(t("via {channel}", { channel: t(d.appliedViaLabel) }))}` : ""}${d.notes ? ` · ${esc(d.notes)}` : ""}</p></div>`;
   if (tri?.scam?.length) html += `<div class="panel" style="border-color:var(--bad)"><h3>${t("🚩 Sinais de golpe")}</h3><p>${esc(tri.scam.join("; "))}</p></div>`;
   html += flagsPanels(d);
+  html += priorityPanels(d);
   if (d.research) {
     const r = d.research;
     html += `<div class="panel"${r.verdict === "suspeita" ? ' style="border-color:var(--bad)"' : ""}><h3>${t("🔎 Pesquisa na web")} <span class="faint" style="font-weight:400">· ${dateText(r.at)}</span></h3>
@@ -559,8 +663,8 @@ function drawerBody(d, job) {
 
 /* -------------------------------------------------------------------- ações */
 
-async function setStatus(id, status, note = "", { quiet = false, via } = {}) {
-  const r = await api(`/api/jobs/${encodeURIComponent(id)}/status`, { status, note, via });
+async function setStatus(id, status, note = "", { quiet = false, via, stage, reason } = {}) {
+  const r = await api(`/api/jobs/${encodeURIComponent(id)}/status`, { status, note, via, stage, reason });
   if (!quiet) {
     const dest = stageOf(status);
     toast(`${r.job.company} → ${dest?.label ?? t(r.job.statusLabel)}`, "", {
@@ -714,6 +818,136 @@ action("rerender", async (id) => {
 action("applied", (id) => markApplied(id));
 action("discard", (id) => setStatus(id, "discarded"));
 action("status", (id, value) => setStatus(id, value));
+
+/* --------------------------------------------- resultado, follow-up, canal e indicação */
+
+const enc = encodeURIComponent;
+
+/** Recusa com a etapa (e o motivo, se a empresa disse): é o que mostra onde as candidaturas travam. */
+export async function rejectModal(id) {
+  const j = findJob(id);
+  if (!j) return;
+  // Mesma regra de src/jobs/funnel.ts#defaultStage: sem retorno há muito tempo, a recusa provável é "sem resposta".
+  const def = j.outcome?.stage ?? (["interview", "offer"].includes(j.status) ? "tecnica" : j.noReply ? "sem_resposta" : "triagem");
+  const r = await modal({
+    title: t("Como foi a recusa?"),
+    wide: true,
+    html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
+      <p class="muted" style="margin-top:6px">${t("Registrar até onde o processo chegou mostra, com o tempo, onde as suas candidaturas travam (página Resultados).")}</p>
+      <div class="field"><span>${t("Até onde chegou?")}</span><div class="via-grid">${Object.entries(STAGE_TEXT)
+        .map(([v, label]) => `<label class="option"><input type="radio" name="stage" value="${v}"${v === def ? " checked" : ""}><span>${esc(label)}</span></label>`)
+        .join("")}</div></div>
+      <label class="field"><span>${t("Motivo")} <small>${t("(se a empresa disse)")}</small></span><input name="reason" maxlength="300" value="${esc(j.outcome?.reason ?? "")}" autocomplete="off"></label>
+      <details class="panel"><summary>${t("📧 Colar o e-mail de recusa para a IA ler")}</summary>
+        <textarea name="email" rows="5" placeholder="${esc(t("Cole aqui o e-mail que a empresa mandou"))}"></textarea>
+        <div class="btn-row" style="margin-top:8px"><button type="button" class="small" data-read-email>${t("Ler o e-mail")}</button><span class="faint" data-read-status></span></div>
+      </details>`,
+    confirm: t("Registrar"),
+    onOpen: (form) => {
+      form.querySelector("[data-read-email]").onclick = async () => {
+        const text = form.elements.email.value.trim();
+        if (text.length < 20) return toast(t("Cole o e-mail de recusa."), "bad");
+        const status = form.querySelector("[data-read-status]");
+        status.textContent = t("Lendo…");
+        try {
+          const res = await api(`/api/jobs/${enc(id)}/rejection/read`, { text });
+          const radio = [...form.querySelectorAll('input[name="stage"]')].find((x) => x.value === res.stage);
+          if (radio) radio.checked = true;
+          if (res.reason) form.elements.reason.value = res.reason;
+          status.textContent = res.automated ? t("✓ Lido. Parece uma mensagem automática.") : t("✓ Lido. Confira a etapa e o motivo.");
+        } catch (e) {
+          status.textContent = "";
+          toast(e.message, "bad");
+        }
+      };
+    },
+  });
+  if (r) await setStatus(id, "rejected", "", { stage: r.stage, reason: r.reason });
+}
+action("reject", (id) => rejectModal(id));
+action("no-reply", (id) => setStatus(id, "rejected", "", { stage: "sem_resposta" }));
+action("followup-sent", async (id) => {
+  await api(`/api/jobs/${enc(id)}/followup`, {});
+  toast(t("✅ Follow-up registrado. O próximo lembrete vem em {days} dias, se não responderem.", { days: S.settings.followUpDays ?? 7 }));
+  await app.refresh();
+});
+
+/** Canal de uma candidatura já enviada (para comparar os canais nos resultados). */
+action("set-channel", async (id) => {
+  const j = findJob(id);
+  if (!j) return;
+  const r = await modal({
+    title: t("Por onde você se candidatou?"),
+    html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
+      <div class="via-grid" style="margin-top:10px">${Object.entries(S.applyChannels ?? {})
+        .map(([v, label]) => `<label class="option"><input type="radio" name="via" value="${esc(v)}"${v === j.applyGuess ? " checked" : ""}><span>${esc(t(label))}</span></label>`)
+        .join("")}</div>`,
+    confirm: t("Salvar"),
+  });
+  if (!r?.via) return;
+  await api(`/api/jobs/${enc(id)}/channel`, { via: r.via });
+  toast(t("Canal salvo."));
+  await app.refresh();
+});
+
+/**
+ * Pedir indicação: o agente não entra no LinkedIn. Monta as buscas (a pessoa abre logada) e escreve as
+ * mensagens só com fatos do perfil. Quem envia é a pessoa.
+ */
+async function referralModal(id) {
+  const j = findJob(id);
+  if (!j) return;
+  const data = await api(`/api/jobs/${enc(id)}/referral`);
+  let msgs = data.referral?.messages ?? null;
+  const current = data.referral?.status ?? "";
+  const msgHtml = (m) => `<p class="faint">${t("Para quem já conhece você")}</p><div class="message">${esc(m.warm)}</div>
+    <div class="btn-row"><button type="button" class="small" data-copy="warm">${t("📋 Copiar")}</button></div>
+    <p class="faint" style="margin-top:10px">${esc(t("Convite de conexão para quem não conhece você ({n}/300)", { n: m.cold.length }))}</p><div class="message">${esc(m.cold)}</div>
+    <div class="btn-row"><button type="button" class="small" data-copy="cold">${t("📋 Copiar")}</button><button type="button" class="small ghost" data-write>${t("🔄 Escrever de novo")}</button></div>`;
+  const options = [
+    ["", t("Ainda não pedi")],
+    ["pedida", t("Pedi a indicação")],
+    ["recebida", t("Recebi a indicação")],
+    ["sem_resposta", t("Ninguém respondeu")],
+  ];
+  const r = await modal({
+    title: t("Pedir indicação"),
+    wide: true,
+    html: `<p><strong>${esc(j.company)}</strong> — ${esc(j.title)}</p>
+      <p class="muted" style="margin-top:6px">${t("Indicação é o caminho que mais vira contratação. O agente não entra no LinkedIn: abra as buscas abaixo (logado), escolha alguém e mande a mensagem.")}</p>
+      <div class="btn-row" style="margin-top:10px">${link(data.links.network, t("👥 Pessoas da empresa na sua rede"), "small")}${link(data.links.recruiters, t("🧑‍💼 Quem recruta lá"), "small")}</div>
+      <div class="panel" style="margin-top:12px" data-ref-msgs>${msgs ? msgHtml(msgs) : `<p class="muted">${t("Mensagens curtas, só com fatos do seu perfil, sem inventar vínculo com ninguém.")}</p><div class="btn-row" style="margin-top:8px"><button type="button" class="small primary" data-write>${t("✍️ Escrever as mensagens")}</button></div>`}</div>
+      <div class="field" style="margin-top:12px"><span>${t("Situação")}</span><div class="via-grid">${options
+        .map(([v, label]) => `<label class="option"><input type="radio" name="status" value="${v}"${v === current ? " checked" : ""}><span>${esc(label)}</span></label>`)
+        .join("")}</div><small>${t("Se ninguém responder em 3 dias, candidate-se pela plataforma: chegar cedo pesa mais que esperar.")}</small></div>`,
+    confirm: t("Salvar"),
+    onOpen: (form) => {
+      const box = form.querySelector("[data-ref-msgs]");
+      box.addEventListener("click", async (e) => {
+        const copyBtn = e.target.closest("[data-copy]");
+        if (copyBtn && msgs) return copy(msgs[copyBtn.dataset.copy]);
+        const write = e.target.closest("[data-write]");
+        if (!write) return;
+        write.disabled = true;
+        write.innerHTML = `<span class="spin"></span> ${t("Escrevendo…")}`;
+        try {
+          msgs = (await api(`/api/jobs/${enc(id)}/referral/messages`, { force: Boolean(msgs) })).messages;
+          box.innerHTML = msgHtml(msgs);
+        } catch (err) {
+          toast(err.message, "bad");
+          write.disabled = false;
+          write.textContent = t("✍️ Escrever as mensagens");
+        }
+      });
+    },
+  });
+  if (r && r.status && r.status !== current) {
+    await api(`/api/jobs/${enc(id)}/referral`, { status: r.status });
+    toast(r.status === "pedida" ? t("🤝 Registrado. Sem resposta em 3 dias, candidate-se pela plataforma.") : t("🤝 Registrado."));
+  }
+  await app.refresh();
+}
+action("referral", (id) => referralModal(id));
 action("reopen", (id) => setStatus(id, reopenStatus(findJob(id))));
 action("interview", async (id) => {
   const j = findJob(id);

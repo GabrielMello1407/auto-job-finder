@@ -2,6 +2,7 @@ import { settings } from "./config.js";
 import { canWebSearch } from "./llm.js";
 import { loadPreferences } from "./profile.js";
 import { handledTwin } from "./jobs/dedupe.js";
+import { priorityOf } from "./jobs/priority.js";
 import { recordOpenCheck } from "./jobs/open.js";
 import { searchJobs, searchSummary } from "./jobs/search.js";
 import { STATUS_LABELS } from "./jobs/status.js";
@@ -21,8 +22,12 @@ export interface AutoOptions {
   log?: (msg: string) => void;
 }
 
-/** Vagas que merecem pacote: recomendadas pela triagem, nota ≥ mínimo, sem sinal de golpe, ainda sem pacote, não repetidas. */
-export function candidatesForPackage(jobs = loadJobs()): Job[] {
+/**
+ * Vagas que merecem pacote: recomendadas pela triagem, nota ≥ mínimo, sem sinal de golpe, ainda sem
+ * pacote, não repetidas. Na ordem de prioridade (aderência, frescor, vaga fantasma, eliminatórios:
+ * src/jobs/priority.ts), para as mais recentes ganharem pacote primeiro.
+ */
+export function candidatesForPackage(jobs = loadJobs(), now = Date.now()): Job[] {
   return jobs
     .filter(
       (j) =>
@@ -31,7 +36,7 @@ export function candidatesForPackage(jobs = loadJobs()): Job[] {
         !(j.triage?.scamSignals.length ?? 0) &&
         !j.duplicateOf,
     )
-    .sort((a, b) => (b.triage?.score ?? 0) - (a.triage?.score ?? 0));
+    .sort((a, b) => priorityOf(b, now) - priorityOf(a, now));
 }
 
 /**

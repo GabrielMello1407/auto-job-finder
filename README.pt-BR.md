@@ -32,17 +32,19 @@
 ## O que ele faz
 
 1. **Monta o seu perfil** a partir do que você tiver: currículo (PDF ou DOCX), PDF do LinkedIn, portfólio, GitHub, um texto, ou respondendo a perguntas.
-2. **Busca vagas** em sites de vagas, no portal da Gupy e na web (LinkedIn, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas e sinais de golpe. A mesma vaga publicada em vários sites aparece uma vez só, e vaga que já acabou é descartada antes de virar pacote. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
+2. **Busca vagas** em sites de vagas, no portal da Gupy e na web (LinkedIn, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas, critérios eliminatórios e sinais de golpe. As vagas mais recentes e que mais combinam vêm primeiro, e possíveis vagas fantasma (antigas, republicadas, banco de talentos) ficam marcadas. A mesma vaga publicada em vários sites aparece uma vez só, e vaga que já acabou é descartada antes de virar pacote. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
 3. **Prepara o pacote** de cada vaga boa:
    - currículo adaptado no padrão ATS, em PDF;
    - carta de apresentação, quando o mercado pede;
    - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento, com o e-mail pronto para abrir no seu programa de e-mail (já com o currículo anexado) ou no Gmail;
-   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar;
+   - uma mensagem curta de apresentação para o campo "mensagem" das plataformas;
+   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar, com as suas respostas fixas (pretensão, disponibilidade, autorização de trabalho);
    - o passo a passo para se candidatar pelo canal certo;
    - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), digitadas ou lidas de um print do formulário, que você ajusta conversando.
-4. **Acompanha as candidaturas:** lembra do follow-up, prepara um guia de entrevista e registra oferta ou recusa.
-5. **Cuida do seu LinkedIn:** monta um plano para atrair recrutadores e confere o seu perfil de hoje, mostrando o que já está certo, o que falta e o que corrigir.
-6. **Acompanha a sua carreira:** conte uma novidade (projeto, emprego, curso) e a IA propõe as mudanças no perfil. Você confere o antes e o depois, e os currículos são refeitos.
+4. **Ajuda a pedir indicação:** buscas no LinkedIn por pessoas da empresa (você abre; o agente nunca entra no LinkedIn) e mensagens curtas e honestas.
+5. **Acompanha as candidaturas:** lembra de até dois follow-ups, prepara um guia de entrevista, registra até onde cada recusa chegou e mostra numa página de **Resultados** o que traz mais resposta (canal, prazo, nota da triagem). As ideias por trás dessas funções vêm de [pesquisas sobre contratação](docs/como-funciona.md#pesquisas-por-trás-das-funções).
+6. **Cuida do seu LinkedIn:** monta um plano para atrair recrutadores e confere o seu perfil de hoje, mostrando o que já está certo, o que falta e o que corrigir.
+7. **Acompanha a sua carreira:** conte uma novidade (projeto, emprego, curso) e a IA propõe as mudanças no perfil. Você confere o antes e o depois, e os currículos são refeitos. Também aponta os resultados do currículo sem número, para você completar.
 
 Funciona com a IA que você **já tem**: assinatura do **Claude**, do **ChatGPT** (Codex) ou conta **Google** (Gemini), sem chave de API. Também aceita APIs: Anthropic, OpenAI ou compatível (OpenRouter, Groq, Ollama), Gemini, Amazon Bedrock e Google Vertex.
 
@@ -102,6 +104,8 @@ O passo a passo completo, com cada tela, está no **[guia de uso](docs/guia-de-u
 | **Atualizar o perfil:** conte uma novidade e confira o antes e o depois antes de salvar | **LinkedIn:** o que corrigir, o que do plano falta e o que já está certo |
 | ![Colar uma vaga recebida sem link](docs/images/colar-vaga-sem-link.jpg) | ![Vaga confirmada pela pesquisa na web](docs/images/vaga-pesquisada.jpg) |
 | **Vaga sem link:** cole o que você recebeu e peça a pesquisa na web | **Pesquisa na web:** anúncio oficial, site da empresa e se a vaga é real |
+| ![Resultados: taxa de resposta e de entrevista por canal, prazo e nota](docs/images/resultados.jpg) | ![Vagas para decidir, com selos de frescor, eliminatório e vaga fantasma](docs/images/vagas-para-decidir.jpg) |
+| **Resultados:** o que traz resposta, onde as recusas acontecem e o que falta registrar | **Prioridade:** vagas novas primeiro; eliminatórias e possíveis vagas fantasma descem |
 | ![Perfil com pontos a confirmar e editor](docs/images/perfil.jpg) | ![Paleta de comandos com Ctrl+K](docs/images/paleta.jpg) |
 | **Perfil:** a fonte única de fatos, com o que falta confirmar | **Ctrl+K:** ache qualquer vaga ou ação digitando |
 
@@ -141,7 +145,7 @@ Requisito da vaga sem evidência no seu perfil vira **lacuna**, nunca preenchime
 | | |
 |---|---|
 | [Guia de uso](docs/guia-de-uso.md) | Instalação, cadastro, cada tela, atalhos, preferências, arquivos, comandos do terminal e dúvidas |
-| [Como funciona](docs/como-funciona.md) | Perfil, busca, triagem, pacote, travas anti-invenção, IAs, interface e organização do código |
+| [Como funciona](docs/como-funciona.md) | Perfil, busca, triagem e prioridade, pacote, travas anti-invenção, resultados, as pesquisas por trás das funções, IAs, interface e organização do código |
 | [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md) | Como rodar, testar e contribuir |
 | [SECURITY.pt-BR.md](SECURITY.pt-BR.md) | Como reportar uma falha de segurança |
 

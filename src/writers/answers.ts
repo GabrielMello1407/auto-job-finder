@@ -7,7 +7,7 @@ import { cleanJobText } from "../jobs/page.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { canWebSearch, structured } from "../llm.js";
 import { IMAGE_MAX_BYTES, imageMime, type ImageInput } from "../providers/images.js";
-import { forbiddenPatterns, profileTruthEvidence } from "../profile.js";
+import { applicationFactsText, forbiddenPatterns, loadPreferences, profileTruthEvidence } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import type { Job, JobAnalysis, JobAnswer } from "../schemas.js";
 import { norm, truncate, withoutDashes } from "../util/text.js";
@@ -216,9 +216,10 @@ async function write(job: Job, d: Draft): Promise<{ answer: string; needsYou: st
   // O que a pessoa escreve nos ajustes também é fato contado por ela (ex.: "uso o app há um ano").
   const told = [d.context ?? "", ...(d.adjustments ?? []), d.refine?.instruction ?? ""].filter((t) => t.trim());
   const focus = jobFocus(job);
-  const sources = [profileSources(), job.description, focus, d.question, ...told, resume ?? ""].join("\n");
+  const facts = applicationFactsText(loadPreferences().applicationFacts);
+  const sources = [profileSources(), job.description, focus, facts, d.question, ...told, resume ?? ""].join("\n");
 
-  const prompt = `${block("vaga", jobBlock(job))}${block("analise_da_vaga", focus)}${block("curriculo_enviado_para_esta_vaga", resume)}${block("o_que_a_pessoa_contou", d.context)}${block(
+  const prompt = `${block("vaga", jobBlock(job))}${block("analise_da_vaga", focus)}${block("curriculo_enviado_para_esta_vaga", resume)}${block("respostas_fixas_da_pessoa", facts)}${block("o_que_a_pessoa_contou", d.context)}${block(
     "ajustes_pedidos_antes",
     d.adjustments?.map((a) => `- ${a}`).join("\n"),
   )}${block("respostas_ja_dadas_nesta_candidatura", others.map((a) => `P: ${a.question}\nR: ${a.answer}`).join("\n\n"))}
@@ -235,7 +236,7 @@ Escreva a resposta que a pessoa vai colar no formulário:
 - Use a <analise_da_vaga> para escolher essas provas: prefira as que atendem um requisito obrigatório ou o que a empresa valoriza. O que está nas lacunas a pessoa não tem: não afirme nem insinue.
 - Sobre a empresa, só o que está na <vaga> e na <analise_da_vaga> (inclusive a pesquisa na web e a missão e os valores da página oficial, se houver). Se citar um valor ou a missão da empresa, use as palavras da página e ligue a uma prova concreta da pessoa, sem bajular. Não invente produto, valores, notícias, clientes ou números da empresa.
 - Coerente com <respostas_ja_dadas_nesta_candidatura>, sem repetir as mesmas provas se der para variar.
-- Se a pergunta pede algo que só a pessoa sabe (motivação pessoal, opinião sobre o produto ou o app, pretensão salarial, disponibilidade, por que quer sair do emprego), escreva a melhor resposta verdadeira possível com as fontes, sem inventar sentimentos ou experiências, e diga em needsYou o que ela precisa contar. Nunca invente valor de salário, documento ou endereço.`;
+- Se a pergunta pede algo que só a pessoa sabe (motivação pessoal, opinião sobre o produto ou o app, pretensão salarial, disponibilidade, por que quer sair do emprego), escreva a melhor resposta verdadeira possível com as fontes, sem inventar sentimentos ou experiências, e diga em needsYou o que ela precisa contar. Pretensão salarial, disponibilidade, aviso prévio, mudança de cidade e visto: use só <respostas_fixas_da_pessoa>; se não estiver lá, não invente e peça em needsYou. Nunca invente valor de salário, documento ou endereço.`;
 
   const ask = (extra = "") => structured(AnswerSchema, { label: "write:answer", effort: "medium", system: profileSystem(), user: prompt + extra });
   let r = await ask();

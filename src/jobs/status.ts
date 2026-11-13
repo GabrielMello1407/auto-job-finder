@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { input, search, select } from "@inquirer/prompts";
-import type { ApplyVia, Job, JobStatus } from "../schemas.js";
+import type { ApplyVia, Job, JobStatus, RejectionStage } from "../schemas.js";
 import { track } from "../tracker.js";
 import { norm } from "../util/text.js";
-import { loadJobs, setStatus } from "./store.js";
+import { loadJobs, setStatus, updateJob } from "./store.js";
 
 /** Todos os status, com o nome mostrado ao usuário (o Record obriga a listar todos). */
 export const STATUS_LABELS: Record<JobStatus, string> = {
@@ -116,11 +116,43 @@ export function guessApplyVia(job: Job): ApplyVia | undefined {
   return undefined;
 }
 
-/** Muda o status, registra no tracker.csv e devolve a vaga atualizada. Ao marcar como enviada, guarda o canal. */
-export function changeStatus(job: Job, status: JobStatus, note = "", next?: string, via?: ApplyVia): Job {
-  const updated = setStatus(job.id, status, note || undefined, status === "applied" && via ? { appliedVia: via } : {});
-  const trackNote = [status === "applied" && via ? `via ${APPLY_CHANNELS[via]}` : "", note].filter(Boolean).join(" · ");
+/**
+ * Muda o status, registra no tracker.csv e devolve a vaga atualizada. Ao marcar como enviada, guarda o
+ * canal. Na recusa guarda a etapa e o motivo (`outcome`), e a primeira resposta da empresa fica em
+ * `respondedAt` (entrevista, oferta ou recusa com retorno), para o funil (src/jobs/funnel.ts).
+ */
+export function changeStatus(
+  job: Job,
+  status: JobStatus,
+  note = "",
+  next?: string,
+  via?: ApplyVia,
+  outcome?: { stage: RejectionStage; reason?: string },
+): Job {
+  const now = new Date().toISOString();
+  const extra: Partial<Job> = {};
+  if (status === "applied" && via) extra.appliedVia = via;
+  if (status === "rejected") extra.outcome = { stage: outcome?.stage ?? "desconhecida", ...(outcome?.reason?.trim() ? { reason: outcome.reason.trim() } : {}), at: now };
+  // Saiu de "recusada" (reabriu): a etapa da recusa não vale mais.
+  else if (job.outcome) extra.outcome = undefined;
+  const responded = status === "interview" || status === "offer" || (status === "rejected" && extra.outcome?.stage !== "sem_resposta");
+  if (responded && job.appliedAt && !job.respondedAt) extra.respondedAt = now;
+  const updated = setStatus(job.id, status, note || undefined, extra);
+  const trackNote = [
+    status === "applied" && via ? `via ${APPLY_CHANNELS[via]}` : "",
+    status === "rejected" && extra.outcome ? `etapa: ${extra.outcome.stage}${extra.outcome.reason ? ` (${extra.outcome.reason})` : ""}` : "",
+    note,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   track(updated, status, next ?? (status === "applied" ? "follow-up em 5–7 dias úteis" : ""), trackNote);
+  return updated;
+}
+
+/** Registra um follow-up enviado (conta para o próximo lembrete) no jobs.json e no tracker.csv. */
+export function recordFollowUp(job: Job): Job {
+  const updated = updateJob(job.id, { followUps: [...(job.followUps ?? []), new Date().toISOString()] });
+  track(updated, updated.status, "", `follow-up nº ${updated.followUps!.length} enviado`);
   return updated;
 }
 

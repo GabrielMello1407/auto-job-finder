@@ -7,15 +7,19 @@ import { canWebSearch } from "./llm.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
-import { loadPreferences } from "./profile.js";
+import { loadBaseResume, loadPreferences } from "./profile.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
 import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs, markNotDuplicate } from "./jobs/store.js";
-import { changeStatus, markApplied } from "./jobs/status.js";
+import { changeStatus, markApplied, recordFollowUp } from "./jobs/status.js";
+import { defaultStage, followUpDue, funnel, funnelText, isNoReply, isRejectionStage, REJECTION_STAGES } from "./jobs/funnel.js";
+import { referralLinks, referralMessages, REFERRAL_WAIT_DAYS, setReferral } from "./jobs/referral.js";
+import { analyzeNumbers, bulletsWithoutNumbers, numbersNews, withHints } from "./onboarding/numbers.js";
+import { track } from "./tracker.js";
 import { triageJobs } from "./jobs/triage.js";
-import type { Job, JobStatus } from "./schemas.js";
+import type { Job, JobStatus, RejectionStage } from "./schemas.js";
 import { interviewGuide, JobClosedError, tailorJob } from "./tailor/index.js";
 import { openExternal } from "./util/open.js";
 import { linkedinCheck, linkedinPlan, readLinkedinFile } from "./writers/linkedin.js";
@@ -137,6 +141,79 @@ export async function answerFlow(job: Job, given: { question?: string; limit?: n
   console.log(dir ? `\nSalvo em ${path.join(dir, ANSWERS_FILE)}` : "\nSalvo na vaga. O arquivo entra na pasta da vaga quando o pacote for gerado.");
 }
 
+/**
+ * Etapa (e motivo) de uma recusa, para o funil. Com a etapa já dada (--etapa), usa direto; no terminal
+ * pergunta, já marcando a etapa provável pelo status da vaga; sem terminal, fica "desconhecida".
+ */
+export async function askRejection(job: Job, stage?: string, reason?: string): Promise<{ stage: RejectionStage; reason?: string }> {
+  if (isRejectionStage(stage)) return { stage, reason };
+  if (!process.stdin.isTTY) return { stage: "desconhecida", reason };
+  const picked = await select<RejectionStage>({
+    message: "Até onde o processo chegou?",
+    default: defaultStage(job),
+    choices: (Object.entries(REJECTION_STAGES) as [RejectionStage, string][]).map(([value, name]) => ({ name, value })),
+  });
+  const why = reason ?? (await input({ message: "Motivo, se a empresa disse (Enter pula):" }));
+  return { stage: picked, reason: why.trim() || undefined };
+}
+
+/** Pedir indicação: links de busca no LinkedIn (a pessoa abre), mensagens prontas e o registro. */
+async function referralFlow(job: Job) {
+  const links = referralLinks(job.company);
+  console.log(`\n🤝 Abra no navegador (logado no LinkedIn):\n  Pessoas da empresa na sua rede: ${links.network}\n  Quem recruta lá: ${links.recruiters}\n\n✍️ Escrevendo as mensagens...`);
+  const m = await referralMessages(job.id);
+  console.log(`\nPara quem já conhece você:\n${m.warm}\n\nConvite de conexão (${m.cold.length}/300):\n${m.cold}\n`);
+  const status = await select<"pedida" | "recebida" | "">({
+    message: "Registrar?",
+    choices: [
+      { name: "Pedi a indicação", value: "pedida" },
+      { name: "Recebi a indicação", value: "recebida" },
+      { name: "Ainda não", value: "" },
+    ],
+  });
+  if (status) {
+    track(setReferral(job.id, status), job.status, "", `indicação: ${status}`);
+    console.log(status === "pedida" ? `✅ Registrado. Sem resposta em ${REFERRAL_WAIT_DAYS} dias, candidate-se pela plataforma: chegar cedo pesa mais.` : "✅ Registrado.");
+  }
+}
+
+/** Números que faltam: resultados sem número viram uma proposta de atualização do perfil. Também usado pelo `ajf numeros`. */
+export async function numbersFlow() {
+  const found = bulletsWithoutNumbers(loadBaseResume("pt-BR"), 12);
+  if (!found.length) return console.log("✅ Todos os tópicos de experiência do currículo-base já têm um número.");
+  console.log(`🧠 Vendo o que dá para medir em cada um dos ${found.length} tópico(s) sem número...`);
+  try {
+    await analyzeNumbers(found);
+  } catch (e) {
+    console.log(`   ⚠ A análise não deu certo (${(e as Error).message}). Siga assim mesmo.`);
+  }
+  const items = withHints(found);
+  const strong = items.filter((i) => i.hint?.worth !== "baixo");
+  const weak = items.filter((i) => i.hint?.worth === "baixo");
+  console.log(`\n🔢 Responda com o número real ou aproximado. Enter pula. A IA nunca sugere o valor; o que você disser vira uma proposta para conferir.\n`);
+  const ask = async (it: (typeof items)[number]) => {
+    const h = it.hint;
+    console.log(`${it.company} (${it.title})${h ? `  ${h.worth === "alto" ? "💪 pesa muito" : h.worth === "medio" ? "👍 ajuda" : "ajuda pouco"}` : ""}\n  "${it.bullet}"`);
+    if (h) console.log(`  ${h.question}${h.measure ? `\n  (${h.measure}${h.examples.length ? `; ex.: ${h.examples.join("; ")}` : ""})` : ""}`);
+    const value = await input({ message: "  número:" });
+    console.log("");
+    return value.trim() ? { ...it, value, question: h?.question } : null;
+  };
+  const filled = [];
+  for (const it of strong) {
+    const r = await ask(it);
+    if (r) filled.push(r);
+  }
+  if (weak.length && (await confirm({ message: `Ver também os ${weak.length} tópico(s) em que um número ajuda pouco?`, default: false })))
+    for (const it of weak) {
+      const r = await ask(it);
+      if (r) filled.push(r);
+    }
+  const text = numbersNews(filled);
+  if (!text) return console.log("Nada informado.");
+  await runProfileUpdate({ text });
+}
+
 function emailSection(j: Job, heading: string): string | null {
   if (!j.outputDir) return null;
   const file = path.join(j.outputDir, "emails.md");
@@ -243,11 +320,13 @@ async function recommendedFlow() {
         ...(canWebSearch()
           ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
           : []),
+        { name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" },
         { name: "✅ Já me candidatei (marcar como enviada)", value: "applied" },
         { name: "🗑 Descartar", value: "discard" },
         { name: "⬅ Voltar", value: BACK },
       ],
     });
+    if (action === "referral") await referralFlow(job);
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
     if (action === "answer") await answerFlow(job);
@@ -306,6 +385,7 @@ async function packagesFlow() {
           { name: "🔒 Conferir se a vaga ainda está aberta", value: "check" },
           ...(job.duplicateOf ? [{ name: "🔁 Não é a mesma vaga (tirar a marca de repetida)", value: "notdup" }] : []),
           { name: "📁 Abrir pasta do pacote", value: "folder" },
+          { name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" },
           { name: "✅ Marcar como enviado", value: "applied" },
           { name: "🔄 Gerar de novo", value: "redo" },
           { name: "🗑 Descartar", value: "discard" },
@@ -313,6 +393,7 @@ async function packagesFlow() {
         ],
       });
       if (action === BACK) break;
+      if (action === "referral") await referralFlow(job);
       if (action === "pdf" && job.files?.resume) openExternal(job.files.resume);
       if (action === "cover" && job.files?.coverLetter) openExternal(job.files.coverLetter);
       if (action === "folder" && job.outputDir) openExternal(job.outputDir);
@@ -364,7 +445,8 @@ async function activeFlow() {
       new Separator(),
       ...jobs.map((j) => {
         const days = j.appliedAt ? Math.floor((Date.now() - Date.parse(j.appliedAt)) / 86400_000) : null;
-        const flag = j.status === "applied" && days != null && days >= 7 ? " ⏰ follow-up!" : "";
+        const due = followUpDue(j);
+        const flag = due ? ` ⏰ ${due}º follow-up!` : isNoReply(j) ? " 📭 sem retorno" : "";
         return { name: `${j.status.padEnd(10)} ${days != null ? `${days}d` : ""}  ${cut(j.company, 22)} — ${cut(j.title, 50)}${flag}`, value: j.id };
       }),
     ],
@@ -375,6 +457,7 @@ async function activeFlow() {
     message: `${job.company} — ${cut(job.title, 50)}`,
     choices: [
       { name: "⏰ Mostrar e-mail de follow-up", value: "followup" },
+      ...(job.status === "applied" ? [{ name: "✅ Enviei o follow-up (registrar)", value: "followupSent" }] : []),
       { name: "🙏 Mostrar agradecimento pós-entrevista", value: "thanks" },
       { name: "📝 Responder pergunta do formulário", value: "answer" },
       { name: "🎤 Fui chamado para entrevista", value: "interview" },
@@ -388,8 +471,12 @@ async function activeFlow() {
   if (action === "thanks") console.log("\n" + (emailSection(job, "## 5.") ?? "emails.md não encontrado") + "\n");
   if (action === "folder" && job.outputDir) openExternal(job.outputDir);
   if (action === "answer") await answerFlow(job);
+  if (action === "followupSent") {
+    const updated = recordFollowUp(job);
+    console.log(`✅ Follow-up nº ${updated.followUps!.length} registrado.`);
+  }
   if (action === "interview" || action === "offer" || action === "rejected") {
-    changeStatus(job, action);
+    changeStatus(job, action, "", undefined, undefined, action === "rejected" ? await askRejection(job) : undefined);
     refresh();
     if (action === "interview" && (await confirm({ message: "Gerar/atualizar o guia de entrevista agora?", default: true })))
       console.log(`🎤 Guia salvo em ${await interviewGuide(job.id)}`);
@@ -459,12 +546,14 @@ async function profileFlow() {
     message: "Atualizar meu perfil",
     choices: [
       { name: "➕ Contar uma novidade (projeto, emprego, curso, resultado)", value: "update" },
+      { name: "🔢 Números que faltam (resultados sem número no currículo)", value: "numbers" },
       { name: "🔄 Refazer os currículos-base a partir do profile_truth.md (depois de editar à mão)", value: "rebuild" },
       { name: "🧭 Montar o perfil do zero (novo currículo, LinkedIn, portfólio)", value: "init" },
       { name: "⬅ Voltar", value: BACK },
     ],
   });
   if (action === "update") await runProfileUpdate({});
+  if (action === "numbers") await numbersFlow();
   if (action === "rebuild") await rebuildBaseResumes();
   if (action === "init") await runInit();
   refresh();
@@ -487,9 +576,7 @@ export async function mainMenu() {
   for (;;) {
     const jobs = loadJobs();
     const count = (...s: JobStatus[]) => jobs.filter((j) => s.includes(j.status)).length;
-    const due = jobs.filter(
-      (j) => j.status === "applied" && j.appliedAt && Date.now() - Date.parse(j.appliedAt) >= 7 * 86400_000,
-    ).length;
+    const due = jobs.filter((j) => followUpDue(j)).length;
     console.log("");
     const choice = await select({
       message: "auto-job-finder — o que vamos fazer?",
@@ -503,6 +590,7 @@ export async function mainMenu() {
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
         { name: "🔎 Só buscar e triar vagas novas", value: "search" },
         { name: "🔒 Conferir se as vagas ainda estão abertas", value: "check" },
+        { name: "📊 Resultados: o que está funcionando (canal, fonte, prazo)", value: "results" },
         { name: "🌐 Abrir painel no navegador", value: "dashboard" },
         { name: "🔗 LinkedIn: plano ou conferência", value: "linkedin" },
         { name: "🧭 Atualizar meu perfil (novidade, currículos-base ou do zero)", value: "init" },
@@ -527,6 +615,7 @@ export async function mainMenu() {
         console.log(closedSummary(await checkOpenJobs()));
         refresh();
       }
+      if (choice === "results") console.log(`\n${funnelText(funnel(loadJobs()))}\n`);
       if (choice === "dashboard") openExternal(writeDashboard());
       if (choice === "linkedin") await linkedinFlow();
       if (choice === "init") await profileFlow();

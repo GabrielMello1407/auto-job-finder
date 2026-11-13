@@ -48,6 +48,10 @@ export const settings = {
    * Depois disso, ou se ela foi publicada depois da sua candidatura, é uma vaga reaberta: entra normal.
    */
   repeatWindowDays: Number(process.env.AJF_REPEAT_WINDOW_DAYS || 90),
+  /** Dias depois da candidatura (ou do último follow-up) para o próximo follow-up. */
+  followUpDays: Number(process.env.AJF_FOLLOW_UP_DAYS || 7),
+  /** Candidatura sem nenhuma resposta depois disso conta como "sem retorno" no funil. */
+  noReplyDays: Number(process.env.AJF_NO_REPLY_DAYS || 30),
   /** Fallback server-side em caso de recusa do modelo (beta, só API Anthropic). Desligue com AJF_FALLBACKS=off. */
   fallbacks: (process.env.AJF_FALLBACKS || "on") !== "off",
   chromePath: process.env.CHROME_PATH || detectChrome(),

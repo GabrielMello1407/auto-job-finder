@@ -121,8 +121,10 @@ export function editor(params: {
   review: Review;
   guards: GuardReport;
   market: MarketProfile;
+  /** O que falta no topo do currículo, do teste dos primeiros segundos (src/tailor/skim.ts). */
+  skim?: string;
 }): Promise<Resume> {
-  const { jd, analysis, current, base, review, guards, market } = params;
+  const { jd, analysis, current, base, review, guards, market, skim } = params;
   const coverable = review.gaps.filter((g) => g.truthfullyCoverable);
   return structured(ResumeSchema, {
     label: "tailor:editor",
@@ -156,7 +158,7 @@ Palavras-chave que você tem e faltam: ${review.missingKeywordsCoverable.join(",
 Apresentação: ${review.presentation.join(" | ") || "-"}
 Lacunas reais (NÃO tente cobrir): ${review.gaps.filter((g) => !g.truthfullyCoverable).map((g) => g.requirement).join(", ") || "nenhuma"}
 </hiring_manager_feedback>
-
+${skim ? `\n<first_seconds_check>\nNa primeira olhada (poucos segundos) o recrutador lê só o título, o resumo e o cargo atual. Ajuste:\n${skim}\n</first_seconds_check>\n` : ""}
 Você é um editor de currículos. Produza a próxima versão de current_version:
 1. Corrija todas as violações automáticas.
 2. Aplique apenas o feedback que as fontes comprovam. Lacuna real continua lacuna.

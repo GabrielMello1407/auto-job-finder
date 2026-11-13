@@ -115,6 +115,12 @@ Depois de aplicar:
 
 > Se você editar o perfil depois de uma proposta pronta, ela não pode mais ser aplicada: descarte e conte a novidade de novo. Assim nada do que você editou à mão se perde.
 
+**🔢 Números que faltam.** Resultado com número pesa mais na leitura do recrutador. Abaixo da caixa de atualização, **🔢 Números que faltam** lista os tópicos do seu currículo que não têm nenhum número (até 12). Para cada um, a IA diz o que dá para medir e faz uma pergunta específica sobre o impacto, não sobre o esforço: quantas pessoas usam o que você fez, quanto tempo economizou, quantos erros sumiram, em vez de quantas tarefas você fez. Também diz quanto um número ajudaria (**💪 pesa muito**, **👍 ajuda** ou **ajuda pouco**, estes recolhidos) e dá formatos de resposta com N no lugar do valor. Ela nunca sugere o valor.
+
+![Números que faltam, com a pergunta da IA para cada tópico](images/numeros-que-faltam.jpg)
+
+Responda só o que você sabe, com o número real ou aproximado, e clique em **📝 Preparar a atualização**; o que ficar vazio é ignorado. Vira uma proposta de atualização igual à de cima, que você confere antes de salvar. A análise leva cerca de meio minuto (dá para ir respondendo enquanto isso), roda uma vez e fica guardada; **🔄 Analisar de novo** refaz. Se a IA não responder em 3 minutos, o painel avisa e você tenta de novo. No terminal: `ajf numeros` (as mesmas perguntas, uma a uma).
+
 ## 4. O dia a dia: das vagas à candidatura
 
 A página **Vagas** é um funil com cinco etapas. Clique numa etapa para ver as vagas dela.
@@ -164,7 +170,7 @@ O que foi achado fica no fim da **Descrição da vaga**, marcado como pesquisa, 
 
 ![Vagas para decidir](images/vagas-para-decidir.jpg)
 
-Em **Para decidir**, as vagas recomendadas aparecem primeiro. Você pode:
+Em **Para decidir**, as vagas que mais valem o seu tempo aparecem primeiro: a ordem junta a nota da triagem com quão recente a vaga é, os critérios eliminatórios, os sinais de vaga fantasma e a indicação (veja [Por que uma vaga sobe ou desce](#por-que-uma-vaga-sobe-ou-desce)). Você pode:
 - **📦 Gerar pacote:** cria o currículo adaptado, a carta (quando o mercado pede), os e-mails e os relatórios. Leva alguns minutos e roda em segundo plano.
 - **📦 Gerar vários pacotes de uma vez:** marque as vagas numa lista.
 - **✅ Já me candidatei:** se você se candidatou sem pacote.
@@ -172,11 +178,27 @@ Em **Para decidir**, as vagas recomendadas aparecem primeiro. Você pode:
 
 Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário fora da realidade) aparecem marcadas. Desconfie.
 
+#### Por que uma vaga sobe ou desce
+
+| Selo | O que quer dizer | Efeito na ordem |
+|---|---|---|
+| **🆕 publicada há N dias** | Publicada há até 3 dias. A maior parte das candidaturas chega nos primeiros dias, e quem se candidata cedo é visto antes | sobe |
+| **⏳ publicada há N dias** | Publicada há mais de 14 dias: já recebeu muitas candidaturas | desce um pouco mais a cada dia |
+| **👻 pode ser vaga fantasma** | Publicada há mais de 30 dias, a mesma vaga já vista antes, banco de talentos sem vaga específica ou quase nenhum detalhe. Nem todo anúncio vira contratação: confira no site da empresa se a vaga ainda existe. Passe o mouse no selo para ver o motivo | desce |
+| **⛔ eliminatório: ...** | Um requisito que a vaga usa como filtro (anos de experiência, idioma, local, autorização de trabalho, formação) e que o seu perfil mostra que você não atende | desce e deixa de ser recomendada |
+| **🤝 indicação recebida** | Alguém da empresa indicou você (veja [Pedir indicação](#pedir-indicação)) | sobe |
+
+Os critérios eliminatórios vêm da triagem. Nos detalhes da vaga, **⛔ Critérios eliminatórios da vaga** lista cada um com ✓ (o perfil comprova), ✗ (o perfil mostra que não atende) ou ? (o perfil não diz: confira antes de se candidatar). Plataformas costumam filtrar por eles antes de alguém ler o currículo, mas o agente nunca descarta a vaga sozinho por causa deles: "5+ anos" com 4 às vezes passa, e a decisão é sua. Preencha as [respostas fixas dos formulários](#respostas-fixas-dos-formulários) para a triagem saber da sua autorização de trabalho e se você mudaria de cidade.
+
+O piloto automático usa a mesma ordem para escolher quais vagas ganham pacote primeiro.
+
 **Vaga encerrada.** Antes de gerar o pacote, o agente abre o link da vaga e procura sinais de que ela acabou: página que não existe mais, prazo de inscrição vencido, "vaga encerrada" ou "no longer accepting applications" na página. Se achar, não gasta a IA: a vaga fica com **🔒 vaga encerrada** e o motivo, e o botão vira **📦 Gerar mesmo assim**, para quando você conferiu e ela ainda está aberta. Sem certeza (site que bloqueia robôs ou pede login), segue normalmente.
 
 **🔒 Conferir se ainda estão abertas**, em "Para decidir" e em "Prontas", confere de uma vez todas as vagas que você ainda não enviou. As encerradas sem pacote vão para "Encerradas" (dá para reabrir); as que já têm pacote ficam onde estão, marcadas. Nos detalhes de uma vaga, **🔒 Conferir se está aberta** faz o mesmo só com ela.
 
 ### Candidatar-se
+
+Vale o esforço? Peça indicação antes (veja [Pedir indicação](#pedir-indicação)).
 
 Em **Prontas**:
 1. Abra o **📄 Currículo** e confira o PDF inteiro.
@@ -184,10 +206,21 @@ Em **Prontas**:
    - **Plataforma ou formulário** (Gupy, InHire, Greenhouse, Workday, site da empresa): clique em **🔗 Candidatar-se** e deixe aberta ao lado a **📋 Ficha**, com cada campo que esses formulários pedem de novo, um botão de copiar em cada (veja [Ficha de candidatura](#ficha-de-candidatura)).
    - **E-mail:** na aba **E-mails**, **✉️ Abrir no programa de e-mail, com o currículo anexado** abre o e-mail pronto (destinatário, assunto, texto e o PDF). Usa o Gmail pelo navegador? **Abrir no Gmail** abre o e-mail preenchido; arraste o PDF da **📁 Pasta do PDF**.
    - **LinkedIn:** as mensagens estão na aba **E-mails**.
+
+   A plataforma tem um campo "mensagem", "carta de apresentação" ou "por que você?"? A aba **E-mails** traz uma **mensagem curta de apresentação** (até 600 caracteres) para ele; ela também está na **Ficha**.
 3. O formulário pede algo como "Por que você quer trabalhar aqui?"? Use a aba **Perguntas** da vaga (veja [Perguntas do formulário](#perguntas-do-formulário)).
 4. Depois de enviar, clique em **✅ Já me candidatei** e marque **por onde** foi (plataforma, e-mail, LinkedIn, site, WhatsApp, indicação). O canal provável já vem marcado. Com isso dá para ver depois qual canal responde mais.
 
 **O agente nunca envia nada sozinho.** Ele prepara; você revisa e envia.
+
+#### Pedir indicação
+
+Indicação é o caminho que mais vira contratação (veja [as pesquisas](como-funciona.md#pesquisas-por-trás-das-funções)). Nas vagas que valem a pena, antes de se candidatar, clique em **🤝 Pedir indicação** (na vaga ou nos detalhes):
+1. **👥 Pessoas da empresa na sua rede** e **🧑‍💼 Quem recruta lá** abrem buscas no LinkedIn. Abra logado e escolha alguém. O agente nunca entra no LinkedIn.
+2. **✍️ Escrever as mensagens** escreve duas mensagens curtas, só com fatos do seu perfil: uma para quem já conhece você e um convite de conexão para quem não conhece (até 300 caracteres, o limite do LinkedIn). Nunca inventa vínculo com ninguém.
+3. Mande você mesmo e marque a **Situação**: **Pedi a indicação**, **Recebi a indicação** ou **Ninguém respondeu**.
+
+Se ninguém responder em 3 dias, a vaga mostra **🤝 indicação sem resposta**: candidate-se pela plataforma, porque chegar cedo pesa mais que esperar. A indicação recebida (**🤝 indicação recebida**) faz a vaga subir na lista. No terminal: `ajf indicacao <empresa>`.
 
 #### Ficha de candidatura
 
@@ -195,7 +228,8 @@ Formulários de plataforma pedem de novo o que já está no currículo: nome, te
 - dados pessoais (nome e sobrenome separados, telefone também só com números);
 - o resumo em três tamanhos (até 300 e até 600 caracteres, e o completo), cortado em frases inteiras;
 - cada experiência: cargo, empresa, local, modalidade, início, fim, "trabalho aqui atualmente" e a descrição;
-- formação, certificações, idiomas, competências e projetos.
+- formação, certificações, idiomas, competências e projetos;
+- a **mensagem curta de apresentação** do pacote e as suas **respostas fixas** (pretensão salarial, disponibilidade, aviso prévio, mudança de cidade, autorização de trabalho), quando preenchidas nas [Preferências](#respostas-fixas-dos-formulários).
 
 Tudo sai do currículo adaptado para a vaga (ou do currículo-base, antes do pacote), sem nada novo. A mesma ficha fica em `ficha_de_candidatura.md`, na pasta do pacote.
 
@@ -204,11 +238,27 @@ Tudo sai do currículo adaptado para a vaga (ou do currículo-base, antes do pac
 ![Candidaturas em andamento](images/vagas-em-andamento.jpg)
 
 Em **Em andamento**:
-- Depois de 7 dias aparece **⏰ hora do follow-up**. O e-mail de follow-up já está pronto em **📧 Follow-up**.
+- **⏰ hora do follow-up** aparece depois de 7 dias sem resposta. O e-mail está pronto em **📧 Follow-up**; depois de mandar, clique em **✅ Enviei o follow-up**. Se 7 dias depois ainda não responderam, aparece **⏰ hora do 2º follow-up**. No máximo dois: mais que isso não ajuda.
+- Depois de 30 dias sem resposta, a vaga mostra **📭 sem retorno**. Ela já conta como sem retorno em [Resultados](#resultados); **📭 Fechar como sem retorno** leva a vaga para "Encerradas".
 - **🎤 Fui chamado para entrevista:** a vaga vai para "em entrevista", e o agente oferece um **guia de entrevista** com perguntas prováveis e respostas baseadas no currículo que você enviou.
-- **🎉 Recebi oferta** e **Fui recusado** registram o resultado.
+- **🎉 Recebi oferta** registra a oferta.
+- **Fui recusado** pergunta **Até onde chegou?**: sem resposta, na triagem (antes de qualquer conversa), depois da conversa com o RH, depois do teste ou da entrevista técnica, depois da entrevista final ou etapa desconhecida, e o motivo, se a empresa disse. Recebeu o e-mail de recusa? Abra **📧 Colar o e-mail de recusa para a IA ler**, cole e clique em **Ler o e-mail**: a IA preenche a etapa e o motivo (só se o e-mail disser) e avisa quando parece mensagem automática. Você confere e clica em **Registrar**.
+
+O aviso no topo mostra quantos follow-ups estão para mandar e quantas candidaturas estão sem resposta há muito tempo, com **📊 Ver resultados**.
 
 Toda mudança de status fica registrada em `output/tracker.csv`, que abre no Excel ou no Google Sheets.
+
+### Resultados
+
+![Resultados](images/resultados.jpg)
+
+A página **📊 Resultados** mostra o que acontece com as suas candidaturas e o que funciona melhor, só com o que você registrou:
+- **enviadas**, **com resposta**, **com entrevista**, **sem retorno** (mais de 30 dias), **aguardando** e a mediana de **dias até a resposta**. As porcentagens contam só as candidaturas que já têm resultado; as que estão aguardando ficam de fora.
+- **O que os números dizem**: conclusões como qual canal responde mais, se candidatar cedo traz mais respostas e se a maior parte das recusas vem na triagem (aí confira os critérios eliminatórios e o topo do currículo). Com menos de umas 10 candidaturas com resultado, ela avisa que as comparações ainda não são confiáveis.
+- O que falta para os números ficarem certos: **📝 Recusas sem a etapa**, **📨 Candidaturas sem o canal** e **⏰ Follow-ups para mandar**, cada um com o seu botão.
+- **Onde as recusas aconteceram** e as tabelas **Por canal**, **Dias entre a publicação e o envio**, **Por nota da triagem** e **Por fonte**. Grupo com menos de 3 resultados aparece marcado "(poucas)".
+
+No terminal: `ajf resultados`. O mesmo resumo está no `output/painel.html`.
 
 ## 5. Detalhes da vaga e o pacote
 
@@ -218,7 +268,7 @@ Clique no título de uma vaga para abrir os detalhes.
 
 - **Resumo:** a avaliação da IA, o que você já tem (com evidência no perfil), as lacunas e a descrição.
 - **Pacote:** os arquivos, o LEIA-ME com o passo a passo de candidatura e os relatórios (ATS, nota do recrutador e conferência com o perfil).
-- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up e agradecimento, cada assunto e cada mensagem com botão de copiar. No topo, **✉️ Abrir no programa de e-mail, com o currículo anexado** abre o e-mail de candidatura pronto, com destinatário (se a vaga traz um e-mail de contato), assunto, texto e o PDF; o Outlook já abre para enviar. **Abrir no Gmail** (em cada e-mail) abre o Gmail pelo navegador com tudo preenchido, menos o anexo: arraste o PDF da **📁 Pasta do PDF**. Você confere e envia.
+- **E-mails e mensagens:** candidatura, convite e mensagem no LinkedIn, follow-up, agradecimento e uma mensagem curta de apresentação (até 600 caracteres, para o campo "mensagem" das plataformas), cada assunto e cada mensagem com botão de copiar. No topo, **✉️ Abrir no programa de e-mail, com o currículo anexado** abre o e-mail de candidatura pronto, com destinatário (se a vaga traz um e-mail de contato), assunto, texto e o PDF; o Outlook já abre para enviar. **Abrir no Gmail** (em cada e-mail) abre o Gmail pelo navegador com tudo preenchido, menos o anexo: arraste o PDF da **📁 Pasta do PDF**. Você confere e envia.
 - **Ficha:** os campos dos formulários de candidatura, prontos para copiar (veja [Ficha de candidatura](#ficha-de-candidatura)).
 - **Entrevista:** o guia, quando existir.
 - **Perguntas:** respostas para as perguntas do formulário de candidatura (veja abaixo).
@@ -287,6 +337,7 @@ O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não mud
 | **Filtro pelo título** | Palavras que o título precisa ter e palavras que eliminam a vaga. Corta vagas **sem gastar IA** |
 | **Onde** | Regiões aceitas em vagas remotas com restrição e cidades para presencial/híbrido |
 | **Empresas** | Empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
+| **Respostas fixas dos formulários** | O que os formulários sempre perguntam e não está no currículo (veja [abaixo](#respostas-fixas-dos-formulários)) |
 | **Notas mínimas** | Triagem mínima para o piloto automático gerar pacote e nota mínima para "pronto para enviar" |
 
 Fontes de vagas:
@@ -300,6 +351,10 @@ Fontes de vagas:
 | `greenhouse`, `lever`, `ashby` | páginas de carreira das empresas que você indicar |
 
 **Termos de busca em dois idiomas.** Cada termo vira uma busca em cada fonte. As fontes internacionais acham vagas com termos em inglês ("data analyst"); a Gupy e os sites do Brasil, com termos em português ("analista de dados"). Se você mora no Brasil e aceita vagas de fora, deixe os dois. Quem montou o perfil antes de a Gupy entrar no agente precisa ligá-la aqui, em **Fontes de vagas**.
+
+### Respostas fixas dos formulários
+
+Os formulários sempre perguntam coisas que não estão no currículo: pretensão salarial, disponibilidade para começar, aviso prévio, mudança de cidade e autorização de trabalho ou visto. Preencha uma vez em **📝 Respostas fixas dos formulários**. Elas entram na [ficha de candidatura](#ficha-de-candidatura), nas [respostas às perguntas](#perguntas-do-formulário) (a IA usa o seu valor em vez de perguntar) e na triagem, para conferir critérios eliminatórios como visto ou vaga presencial em outra cidade. Deixe vazio o que não quiser informar: a IA nunca inventa.
 
 ## 8. LinkedIn
 
@@ -361,7 +416,7 @@ A pasta de cada pacote muda de lugar sozinha quando o status muda. Dentro dela:
 LEIA-ME.md                          nota, ATS, COMO SE CANDIDATAR e checklist
 <Nome>_Curriculo_<Empresa>.pdf      currículo ATS (Resume_ em vagas de fora)
 <Nome>_Cover_Letter_<Empresa>.pdf   quando o mercado pede (EUA, Canadá, Europa) ou você pede
-emails.md                           candidatura, LinkedIn, follow-up, agradecimento
+emails.md                           candidatura, LinkedIn, follow-up, agradecimento, mensagem curta
 rascunho_candidatura.eml            o e-mail de candidatura com o currículo anexado (abre no Outlook e afins)
 ficha_de_candidatura.md             os campos dos formulários de candidatura, prontos para copiar
 ats_report.md · rating_report.md · coverage_review.md · interview_prep.md
@@ -401,15 +456,22 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |
 | `ajf enviei [empresa ou cargo] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marca que você se candidatou e por onde (acha a vaga pelo nome; sem `--via`, pergunta) |
-| `ajf status [empresa, cargo ou id] [status]` | Muda o status (entrevista, oferta, recusa...) |
+| `ajf status [empresa, cargo ou id] [status] [--etapa triagem] [--motivo "..."]` | Muda o status (entrevista, oferta, recusa...). Na recusa, `--etapa` registra até onde chegou (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) e `--motivo` o motivo; sem eles, pergunta |
+| `ajf followup [empresa, cargo ou id] [--enviei]` | Lista os follow-ups pendentes; com a vaga e `--enviei`, registra o follow-up que você mandou |
+| `ajf indicacao [empresa, cargo ou id] [--pedi\|--recebi\|--sem-resposta] [--refazer]` | Indicação: links de busca no LinkedIn (você abre) e mensagens prontas; registra se você pediu ou recebeu |
+| `ajf resultados` | O funil das suas candidaturas: taxa de resposta e de entrevista por canal, fonte, prazo e nota, e onde as recusas acontecem |
+| `ajf numeros` | Números que faltam: a IA pergunta, tópico a tópico, o que medir (o impacto, nunca o valor); suas respostas viram uma proposta de atualização do perfil |
 | `ajf auto [--web/--no-web] [--max 3] [--interview] [--open]` | Piloto automático |
 | `ajf painel` | Abre o `output/painel.html`, um resumo que funciona sem o servidor |
 
 O ID da vaga aceita só o começo (`ajf tailor 78cb`).
 
-Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), por quantos dias a mesma vaga em outro site conta como repetida (`AJF_REPEAT_WINDOW_DAYS`, 90), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
+Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), por quantos dias a mesma vaga em outro site conta como repetida (`AJF_REPEAT_WINDOW_DAYS`, 90), dias até o follow-up (`AJF_FOLLOW_UP_DAYS`, 7) e até uma candidatura contar como sem retorno (`AJF_NO_REPLY_DAYS`, 30), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
 
 ## 12. Dúvidas e problemas
+
+**Só recebo recusas. O que mudar?**
+Primeiro, registre até onde cada recusa chegou e o canal de cada candidatura: sem isso, não dá para saber onde o processo trava. Depois abra **📊 Resultados**. Se a maior parte das recusas vem na triagem, confira os [critérios eliminatórios](#por-que-uma-vaga-sobe-ou-desce) e o topo do currículo. As pesquisas apontam três alavancas que pesam mais que caprichar de novo no currículo: [indicação](#pedir-indicação), candidatar-se nos primeiros dias depois que a vaga sai e deixar de lado vagas com critério eliminatório que você não atende. Veja [as pesquisas por trás de cada função](como-funciona.md#pesquisas-por-trás-das-funções).
 
 **A interface não abre ou diz "Abra pelo terminal".**
 Rode `ajf` de novo e use o link que aparece no terminal. Por segurança, ela só abre por esse link.

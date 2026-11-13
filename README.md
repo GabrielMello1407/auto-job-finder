@@ -32,17 +32,19 @@
 ## What it does
 
 1. **Builds your profile** from whatever you have: a resume (PDF or DOCX), your LinkedIn PDF, a portfolio, GitHub, some text, or by answering questions.
-2. **Finds jobs** on job boards, on the Gupy portal (Brazil) and across the web (LinkedIn, Indeed), and **scores each one** against your profile: fit, gaps and scam signals. The same job posted on several sites shows up once, and jobs that already closed are dropped before a package is made. A job you got through a referral, an e-mail or WhatsApp works too, even without a link: the agent looks for the official posting and the company on the web and checks whether the job is real.
+2. **Finds jobs** on job boards, on the Gupy portal (Brazil) and across the web (LinkedIn, Indeed), and **scores each one** against your profile: fit, gaps, dealbreakers and scam signals. The freshest, best-fitting jobs come first, and possible ghost jobs (old, reposted, talent pools) are flagged. The same job posted on several sites shows up once, and jobs that already closed are dropped before a package is made. A job you got through a referral, an e-mail or WhatsApp works too, even without a link: the agent looks for the official posting and the company on the web and checks whether the job is real.
 3. **Prepares a package** for every good job:
    - an ATS-friendly resume tailored to the job, in PDF;
    - a cover letter, when the market expects one;
    - the application e-mail, messages for the recruiter, a follow-up and a thank-you note, with the e-mail ready to open in your mail program (resume already attached) or in Gmail;
-   - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy;
+   - a short cover message for the platforms' "message" field;
+   - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy, with your standard answers (salary, availability, work authorization);
    - step-by-step instructions to apply through the right channel;
    - answers to application-form questions ("Why do you want to work here?"), typed or read from a screenshot of the form, which you refine in a chat.
-4. **Tracks your applications:** reminds you to follow up, prepares an interview guide and records offers and rejections.
-5. **Looks after your LinkedIn:** writes a plan to attract recruiters and reviews your current profile, showing what is right, what is missing and what to fix.
-6. **Keeps up with your career:** tell it about something new (a project, a job, a course) and the AI proposes the profile changes. You review the before and after, and your resumes are rebuilt.
+4. **Helps you ask for a referral:** LinkedIn searches for people at the company (you open them; the agent never goes into LinkedIn) and short, honest messages.
+5. **Tracks your applications:** reminds you of up to two follow-ups, prepares an interview guide, records how far each rejection went and shows on a **Results** page what gets more replies (channel, timing, triage score). The ideas behind these features come from [research on hiring](docs/how-it-works.md#research-behind-the-features).
+6. **Looks after your LinkedIn:** writes a plan to attract recruiters and reviews your current profile, showing what is right, what is missing and what to fix.
+7. **Keeps up with your career:** tell it about something new (a project, a job, a course) and the AI proposes the profile changes. You review the before and after, and your resumes are rebuilt. It also points out the results on your resume that lack a number, for you to fill in.
 
 It works with the AI you **already have**: a **Claude**, **ChatGPT** (Codex) or **Google** (Gemini) subscription, no API key needed. It also takes APIs: Anthropic, OpenAI or compatible (OpenRouter, Groq, Ollama), Gemini, Amazon Bedrock and Google Vertex.
 
@@ -102,6 +104,8 @@ The full walkthrough, screen by screen, is in the **[user guide](docs/user-guide
 | **Profile update:** tell something new and review the before and after before saving | **LinkedIn:** what to fix, what is missing from the plan and what is already right |
 | ![Pasting a job received without a link](docs/images/en/colar-vaga-sem-link.jpg) | ![Job confirmed by the web search](docs/images/en/vaga-pesquisada.jpg) |
 | **Job without a link:** paste what you received and ask for a web search | **Web search:** official posting, company site and whether the job is real |
+| ![Results: reply and interview rates by channel, timing and score](docs/images/en/resultados.jpg) | ![Jobs to decide, with freshness, dealbreaker and ghost-job badges](docs/images/en/vagas-para-decidir.jpg) |
+| **Results:** what gets replies, where rejections happen and what is missing to record | **Priority:** fresh jobs first; dealbreakers and possible ghost jobs go down |
 | ![Profile with items to confirm and an editor](docs/images/en/perfil.jpg) | ![Command palette with Ctrl+K](docs/images/en/paleta.jpg) |
 | **Profile:** the single source of facts, with what still needs confirming | **Ctrl+K:** find any job or action by typing |
 
@@ -141,7 +145,7 @@ A job requirement with no evidence in your profile becomes a **gap**, never some
 | | |
 |---|---|
 | [User guide](docs/user-guide.md) ([pt-BR](docs/guia-de-uso.md)) | Install, setup, every screen, shortcuts, preferences, files, terminal commands and FAQ |
-| [How it works](docs/how-it-works.md) ([pt-BR](docs/como-funciona.md)) | Profile, search, triage, package, anti-fabrication guards, AIs, interface and code map |
+| [How it works](docs/how-it-works.md) ([pt-BR](docs/como-funciona.md)) | Profile, search, triage and priority, package, anti-fabrication guards, results, the research behind the features, AIs, interface and code map |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to run, test and contribute |
 | [SECURITY.md](SECURITY.md) | How to report a security issue |
 

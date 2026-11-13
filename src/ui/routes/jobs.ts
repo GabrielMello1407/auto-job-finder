@@ -8,8 +8,12 @@ import { loadPreferences } from "../../profile.js";
 import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, type ProviderId } from "../../providers/index.js";
 import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
-import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
-import { findJob, loadJobs, markNotDuplicate } from "../../jobs/store.js";
+import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, recordFollowUp, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
+import { followUpDue, funnel, isNoReply, isRejectionStage, readRejectionEmail } from "../../jobs/funnel.js";
+import { ageDays, ghostSignals, priorityOf } from "../../jobs/priority.js";
+import { referralLinks, referralMessages, referralOverdue, setReferral } from "../../jobs/referral.js";
+import { track } from "../../tracker.js";
+import { findJob, loadJobs, markNotDuplicate, updateJob } from "../../jobs/store.js";
 import { triageJobs } from "../../jobs/triage.js";
 import type { Job } from "../../schemas.js";
 import { profileChangedAt } from "../../onboarding/update.js";
@@ -49,7 +53,7 @@ function packageOutdated(j: Job, dir: string | undefined, changedAt: number): bo
   }
 }
 
-export function jobSummary(j: Job, changedAt = profileChangedAt()) {
+export function jobSummary(j: Job, changedAt = profileChangedAt(), now = Date.now()) {
   const dir = packageDir(j);
   const has = (f: string) => Boolean(dir && fs.existsSync(path.join(dir, f)));
   return {
@@ -103,6 +107,17 @@ export function jobSummary(j: Job, changedAt = profileChangedAt()) {
     duplicateOf: j.duplicateOf,
     reopenedFrom: j.reopenedFrom,
     openCheck: j.openCheck,
+    // Prioridade, frescor e alertas (src/jobs/priority.ts); resultado e follow-up (src/jobs/funnel.ts).
+    priority: priorityOf(j, now),
+    ageDays: ageDays(j, now),
+    ghost: ghostSignals(j, now),
+    knockouts: j.triage?.knockouts ?? [],
+    outcome: j.outcome,
+    respondedAt: j.respondedAt,
+    followUps: j.followUps?.length ?? 0,
+    followUpDue: followUpDue(j, now),
+    noReply: isNoReply(j, now),
+    referral: j.referral && { status: j.referral.status, at: j.referral.at, overdue: referralOverdue(j, now), hasMessages: Boolean(j.referral.messages) },
   };
 }
 
@@ -276,7 +291,7 @@ export function jobRoutes(app: App): Route[] {
           const changedAt = profileChangedAt();
           return loadJobs().map((j) => jobSummary(j, changedAt));
         })(),
-        settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore, repeatWindowDays: settings.repeatWindowDays },
+        settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore, repeatWindowDays: settings.repeatWindowDays, noReplyDays: settings.noReplyDays, followUpDays: settings.followUpDays },
         applyChannels: APPLY_CHANNELS,
         provider: providerState(),
         webSearch: canWebSearch(),
@@ -438,9 +453,105 @@ export function jobRoutes(app: App): Route[] {
         const body = await c.body();
         const status = str(body.status, 20);
         if (!isStatus(status)) throw new HttpError(400, "Status '{status}' não existe.", { status });
-        const updated = changeStatus(job, status, str(body.note, 300), undefined, isApplyVia(body.via) ? body.via : undefined);
+        // Recusa: a etapa (e o motivo, se a empresa disse) vão para o funil.
+        const outcome = status === "rejected" && isRejectionStage(body.stage) ? { stage: body.stage, reason: str(body.reason, 300) } : undefined;
+        const updated = changeStatus(job, status, str(body.note, 300), undefined, isApplyVia(body.via) ? body.via : undefined, outcome);
         app.jobsChanged(job.id);
         return { job: jobSummary(updated), previous: job.status };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/rejection\/read$/,
+      async (c) => {
+        // E-mail de recusa colado pela pessoa: a IA diz a etapa e o motivo (só se o e-mail disser).
+        const job = jobFrom(c.params[0]);
+        const text = str((await c.body()).text, 20_000);
+        if (text.length < 20) throw new HttpError(400, "Cole o e-mail de recusa.");
+        try {
+          return await readRejectionEmail(text, job);
+        } catch (e) {
+          throw new HttpError(502, "A IA não conseguiu ler o e-mail: {error}", { error: (e as Error).message });
+        }
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/channel$/,
+      async (c) => {
+        // Canal de uma candidatura já enviada (sem mudar a data de envio): completa o funil.
+        const job = jobFrom(c.params[0]);
+        const via = (await c.body()).via;
+        if (!isApplyVia(via)) throw new HttpError(400, "Canal desconhecido.");
+        const updated = updateJob(job.id, { appliedVia: via });
+        app.jobsChanged(job.id);
+        return { job: jobSummary(updated) };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/followup$/,
+      (c) => {
+        const job = jobFrom(c.params[0]);
+        if (job.status !== "applied") throw new HttpError(409, "Follow-up só para candidatura enviada e ainda sem resposta.");
+        const updated = recordFollowUp(job);
+        app.jobsChanged(job.id);
+        return { job: jobSummary(updated) };
+      },
+    ],
+    [
+      "GET",
+      /^\/api\/jobs\/([\w-]+)\/referral$/,
+      (c) => {
+        const job = jobFrom(c.params[0]);
+        return { links: referralLinks(job.company), referral: job.referral ?? null };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/referral\/messages$/,
+      async (c) => {
+        // Mensagens de pedido de indicação: fora da fila (são segundos), uma por vaga de cada vez.
+        requireProfileForTasks();
+        const job = jobFrom(c.params[0]);
+        const force = Boolean((await c.body()).force);
+        try {
+          return { messages: await answering(job.id, () => referralMessages(job.id, force)) };
+        } catch (e) {
+          if (e instanceof HttpError) throw e;
+          throw new HttpError(502, "A IA não respondeu: {error}", { error: (e as Error).message });
+        }
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/referral$/,
+      async (c) => {
+        const job = jobFrom(c.params[0]);
+        const status = str((await c.body()).status, 20);
+        if (!["pedida", "recebida", "sem_resposta"].includes(status)) throw new HttpError(400, "Situação da indicação desconhecida.");
+        const updated = setReferral(job.id, status as "pedida" | "recebida" | "sem_resposta");
+        track(updated, updated.status, "", `indicação: ${status}`);
+        app.jobsChanged(job.id);
+        return { job: jobSummary(updated) };
+      },
+    ],
+    [
+      "GET",
+      /^\/api\/funnel$/,
+      () => {
+        const jobs = loadJobs();
+        const f = funnel(jobs);
+        // Nome das vagas que faltam completar, para a página listar com o botão de registrar.
+        const brief = (ids: string[]) =>
+          ids.map((id) => jobs.find((j) => j.id === id)!).map((j) => ({ id: j.id, company: j.company, title: j.title, status: j.status, appliedAt: j.appliedAt, hasPackage: Boolean(j.outputDir) }));
+        return {
+          ...f,
+          missingOutcome: brief(f.missingOutcome),
+          missingChannel: brief(f.missingChannel),
+          followUpsDue: brief(f.followUpsDue),
+          settings: { noReplyDays: settings.noReplyDays, followUpDays: settings.followUpDays },
+        };
       },
     ],
     [

@@ -36,6 +36,36 @@ export interface Preferences {
   maxAgeDays: number;
   /** Instruções extras para a busca via IA (web search). */
   webSearchHints: string;
+  /**
+   * Respostas que os formulários sempre pedem e que não são fatos da carreira (pretensão, disponibilidade...).
+   * Entram na ficha, nas respostas do formulário e na triagem (critérios eliminatórios). Vazio = não informado.
+   */
+  applicationFacts: ApplicationFacts;
+}
+
+export interface ApplicationFacts {
+  salaryExpectation: string;
+  availability: string;
+  noticePeriod: string;
+  relocation: string;
+  workAuthorization: string;
+}
+
+/** Nome de cada resposta fixa (português e inglês), na ordem em que aparece. */
+export const APPLICATION_FACT_LABELS: Record<keyof ApplicationFacts, [string, string]> = {
+  salaryExpectation: ["Pretensão salarial", "Salary expectation"],
+  availability: ["Disponibilidade para começar", "Availability to start"],
+  noticePeriod: ["Aviso prévio", "Notice period"],
+  relocation: ["Mudança de cidade", "Relocation"],
+  workAuthorization: ["Autorização de trabalho / visto", "Work authorization / visa"],
+};
+
+/** As respostas fixas preenchidas, como "Nome: valor" (uma por linha). Vazio se nenhuma. */
+export function applicationFactsText(facts: ApplicationFacts, lang: "pt-BR" | "en" = "pt-BR"): string {
+  return (Object.keys(APPLICATION_FACT_LABELS) as (keyof ApplicationFacts)[])
+    .filter((k) => facts[k]?.trim())
+    .map((k) => `${APPLICATION_FACT_LABELS[k][lang === "en" ? 1 : 0]}: ${facts[k].trim()}`)
+    .join("\n");
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -55,6 +85,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   webSearchByDefault: true,
   maxAgeDays: 30,
   webSearchHints: "",
+  applicationFacts: { salaryExpectation: "", availability: "", noticePeriod: "", relocation: "", workAuthorization: "" },
 };
 
 function requireProfile() {
@@ -64,7 +95,12 @@ function requireProfile() {
 
 export function loadPreferences(): Preferences {
   const raw = fs.existsSync(paths.preferences) ? JSON.parse(fs.readFileSync(paths.preferences, "utf8")) : {};
-  return { ...DEFAULT_PREFERENCES, ...raw, companyBoards: { ...DEFAULT_PREFERENCES.companyBoards, ...raw.companyBoards } };
+  return {
+    ...DEFAULT_PREFERENCES,
+    ...raw,
+    companyBoards: { ...DEFAULT_PREFERENCES.companyBoards, ...raw.companyBoards },
+    applicationFacts: { ...DEFAULT_PREFERENCES.applicationFacts, ...raw.applicationFacts },
+  };
 }
 
 export function loadProfileTruth(): string {

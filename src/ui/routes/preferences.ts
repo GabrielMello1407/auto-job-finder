@@ -47,6 +47,13 @@ export function preferenceRoutes(): Route[] {
           webSearchByDefault: Boolean(b.webSearchByDefault),
           maxAgeDays: Math.round(clamp(b.maxAgeDays, 1, 365, old.maxAgeDays)),
           webSearchHints: str(b.webSearchHints, 1500),
+          applicationFacts: {
+            salaryExpectation: str(b.salaryExpectation, 200),
+            availability: str(b.availability, 200),
+            noticePeriod: str(b.noticePeriod, 200),
+            relocation: str(b.relocation, 200),
+            workAuthorization: str(b.workAuthorization, 300),
+          },
         };
         if (!prefs.queries.length) throw new HttpError(400, "Deixe pelo menos um termo de busca.");
         if (!prefs.defaultSources.length && !prefs.webSearchByDefault) throw new HttpError(400, "Ligue pelo menos uma fonte de vagas ou a busca na web.");

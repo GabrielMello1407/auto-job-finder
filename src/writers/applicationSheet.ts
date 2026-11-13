@@ -1,7 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
-import { englishBase, loadBaseResume, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
+import {
+  APPLICATION_FACT_LABELS,
+  englishBase,
+  loadBaseResume,
+  loadPreferences,
+  withoutDashesResume,
+  withoutTranslatedTitles,
+  type ApplicationFacts,
+} from "../profile.js";
 import { ResumeSchema, type Job, type Resume } from "../schemas.js";
+import { withoutDashes } from "../util/text.js";
+import { parseEmails } from "./emailDraft.js";
 
 /*
  * Ficha de candidatura: os campos que os formulários das plataformas (Gupy, InHire, Greenhouse,
@@ -148,7 +158,25 @@ function resumeFor(job: Job): { resume: Resume; from: ApplicationSheet["from"] }
 export function applicationSheet(job: Job): ApplicationSheet {
   const { resume, from } = resumeFor(job);
   // Pacotes antigos podem ter o cargo repetido em inglês: no formulário em português, só em português.
-  return sheetFromResume(withoutDashesResume(withoutTranslatedTitles(resume, resume.language === "pt-BR" ? englishBase() : null)), from);
+  const sheet = sheetFromResume(withoutDashesResume(withoutTranslatedTitles(resume, resume.language === "pt-BR" ? englishBase() : null)), from);
+  const extra = extraSections(job, sheet.language === "en");
+  return extra.length ? { ...sheet, sections: [...sheet.sections.slice(0, 2), ...extra, ...sheet.sections.slice(2)] } : sheet;
+}
+
+/**
+ * O que os formulários pedem além do currículo: a mensagem curta do pacote (emails.md, item 6) e as
+ * respostas fixas das Preferências (pretensão, disponibilidade, aviso prévio, mudança, visto).
+ */
+export function extraSections(job: Job, en: boolean, facts: ApplicationFacts = loadPreferences().applicationFacts): SheetSection[] {
+  const out: SheetSection[] = [];
+  const emails = job.outputDir && fs.existsSync(path.join(job.outputDir, "emails.md")) ? parseEmails(fs.readFileSync(path.join(job.outputDir, "emails.md"), "utf8")) : null;
+  const note = emails?.sections.find((s) => /^6\./.test(s.title))?.message;
+  if (note) out.push({ title: en ? "Short cover message" : "Mensagem de apresentação", fields: [{ label: en ? "Message (up to 600 characters)" : "Mensagem (até 600 caracteres)", value: withoutDashes(note), long: true }] });
+  const answers = (Object.keys(APPLICATION_FACT_LABELS) as (keyof ApplicationFacts)[])
+    .filter((k) => facts[k]?.trim())
+    .map((k) => ({ label: APPLICATION_FACT_LABELS[k][en ? 1 : 0], value: facts[k].trim(), long: false }));
+  if (answers.length) out.push({ title: en ? "Common questions" : "Perguntas frequentes", fields: answers });
+  return out;
 }
 
 /** A ficha em Markdown (`ficha_de_candidatura.md` e terminal). */

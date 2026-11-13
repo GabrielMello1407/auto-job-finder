@@ -51,7 +51,7 @@ async function run(opts: CallOptions, model: string | undefined, schema?: object
   // O Codex não tem flag de system prompt: as regras vão no início da mensagem.
   const prompt = `<instructions>\n${opts.system.join("\n\n")}\n</instructions>\n\n<task>\n${opts.user}\n</task>`;
   try {
-    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: prompt, cwd: dir, name: "codex exec", installHint: INSTALL });
+    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: prompt, cwd: dir, name: "codex exec", installHint: INSTALL, timeoutMs: opts.timeoutMs });
     let usage: { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number } | undefined;
     let lastMessage = "";
     let failure = "";

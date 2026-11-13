@@ -42,6 +42,7 @@ async function run(opts: CallOptions, model: string | undefined, extra = ""): Pr
       env: { GEMINI_SYSTEM_MD: sysFile },
       name: "gemini -p",
       installHint: INSTALL,
+      timeoutMs: opts.timeoutMs,
     });
     const start = stdout.indexOf("{");
     if (start < 0) throw new Error(`gemini -p saiu com código ${code}: ${(stderr || stdout).trim().slice(0, 800)}`);

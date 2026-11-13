@@ -115,6 +115,12 @@ After applying:
 
 > If you edit the profile after a proposal is ready, it can no longer be applied: discard it and tell the news again. That way nothing you edited by hand gets lost.
 
+**🔢 Missing numbers.** Results with a number weigh more when a recruiter reads a resume. Below the update box, **🔢 Missing numbers** lists the points of your resume that have no number at all (up to 12). For each one, the AI says what can be measured and asks a specific question about the impact, not the effort: how many people use what you built, how much time it saved, how many errors went away, rather than how many tasks you did. It also says how much a number would help (**💪 big impact**, **👍 helps** or **helps little**, these last ones folded away) and gives answer formats with N in place of the figure. It never suggests the value.
+
+![Missing numbers, with the AI's question for each point](images/en/numeros-que-faltam.jpg)
+
+Answer only what you know, with the real or approximate number, and click **📝 Prepare the update**; what you leave blank is ignored. It becomes an update proposal like the one above, which you review before saving. The analysis takes about half a minute (you can start answering meanwhile), runs once and is saved; **🔄 Analyze again** redoes it. If the AI doesn't answer within 3 minutes, the panel says so and you can try again. In the terminal: `ajf numeros` (same questions, one by one).
+
 ## 4. Day to day: from jobs to applications
 
 The **Jobs** page is a funnel with five stages. Click a stage to see its jobs.
@@ -164,7 +170,7 @@ What was found goes at the end of the **Job description**, marked as research, a
 
 ![Jobs to decide](images/en/vagas-para-decidir.jpg)
 
-In **To decide**, recommended jobs come first. You can:
+In **To decide**, the jobs most worth your time come first: the order mixes the triage score with how recent the job is, the dealbreakers, ghost-job signals and a referral (see [Why a job is higher or lower](#why-a-job-is-higher-or-lower)). You can:
 - **📦 Generate package**: builds the tailored resume, the letter (when the market expects one), the e-mails and the reports. It takes a few minutes and runs in the background.
 - **📦 Generate several packages at once**: tick the jobs in a list.
 - **✅ I applied**: if you applied without a package.
@@ -172,11 +178,27 @@ In **To decide**, recommended jobs come first. You can:
 
 Jobs with **🚩 scam signals** (requests for payment or documents, or an unrealistic salary) are flagged. Be careful.
 
+#### Why a job is higher or lower
+
+| Badge | What it means | Effect on the order |
+|---|---|---|
+| **🆕 posted N days ago** | Posted up to 3 days ago. Most applications arrive in the first days, and whoever applies early is seen first | goes up |
+| **⏳ posted N days ago** | Posted more than 14 days ago: it has already received many applications | goes down a little more each day |
+| **👻 may be a ghost job** | Posted more than 30 days ago, the same job seen before, a talent pool with no specific job, or almost no details. Not every posting leads to a hire: check the company site to see whether the job still exists. Hover over the badge to see why | goes down |
+| **⛔ dealbreaker: ...** | A requirement the job filters on (years of experience, language, location, work authorization, degree) that your profile shows you don't meet | goes down and is no longer recommended |
+| **🤝 referred** | Someone at the company referred you (see [Ask for a referral](#ask-for-a-referral)) | goes up |
+
+The dealbreakers come from the triage. In the job's details, **⛔ The job's dealbreakers** lists each one with ✓ (your profile proves it), ✗ (it shows you don't meet it) or ? (your profile doesn't say: check before applying). Platforms often filter on these before anyone reads the resume, but the agent never discards a job on its own because of them: "5+ years" with 4 sometimes gets through, and the decision is yours. Fill in the [standard form answers](#standard-form-answers) so the triage knows your work authorization and whether you would relocate.
+
+The autopilot uses the same order to choose which jobs get a package first.
+
 **Closed jobs.** Before building the package, the agent opens the job link and looks for signs that it is over: a page that no longer exists, an expired application deadline, "vaga encerrada" or "no longer accepting applications" on the page. If it finds one, it doesn't spend the AI: the job gets **🔒 job closed** with the reason, and the button becomes **📦 Generate anyway**, for when you checked and it is still open. When unsure (a site that blocks bots or asks for login), it goes ahead normally.
 
 **🔒 Check if they're still open**, in "To decide" and "Ready", checks every job you haven't sent yet at once. Closed ones without a package go to "Closed" (you can reopen them); those with a package stay where they are, flagged. In a job's details, **🔒 Check if it's open** does the same for that job only.
 
 ### Applying
+
+Worth the effort? Ask for a referral first (see [Ask for a referral](#ask-for-a-referral)).
 
 In **Ready**:
 1. Open the **📄 Resume** and check the whole PDF.
@@ -184,10 +206,21 @@ In **Ready**:
    - **Platform or form** (Gupy, InHire, Greenhouse, Workday, the company site): click **🔗 Apply** and keep the **📋 Form sheet** open beside it, with every field those forms ask for again, each with a copy button (see [Application sheet](#application-sheet)).
    - **E-mail:** in the **E-mails and messages** tab, **✉️ Open in your e-mail app, with the resume attached** opens the e-mail ready (recipient, subject, text and the PDF). Using Gmail in the browser? **Open in Gmail** opens the e-mail filled in; drag the PDF from **📁 PDF folder**.
    - **LinkedIn:** the messages are in the **E-mails and messages** tab.
+
+   Does the platform have a "message", "cover letter" or "why you?" field? The **E-mails and messages** tab has a **short cover message** (up to 600 characters) for it; it is also in the **Form sheet**.
 3. Does the form ask something like "Why do you want to work here?"? Use the job's **Questions** tab (see [Application-form questions](#application-form-questions)).
 4. After sending, click **✅ I applied** and pick **where** you applied (platform, e-mail, LinkedIn, site, WhatsApp, referral). The likely channel is already selected. This lets you see later which channel answers the most.
 
 **The agent never sends anything on its own.** It prepares; you review and send.
+
+#### Ask for a referral
+
+A referral is the path that most often turns into a hire (see [the research](how-it-works.md#research-behind-the-features)). For jobs worth it, before applying, click **🤝 Ask for a referral** (on the job or in its details):
+1. **👥 People at the company in your network** and **🧑‍💼 Who recruits there** open LinkedIn searches. Open them logged in and pick someone. The agent never opens LinkedIn.
+2. **✍️ Write the messages** writes two short messages with facts from your profile only: one for someone who knows you, and a connection note for someone who doesn't (up to 300 characters, LinkedIn's limit). It never makes up a connection with anyone.
+3. Send it yourself and set the **Status**: **I asked for the referral**, **I got the referral** or **No one replied**.
+
+If no one replies in 3 days, the job shows **🤝 referral not answered**: apply through the platform, since applying early weighs more than waiting. A referral you got (**🤝 referred**) moves the job up the list. In the terminal: `ajf indicacao <company>`.
 
 #### Application sheet
 
@@ -195,7 +228,8 @@ Platform forms ask again for what is already in the resume: name, phone, LinkedI
 - personal details (first and last name separately, the phone also as digits only);
 - the summary in three sizes (up to 300 and up to 600 characters, plus the full one), cut at whole sentences;
 - each experience: title, company, location, work mode, start, end, "I currently work here" and the description;
-- education, certifications, languages, skills and projects.
+- education, certifications, languages, skills and projects;
+- the package's **short cover message** and your **standard answers** (salary expectation, availability, notice period, relocation, work authorization), when you filled them in under [Preferences](#standard-form-answers).
 
 Everything comes from the resume tailored for the job (or from the base resume, before the package), with nothing new. The same sheet is saved as `ficha_de_candidatura.md` in the package folder.
 
@@ -204,11 +238,27 @@ Everything comes from the resume tailored for the job (or from the base resume, 
 ![Applications in progress](images/en/vagas-em-andamento.jpg)
 
 In **In progress**:
-- After 7 days, **⏰ time to follow up** shows up. The follow-up e-mail is ready in **📧 Follow-up**.
+- **⏰ time to follow up** shows up after 7 days without a reply. The e-mail is ready in **📧 Follow-up**; after sending it, click **✅ I sent the follow-up**. If there is still no reply 7 days later, **⏰ time for the 2nd follow-up** shows up. Two at most: more than that doesn't help.
+- After 30 days without a reply, the job shows **📭 no reply**. It already counts as no reply in [Results](#results); **📭 Close as no reply** moves it to "Closed".
 - **🎤 I got an interview**: the job moves to "🎤 interviewing", and the agent offers an **interview guide** with likely questions and answers based on the resume you sent.
-- **🎉 I got an offer** and **I was rejected** record the outcome.
+- **🎉 I got an offer** records the offer.
+- **I was rejected** asks **How far did it go?**: no reply, at screening (before any conversation), after the talk with HR, after the test or technical interview, after the final interview or unknown stage, plus the reason if the company gave one. Got a rejection e-mail? Open **📧 Paste the rejection e-mail for the AI to read**, paste it and click **Read the e-mail**: the AI fills in the stage and the reason (only if the e-mail says it) and tells you when it looks like an automated message. You check it and click **Record**.
+
+The banner at the top shows how many follow-ups are due and how many applications have gone a long time without a reply, with **📊 See results**.
 
 Every status change is logged in `output/tracker.csv`, which opens in Excel or Google Sheets.
+
+### Results
+
+![Results](images/en/resultados.jpg)
+
+The **📊 Results** page shows what happens to your applications and what works best, only from what you recorded:
+- **sent**, **replied**, **with an interview**, **no reply** (over 30 days), **waiting** and the median **days to reply**. Percentages only count applications that already have a result; the ones still waiting are left out.
+- **What the numbers say**: conclusions such as which channel replies more, whether applying early gets more replies, and whether most rejections come at screening (then check the dealbreakers and the top of the resume). With fewer than about 10 results, it tells you the comparisons are not reliable yet.
+- What is missing for the numbers to be right: **📝 Rejections without a stage**, **📨 Applications without a channel** and **⏰ Follow-ups to send**, each with its button.
+- **Where the rejections happened**, and the tables **By channel**, **Days between posting and applying**, **By triage score** and **By source**. A group with fewer than 3 results is marked "(few)".
+
+In the terminal: `ajf resultados`. The same summary is in `output/painel.html`.
 
 ## 5. Job details and the package
 
@@ -218,7 +268,7 @@ Click a job's title to open its details.
 
 - **Summary**: the AI's assessment, what you already have (with evidence from your profile), the gaps and the description.
 - **Package**: the files, the LEIA-ME (README) with the step-by-step to apply, and the reports (ATS, recruiter rating and profile check).
-- **E-mails and messages**: application, LinkedIn invitation and message, follow-up and thank-you, each subject and message with a copy button. At the top, **✉️ Open in your e-mail app, with the resume attached** opens the application e-mail ready, with the recipient (if the job has a contact e-mail), subject, text and the PDF; Outlook opens it ready to send. **Open in Gmail** (on each e-mail) opens Gmail in the browser with everything filled in except the attachment: drag the PDF from **📁 PDF folder**. You review and send.
+- **E-mails and messages**: application, LinkedIn invitation and message, follow-up, thank-you and a short cover message (up to 600 characters, for the "message" field on platforms), each subject and message with a copy button. At the top, **✉️ Open in your e-mail app, with the resume attached** opens the application e-mail ready, with the recipient (if the job has a contact e-mail), subject, text and the PDF; Outlook opens it ready to send. **Open in Gmail** (on each e-mail) opens Gmail in the browser with everything filled in except the attachment: drag the PDF from **📁 PDF folder**. You review and send.
 - **Form sheet**: the application-form fields, ready to copy (see [Application sheet](#application-sheet)).
 - **Interview**: the guide, when there is one.
 - **Questions**: answers to application-form questions (see below).
@@ -287,6 +337,7 @@ What changes: the menus, buttons, dialogs, messages and the names of tasks. What
 | **🧹 Title filter** | Words the title must have and words that rule the job out. Cuts jobs **without spending the AI** |
 | **📍 Where** | Accepted regions for remote jobs with restrictions, and cities for on-site/hybrid |
 | **🏢 Companies** | Companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
+| **📝 Standard form answers** | What forms always ask and is not in the resume (see [below](#standard-form-answers)) |
 | **⭐ Minimum scores** | Minimum triage for the autopilot to build a package and minimum rating for "ready to send" |
 
 Job sources:
@@ -300,6 +351,10 @@ Job sources:
 | `greenhouse`, `lever`, `ashby` | career pages of the companies you choose |
 
 **Search terms in two languages.** Each term becomes a search in each source. International sources find jobs with English terms ("data analyst"); Gupy and Brazilian sites, with Portuguese terms ("analista de dados"). If you live in Brazil and accept jobs from abroad, keep both. If you built your profile before Gupy was added to the agent, turn it on here, under **Job sources**.
+
+### Standard form answers
+
+Forms always ask things that are not in the resume: salary expectation, availability to start, notice period, relocation and work authorization or visa. Fill them in once under **📝 Standard form answers**. They go into the [application sheet](#application-sheet), into the [form answers](#application-form-questions) (the AI uses your figure instead of asking) and into the triage, to check dealbreakers such as a visa or an on-site job in another city. Leave blank what you don't want to state: the AI never makes it up.
 
 ## 8. LinkedIn
 
@@ -361,7 +416,7 @@ Each package folder moves on its own when the status changes. Inside it:
 LEIA-ME.md                          rating, ATS, HOW TO APPLY and a checklist
 <Name>_Curriculo_<Company>.pdf      ATS resume (Resume_ for jobs abroad)
 <Name>_Cover_Letter_<Company>.pdf   when the market expects one (US, Canada, Europe) or you ask for it
-emails.md                           application, LinkedIn, follow-up, thank-you
+emails.md                           application, LinkedIn, follow-up, thank-you, short cover message
 rascunho_candidatura.eml            the application e-mail with the resume attached (opens in Outlook and similar)
 ficha_de_candidatura.md             the application-form fields, ready to copy
 ats_report.md · rating_report.md · coverage_review.md · interview_prep.md
@@ -401,15 +456,22 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf ficha [company, title or id]` | Shows the application-form fields (details, summary in 3 sizes, each experience), ready to copy |
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |
 | `ajf enviei [company or title] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marks that you applied and where (finds the job by name; without `--via`, it asks) |
-| `ajf status [company, title or id] [status]` | Changes the status (interview, offer, rejection...) |
+| `ajf status [company, title or id] [status] [--etapa triagem] [--motivo "..."]` | Changes the status (interview, offer, rejection...). On a rejection, `--etapa` records how far it went (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) and `--motivo` the reason; without them, it asks |
+| `ajf followup [company, title or id] [--enviei]` | Lists the follow-ups due; with a job and `--enviei`, records the follow-up you sent |
+| `ajf indicacao [company, title or id] [--pedi\|--recebi\|--sem-resposta] [--refazer]` | Referral: LinkedIn search links (you open them) and ready messages; records whether you asked for it or got it |
+| `ajf resultados` | The funnel of your applications: reply and interview rates by channel, source, timing and score, and where rejections happen |
+| `ajf numeros` | Missing numbers: the AI asks, point by point, what to measure (impact, never the value); your answers become a profile update proposal |
 | `ajf auto [--web/--no-web] [--max 3] [--interview] [--open]` | Autopilot |
 | `ajf painel` | Opens `output/painel.html`, a summary that works without the server |
 
 A job ID accepts just its beginning (`ajf tailor 78cb`).
 
-Extra settings live in `.env` (see [`.env.example`](../.env.example)): AI and model (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), scores (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), for how many days the same job on another site counts as repeated (`AJF_REPEAT_WINDOW_DAYS`, 90), the interface port (`AJF_UI_PORT`) and the browser (`CHROME_PATH`).
+Extra settings live in `.env` (see [`.env.example`](../.env.example)): AI and model (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), scores (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), for how many days the same job on another site counts as repeated (`AJF_REPEAT_WINDOW_DAYS`, 90), days until a follow-up (`AJF_FOLLOW_UP_DAYS`, 7) and until an application counts as no reply (`AJF_NO_REPLY_DAYS`, 30), the interface port (`AJF_UI_PORT`) and the browser (`CHROME_PATH`).
 
 ## 12. FAQ and troubleshooting
+
+**I only get rejections. What should I change?**
+First, record how far each rejection went and the channel of each application: without that, there is no way to know where the process gets stuck. Then open **📊 Results**. If most rejections come at screening, check the [dealbreakers](#why-a-job-is-higher-or-lower) and the top of the resume. Research points to three levers that weigh more than polishing the resume again: a [referral](#ask-for-a-referral), applying in the first days after a job is posted, and leaving out jobs with a dealbreaker you don't meet. See [the research behind each feature](how-it-works.md#research-behind-the-features).
 
 **The interface doesn't open or says "Open it from the terminal".**
 Run `ajf` again and use the link the terminal shows. For security, it only opens through that link.

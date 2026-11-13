@@ -5,7 +5,7 @@ import { Command, Option } from "commander";
 import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
-import { answerFlow, mainMenu } from "./menu.js";
+import { answerFlow, askRejection, mainMenu, numbersFlow } from "./menu.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
@@ -15,10 +15,13 @@ import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, record
 import { SOURCES } from "./jobs/sources/index.js";
 import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
 import { writeApplicationDraft } from "./writers/emailDraft.js";
-import { select } from "@inquirer/prompts";
+import { input, select } from "@inquirer/prompts";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
-import { APPLY_CHANNELS, changeStatus, isStatus, markApplied, pickJob, STATUS_LABELS } from "./jobs/status.js";
+import { APPLY_CHANNELS, changeStatus, isStatus, markApplied, pickJob, recordFollowUp, STATUS_LABELS } from "./jobs/status.js";
+import { followUpDue, funnel, funnelText, REJECTION_STAGES } from "./jobs/funnel.js";
+import { referralLinks, referralMessages, setReferral } from "./jobs/referral.js";
+import { track } from "./tracker.js";
 import { triageJobs } from "./jobs/triage.js";
 import { getProvider } from "./providers/index.js";
 import { renderBaseResumes } from "./render/base.js";
@@ -350,6 +353,8 @@ program
   .description("atualiza o status de uma vaga e registra no tracker.csv. Ex.: ajf status boticario interview")
   .option("--note <texto>")
   .option("--next <texto>", "próximo passo")
+  .addOption(new Option("--etapa <etapa>", "na recusa: até onde chegou").choices(Object.keys(REJECTION_STAGES)))
+  .option("--motivo <texto>", "na recusa: o motivo, se a empresa disse")
   .action(async (busca: string | undefined, status: string | undefined, o) => {
     // "ajf status interview": só o status, escolhe a vaga na lista.
     if (isStatus(busca) && !status) [busca, status] = [undefined, busca];
@@ -362,9 +367,60 @@ program
         message: `${job.company} — ${job.title} (agora: ${STATUS_LABELS[job.status]})`,
         choices: Object.entries(STATUS_LABELS).map(([value, name]) => ({ name, value: value as JobStatus })),
       }));
-    const updated = changeStatus(job, next, o.note ?? "", o.next);
+    const outcome = next === "rejected" ? await askRejection(job, o.etapa, o.motivo) : undefined;
+    const updated = changeStatus(job, next, o.note ?? "", o.next, undefined, outcome);
     console.log(`${updated.company} — ${updated.title} → ${STATUS_LABELS[next]} (registrado em ${path.relative(paths.root, paths.tracker)})`);
   });
+
+program
+  .command("resultados")
+  .description("o funil das suas candidaturas: taxa de resposta e de entrevista por canal, fonte, prazo e nota, e onde as recusas acontecem")
+  .action(() => console.log(funnelText(funnel(loadJobs()))));
+
+program
+  .command("followup")
+  .argument("[busca]", "ID ou parte do nome da empresa/cargo")
+  .description("lista os follow-ups pendentes; com a vaga e --enviei, registra o follow-up enviado")
+  .option("--enviei", "registra que você mandou o follow-up desta vaga")
+  .action(async (busca: string | undefined, o) => {
+    if (o.enviei) {
+      const job = await pickJob({ query: busca, statuses: ["applied"], message: "Para qual vaga você mandou o follow-up?" });
+      const updated = recordFollowUp(job);
+      return console.log(`✅ Follow-up nº ${updated.followUps!.length} registrado para ${updated.company} — ${updated.title}.`);
+    }
+    const due = loadJobs().filter((j) => followUpDue(j));
+    if (!due.length) return console.log("Nenhum follow-up pendente agora.");
+    console.log(`⏰ Follow-ups pendentes (${due.length}):`);
+    for (const j of due) console.log(`  ${j.id}  ${j.company} — ${j.title}  (${followUpDue(j)}º follow-up)`);
+    console.log("\nO texto está em emails.md (item 4) de cada pacote. Depois de mandar: ajf followup <empresa> --enviei");
+  });
+
+program
+  .command("indicacao")
+  .argument("[busca]", "ID ou parte do nome da empresa/cargo")
+  .description("pedir indicação para uma vaga: links de busca no LinkedIn (você abre) e mensagens prontas; registra se pediu ou recebeu")
+  .option("--pedi", "registra que você pediu a indicação")
+  .option("--recebi", "registra que alguém indicou você")
+  .option("--sem-resposta", "registra que ninguém respondeu")
+  .option("--refazer", "escreve as mensagens de novo")
+  .action(async (busca: string | undefined, o) => {
+    const job = await pickJob({ query: busca, statuses: ["shortlisted", "tailored", "triaged", "low_fit"], message: "Para qual vaga?" });
+    const status = o.pedi ? "pedida" : o.recebi ? "recebida" : o.semResposta ? "sem_resposta" : null;
+    if (status) {
+      const updated = setReferral(job.id, status);
+      track(updated, updated.status, "", `indicação: ${status}`);
+      return console.log(`✅ Indicação ${status.replace("_", " ")} registrada para ${job.company}.`);
+    }
+    const links = referralLinks(job.company);
+    console.log(`🤝 ${job.company} — ${job.title}\n\nAbra no navegador (logado no LinkedIn):\n  Pessoas da empresa na sua rede: ${links.network}\n  Quem recruta lá: ${links.recruiters}\n\n✍️ Escrevendo as mensagens...`);
+    const m = await referralMessages(job.id, Boolean(o.refazer));
+    console.log(`\nPara quem já conhece você:\n${m.warm}\n\nConvite de conexão (${m.cold.length}/300):\n${m.cold}\n\nDepois de pedir: ajf indicacao ${job.id.slice(0, 6)} --pedi`);
+  });
+
+program
+  .command("numeros")
+  .description("números que faltam: informe resultados medidos (real ou aproximado) dos tópicos do seu currículo; vira uma proposta de atualização do perfil")
+  .action(() => numbersFlow());
 
 program
   .command("auto")

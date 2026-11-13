@@ -65,6 +65,15 @@ function paint() {
       ${tags("Ashby", "ashby", p.companyBoards.ashby, t("Nome na URL do Ashby."))}`,
     )}
     ${section(
+      t("📝 Respostas fixas dos formulários"),
+      t("O que os formulários sempre perguntam e não está no currículo. Entra na ficha de candidatura, nas respostas às perguntas e na triagem (critérios eliminatórios, como visto e mudança de cidade). Vazio = não informado: a IA não inventa."),
+      `<div class="grid2"><label class="field"><span>${t("Pretensão salarial")}</span><input name="salaryExpectation" value="${esc(p.applicationFacts.salaryExpectation)}" placeholder="${esc(t("ex.: R$ 8.000 a 9.000 CLT, ou US$ 4.000/mês PJ"))}" autocomplete="off"></label>
+      <label class="field"><span>${t("Disponibilidade para começar")}</span><input name="availability" value="${esc(p.applicationFacts.availability)}" placeholder="${esc(t("ex.: imediata, ou em 30 dias"))}" autocomplete="off"></label></div>
+      <div class="grid2"><label class="field"><span>${t("Aviso prévio")}</span><input name="noticePeriod" value="${esc(p.applicationFacts.noticePeriod)}" placeholder="${esc(t("ex.: 30 dias, ou não tenho"))}" autocomplete="off"></label>
+      <label class="field"><span>${t("Mudança de cidade")}</span><input name="relocation" value="${esc(p.applicationFacts.relocation)}" placeholder="${esc(t("ex.: não, só remoto; ou sim, para São Paulo"))}" autocomplete="off"></label></div>
+      <label class="field"><span>${t("Autorização de trabalho / visto")}</span><input name="workAuthorization" value="${esc(p.applicationFacts.workAuthorization)}" placeholder="${esc(t("ex.: brasileiro; sem visto para os EUA, só como PJ remoto"))}" autocomplete="off"></label>`,
+    )}
+    ${section(
       t("⭐ Notas mínimas"),
       "",
       `<div class="field"><span>${t("Triagem mínima para o piloto automático gerar pacote")}</span>
