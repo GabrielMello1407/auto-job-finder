@@ -119,9 +119,39 @@ export interface Job {
   reopenedFrom?: string;
   /** Última conferência de que a vaga ainda aceita candidaturas (src/jobs/open.ts). */
   openCheck?: OpenCheck;
+  /** Primeira resposta da empresa (entrevista, oferta ou recusa), para o tempo de resposta (src/jobs/funnel.ts). */
+  respondedAt?: string;
+  /** Como terminou uma candidatura recusada: a etapa e o motivo, se a empresa disse (src/jobs/funnel.ts). */
+  outcome?: JobOutcome;
+  /** Datas dos follow-ups enviados depois da candidatura. */
+  followUps?: string[];
+  /** Pedido de indicação para esta vaga (src/jobs/referral.ts). */
+  referral?: JobReferral;
 }
 
 export type ApplyVia = "plataforma" | "email" | "linkedin" | "site" | "whatsapp" | "indicacao" | "outro";
+
+/**
+ * Até onde a candidatura chegou antes da recusa. "sem_resposta" é a candidatura que nunca teve
+ * retorno (marcada pela pessoa, ou contada assim pelo funil depois de AJF_NO_REPLY_DAYS).
+ */
+export type RejectionStage = "sem_resposta" | "triagem" | "rh" | "tecnica" | "final" | "desconhecida";
+
+export interface JobOutcome {
+  stage: RejectionStage;
+  /** O motivo, só se a empresa disse (ou a pessoa contou). */
+  reason?: string;
+  at: string;
+}
+
+export interface JobReferral {
+  /** pedida: a pessoa pediu a alguém; recebida: alguém indicou; sem_resposta: ninguém respondeu. Vazio: só as mensagens foram escritas. */
+  status?: "pedida" | "recebida" | "sem_resposta";
+  /** Quando o status mudou pela última vez. */
+  at?: string;
+  /** Mensagens prontas: para quem já conhece a pessoa (warm) e convite de conexão para quem não conhece (cold). */
+  messages?: { warm: string; cold: string };
+}
 
 export interface OpenCheck {
   at: string;
@@ -166,6 +196,15 @@ export interface JobResearchSummary {
 export const MarketSchema = z.enum(["BR", "US", "CA", "UK", "EU", "LATAM", "GLOBAL"]);
 export type Market = z.infer<typeof MarketSchema>;
 
+/** Critério eliminatório explícito da vaga e se o perfil atende (src/jobs/priority.ts#applyKnockouts). */
+export const KnockoutSchema = z.object({
+  requirement: z.string().describe("O critério como a vaga escreve (ex.: '5+ anos com Java', 'inglês fluente', 'presencial em Curitiba', 'autorização para trabalhar nos EUA')"),
+  kind: z.enum(["experiencia", "idioma", "local", "autorizacao", "formacao", "certificacao", "outro"]),
+  meets: z.enum(["sim", "nao", "incerto"]).describe("sim: o perfil comprova; nao: o perfil mostra que não atende; incerto: o perfil não diz"),
+  evidence: z.string().describe("Trecho curto do perfil ou das respostas fixas que decide; vazio se incerto"),
+});
+export type Knockout = z.infer<typeof KnockoutSchema>;
+
 export const TriageSchema = z.object({
   fit: z.enum(["alta", "media", "baixa"]),
   score: z.number().describe("0 a 100"),
@@ -177,8 +216,14 @@ export const TriageSchema = z.object({
   jobLanguage: z.enum(["pt-BR", "en", "other"]),
   seniority: z.string().describe("Senioridade pedida: junior/pleno/senior/staff…"),
   reason: z.string().describe("Uma frase com o motivo da recomendação"),
+  knockouts: z
+    .array(KnockoutSchema)
+    .describe(
+      "Critérios ELIMINATÓRIOS explícitos da vaga: o que ela diz ser obrigatório para ser considerado (anos mínimos, idioma exigido, presencial ou região, autorização de trabalho ou visto, formação ou certificação obrigatória). Vazio se a vaga não tem. Não inclua desejáveis.",
+    ),
 });
-export type Triage = z.infer<typeof TriageSchema>;
+/** Triagens antigas (de antes dos critérios eliminatórios) não têm `knockouts`. */
+export type Triage = Omit<z.infer<typeof TriageSchema>, "knockouts"> & { knockouts?: Knockout[] };
 
 export const TriageBatchSchema = z.object({
   results: z.array(TriageSchema.extend({ jobId: z.string() })),
@@ -243,6 +288,9 @@ export const EmailPackSchema = z.object({
   linkedinMessage: z.string().describe("Mensagem direta/InMail ao recrutador, até ~600 caracteres"),
   followUp: EmailSchema,
   thankYou: EmailSchema,
+  applicationNote: z
+    .string()
+    .describe("Mensagem curta de apresentação (3 a 5 frases, até 600 caracteres) para o campo 'mensagem' ou 'carta' das plataformas"),
 });
 export type EmailPack = z.infer<typeof EmailPackSchema>;
 

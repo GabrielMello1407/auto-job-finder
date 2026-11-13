@@ -11,10 +11,12 @@ Como o auto-job-finder vai de "tenho um currículo" a "pacote pronto para enviar
 - [4. O pacote de cada vaga](#4-o-pacote-de-cada-vaga)
 - [Anti-invenção](#anti-invenção)
 - [O caminho de uma vaga](#o-caminho-de-uma-vaga)
+- [Resultados e acompanhamento](#resultados-e-acompanhamento)
 - [Perguntas do formulário](#perguntas-do-formulário)
 - [LinkedIn](#linkedin)
 - [As IAs](#as-ias)
 - [A interface local](#a-interface-local)
+- [Pesquisas por trás das funções](#pesquisas-por-trás-das-funções)
 - [Organização do código](#organização-do-código)
 
 ## Visão geral
@@ -75,6 +77,7 @@ flowchart LR
 - **Regras de "nunca afirmar":** uma novidade pode tornar uma regra falsa (barrava "ISO 27001" e agora há evidência) ou pedir uma nova (curso que não é certificação). A IA só aponta o que tirar, copiando a regra exata, e o que acrescentar; `applyRuleChanges` aplica isso no `rules.json` ao aplicar a proposta, e as outras regras, inclusive as escritas à mão, ficam como estão. As mudanças entram na lista do que muda.
 - **Por que refazer os currículos-base:** as travas só aceitam experiências que estão nos currículos-base. Um emprego novo só no `profile_truth.md` faria o pacote sair com violação. O `rebuildBaseResumes` passa o currículo-base atual para a IA atualizar, em vez de escrever do zero; também dá para chamar sozinho, depois de editar o perfil à mão.
 - **Pacote desatualizado:** um pacote pronto ou de baixa aderência é marcado quando o perfil ou os currículos-base mudaram depois que ele foi gerado. A comparação é entre as datas de modificação dos arquivos.
+- **Números que faltam** (`src/onboarding/numbers.ts`): `bulletsWithoutNumbers` lista os tópicos do currículo-base (25+ caracteres) sem nenhum dígito, até 12. `analyzeNumbers` faz uma chamada à IA para todos (com os cargos-alvo, esforço baixo, limite de 3 minutos) e devolve, para cada tópico, quanto um número ajudaria (`alto`, `medio`, `baixo`), o que medir, uma pergunta sobre o impacto (pessoas atendidas, tempo ganho, erros evitados, dinheiro) e não sobre o esforço, formatos de resposta e o porquê. O prompt proíbe sugerir valor; `withoutFigures` troca qualquer dígito dos formatos por N, e `splitExamples` separa os formatos que algumas IAs põem dentro da pergunta. O resultado fica em `profile/numeros_que_faltam.json`, por texto do tópico: roda uma vez ("Analisar de novo" força) e tópico que saiu do currículo some. A página roda sozinha na primeira vez (`POST /api/profile/numbers/analyze`, fora da fila de tarefas) e ordena pelo peso; `ajf numeros` faz as mesmas perguntas. A pessoa escreve o número real ou aproximado; `numbersNews` transforma as respostas, com a pergunta que cada uma responde, numa novidade que segue o mesmo caminho (proposta, antes e depois, aplicar). Resposta vazia é ignorada, e nada chega ao perfil sem essa conferência.
 
 ## 2. Busca e filtro
 
@@ -180,8 +183,24 @@ flowchart LR
 - **evidências:** trechos do seu perfil que comprovam os requisitos;
 - **lacunas:** requisitos obrigatórios sem evidência. São só registradas, nunca preenchidas;
 - **sinais de golpe:** pedido de pagamento ou documentos, salário irreal, teste que manda baixar e rodar código;
+- **critérios eliminatórios** (`knockouts`): o que a vaga põe como requisito obrigatório e que as plataformas usam como filtro antes de alguém ler o currículo (anos de experiência, nível de idioma, local ou trabalho presencial, autorização de trabalho ou visto, formação, certificação). Cada um ganha `sim` (o perfil comprova), `nao` (o perfil mostra que não atende) ou `incerto` (o perfil não diz), com a evidência. As respostas fixas dos formulários nas preferências (pretensão, disponibilidade, aviso prévio, mudança de cidade, autorização de trabalho) contam como evidência;
 - **mercado** (BR, US, UK, EU, LATAM...), idioma e senioridade;
-- **recomendação:** `candidatar` vira "Para decidir" com ⭐, `decidir` fica em "Para decidir", e `descartar` vai para "Encerradas".
+- **recomendação:** `candidatar` vira "Para decidir" com ⭐, `decidir` fica em "Para decidir", e `descartar` vai para "Encerradas". Um eliminatório `nao` transforma `candidatar` em `decidir` (`priority.ts#applyKnockouts`): a vaga nunca é descartada sozinha, porque "5+ anos" com 4 às vezes passa.
+
+### Prioridade
+
+`src/jobs/priority.ts#priorityOf`, sem IA, define a ordem de "Para decidir" e quais vagas o piloto automático empacota primeiro (`auto.ts#candidatesForPackage`):
+
+| Fator | Efeito |
+|---|---|
+| Nota da triagem | a base (40 quando a vaga não passou pela triagem) |
+| Frescor | +5 até 3 dias depois da publicação; depois disso, -1,5 por dia, até -30 |
+| Sinais de vaga fantasma | -10 por sinal, até -20 |
+| Eliminatório `nao` | -25 |
+| Indicação recebida | +10 |
+
+- **Frescor** (`ageDays`, `freshness`): `nova` até 3 dias, `recente` até 14, `antiga` depois disso. Sem data de publicação, não conta.
+- **Sinais de vaga fantasma** (`ghostSignals`): publicada há mais de 30 dias; a mesma vaga já vista antes (`reopenedFrom`); banco de talentos ou "oportunidades futuras"; menos de 400 caracteres depois do `cleanJobText`. Resumo da busca na web e vaga colada não contam como curtos, porque são curtos de propósito. Os sinais só avisam e baixam a ordem; quem decide é a pessoa.
 
 ## 4. O pacote de cada vaga
 
@@ -209,10 +228,12 @@ flowchart TD
 - **Mercado** (`src/market.ts`): define papel (A4 ou Letter), idioma, nome do arquivo e se vai carta. Nos EUA: currículo + carta, papel Letter, sem foto, idade ou estado civil.
 - **ATS** (`src/tailor/ats.ts`): compara as palavras-chave da vaga com o currículo, em três grupos: *coberto*, *você tem mas não mostrou* e *lacuna real*.
 - **LEIA-ME:** explica como se candidatar pelo canal certo (e-mail, LinkedIn, plataforma, site ou WhatsApp), com checklist antes de enviar.
+- **Teste dos primeiros segundos** (`src/tailor/skim.ts`, sem IA): a primeira olhada do recrutador é curta e fica no topo da página. O `skimTest` lê o bloco do topo (título, resumo e a primeira experiência) e confere se o cargo da vaga aparece, quais das 8 primeiras palavras-chave ATS comprovadas estão ali e se há um resultado medido. O que falta vai para o editor como `<first_seconds_check>` em cada revisão, e o resultado entra no `rating_report.md`. Só sobe para o topo o que o perfil já comprova.
+- **Mensagem curta de apresentação:** todo pacote ganha o item 6 no `emails.md` (`applicationNote`), com até 600 caracteres, para o campo "mensagem", "carta de apresentação" ou "por que você?" das plataformas ou para um e-mail curto. Mesmas regras dos outros e-mails: fatos do perfil, sem travessão.
 - **Sem travessão:** "—" e "–" usados como pontuação soam como texto de IA. As instruções proíbem, e `util/text.ts#withoutDashes` garante sem IA: em títulos (projeto, cargo, empresa, formação), o resto vai entre parênteses ("TV Box Educacional — UENP — em desenvolvimento" vira "TV Box Educacional (UENP, em desenvolvimento)"); em texto, vira vírgula; em assunto de e-mail, hífen. Intervalos de data e número viram hífen comum ("02/2025 - atual", "10-20"): nenhum "—" ou "–" sobra. Vale para o currículo (`profile.ts#withoutDashesResume`: pacote, currículos-base, PDF e ficha), a carta, os e-mails e as respostas do formulário. O modelo do PDF também usa hífen entre as datas e vírgula entre curso e instituição.
 - **Cargo em um idioma só:** no currículo em português, um cargo com a tradução entre parênteses ("Analista Desenvolvedor (Developer Analyst)") perde o trecho em inglês quando ele tem as palavras do cargo do currículo em inglês na mesma posição (`profile.ts#withoutTranslatedTitles`, sem IA; uma palavra só, como "(Sênior)", nunca sai). Vale para o pacote, os currículos-base e a ficha. O perfil guarda o nome em inglês numa linha "Cargo em inglês: ...".
 - **Rascunho de e-mail** (`writers/emailDraft.ts`): `rascunho_candidatura.eml` com destinatário (o e-mail de contato da vaga), assunto, texto e os PDFs em base64. O cabeçalho `X-Unsent: 1` faz o Outlook abrir como e-mail novo, pronto para enviar; quebra de linha no assunto não vira cabeçalho. Para o Gmail pelo navegador, `gmailComposeUrl` monta o link de "escrever" com destinatário, assunto e texto (o anexo vai à mão). O agente nunca envia: quem clica em Enviar é a pessoa. "Gerar o PDF de novo" refaz o rascunho com o PDF novo.
-- **Ficha de candidatura** (`writers/applicationSheet.ts`): os campos dos formulários de plataforma a partir do `resume.json` do pacote (ou do currículo-base no idioma da vaga): dados pessoais, resumo em 3 tamanhos (frases inteiras, `fitText`), cada experiência campo a campo, formação, certificações, idiomas, competências e projetos. Sem IA e sem nada novo; fica em `ficha_de_candidatura.md` e na aba Ficha.
+- **Ficha de candidatura** (`writers/applicationSheet.ts`): os campos dos formulários de plataforma a partir do `resume.json` do pacote (ou do currículo-base no idioma da vaga): dados pessoais, resumo em 3 tamanhos (frases inteiras, `fitText`), cada experiência campo a campo, formação, certificações, idiomas, competências e projetos. Também traz a mensagem curta de apresentação (item 6 do `emails.md`) e as respostas fixas dos formulários das preferências (`extraSections`). Sem IA e sem nada novo; fica em `ficha_de_candidatura.md` e na aba Ficha.
 - **Canal da candidatura:** "Já me candidatei" grava `Job.appliedVia` (plataforma, e-mail, LinkedIn, site, WhatsApp, indicação, outro), já marcado com o canal provável (`status.ts#guessApplyVia`: `applyChannel` da análise, senão o site do link). Vai para o `tracker.csv` como "via ...".
 
 ## Anti-invenção
@@ -261,6 +282,28 @@ Cada mudança de status:
 - fica registrada em `output/tracker.csv`;
 - move a pasta do pacote para a subpasta da etapa (`src/jobs/folders.ts`), mantendo os caminhos em `data/jobs.json` em sincronia.
 
+## Resultados e acompanhamento
+
+O que acontece depois da candidatura fica registrado, para a pessoa ver o que funciona. Sem IA, menos na leitura do e-mail de recusa.
+
+- **Etapa da recusa** (`Job.outcome`): "Fui recusado" pergunta até onde chegou (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) e o motivo, se a empresa disse. A etapa sugerida vem de `funnel.ts#defaultStage`: sem resposta depois de `noReplyDays`, técnica depois de entrevista, triagem nos outros casos. Com o e-mail de recusa colado, `readRejectionEmail` pede à IA a etapa, o motivo (só se o e-mail disser) e se parece mensagem automática; a pessoa confirma.
+- **Primeira resposta** (`Job.respondedAt`): gravada na primeira mudança de `applied` para entrevista, oferta ou recusa com resposta. Alimenta a mediana de dias até a resposta.
+- **Follow-ups** (`Job.followUps`, `followUpDue`): o 1º depois de `AJF_FOLLOW_UP_DAYS` (7) dias sem resposta, o 2º o mesmo número de dias depois do 1º, no máximo dois. "Enviei o follow-up" grava a data (`status.ts#recordFollowUp`).
+- **Sem retorno** (`isNoReply`): candidatura sem resposta depois de `AJF_NO_REPLY_DAYS` (30) conta como sem retorno nos números, sem mudar o status. "Fechar como sem retorno" registra uma recusa com a etapa `sem_resposta`.
+- **Funil** (`funnel.ts#funnel`): enviadas, com resposta, com entrevista, sem retorno e aguardando, no total e por canal, fonte, dias entre a publicação e o envio e nota da triagem, mais onde as recusas aconteceram. As taxas contam só as candidaturas que já têm resultado; grupo com menos de 3 aparece como "poucas". As conclusões (`Insight`) saem como código e variáveis, para a página traduzir:
+
+  | Código | Quando |
+  |---|---|
+  | `missing_outcome`, `missing_channel` | recusa sem etapa, ou candidatura sem canal |
+  | `small_sample` | menos de 10 candidaturas com resultado |
+  | `best_channel` | dois canais com 3+ resultados cada e 15+ pontos de diferença na taxa de resposta |
+  | `early_better` | as enviadas até 7 dias depois da publicação responderam 10+ pontos a mais que as outras (3+ resultados de cada lado) |
+  | `screening` | metade ou mais das recusas com etapa conhecida vieram na triagem |
+  | `no_interviews` | 15+ resultados e nenhuma entrevista |
+
+  Aparece na página Resultados (`js/results.js`, `GET /api/funnel`), no `ajf resultados` e no painel (`dashboard.ts#funnelSection`).
+- **Indicação** (`src/jobs/referral.ts`): o agente nunca entra no LinkedIn. `referralLinks` monta dois links de busca no LinkedIn para a pessoa abrir logada: pessoas da empresa na rede dela (1º e 2º grau) e quem recruta na empresa. `referralMessages` escreve duas mensagens curtas só com fatos do perfil, uma para quem já conhece a pessoa e um convite de conexão para quem não conhece (até 300 caracteres, o limite do LinkedIn), conferidas pelas mesmas travas das respostas dos formulários; nunca inventa vínculo. `Job.referral` guarda a situação (pedida, recebida, sem resposta). Depois de `REFERRAL_WAIT_DAYS` (3) sem resposta, a página sugere se candidatar pela plataforma, porque chegar cedo pesa mais que esperar.
+
 ## Perguntas do formulário
 
 `src/writers/answers.ts` responde as perguntas que o formulário de candidatura faz ("Por que você quer trabalhar aqui?"):
@@ -299,7 +342,7 @@ Todas as chamadas passam por `src/llm.ts`, então os provedores são intercambi�
    - `openai`: Responses API, ou Chat Completions com `OPENAI_BASE_URL` para OpenRouter, Groq e Ollama;
    - `gemini`: REST.
 
-As CLIs rodam numa pasta temporária vazia e isolada, sem acesso aos seus arquivos. `AJF_PROVIDER` força uma IA específica.
+As CLIs rodam numa pasta temporária vazia e isolada, sem acesso aos seus arquivos. `AJF_PROVIDER` força uma IA específica. Uma chamada pode ter limite de tempo (`CallOptions.timeoutMs`): as CLIs encerram o processo e `llm.ts#withTimeout` desiste em qualquer provedor; sem ele, as CLIs param em 15 minutos.
 
 **Imagens** (`CallOptions.images`, `src/providers/images.ts`): uma chamada pode levar imagens, hoje o print de uma pergunta de formulário. As APIs recebem a imagem no corpo do pedido (blocos de conteúdo da Anthropic/Bedrock/Vertex, `input_image` ou `image_url` da OpenAI, `inline_data` do Gemini); o `codex exec` recebe `--image`; o Claude Code e o Gemini CLI recebem uma cópia na pasta isolada da chamada e abrem com a ferramenta de ler arquivos (`Read`, `read_file`), a única liberada além da busca na web. A cópia é apagada depois da chamada. O tipo é conferido pelos primeiros bytes (PNG, JPG, WEBP, GIF), até 5 MB.
 
@@ -328,6 +371,20 @@ flowchart LR
   - O `scripts/i18n.ts` (`npm run i18n`) acha todas as chaves no código e lista o que falta ou sobra em cada dicionário; o `tests/i18n.test.ts` falha se um texto ficar sem tradução, se uma tradução tiver outras `{variáveis}` ou se uma chave não for mais usada.
   - Ainda não traduzido: o que vai para o recrutador segue o idioma da vaga; o texto escrito pela IA, os arquivos do pacote, o andamento das tarefas e o terminal estão em português.
 
+## Pesquisas por trás das funções
+
+O registro de resultados, a indicação, a prioridade, os critérios eliminatórios, o teste dos primeiros segundos, a mensagem curta, os números que faltam, os follow-ups e o alerta de vaga fantasma seguem o que as pesquisas sobre contratação mostram. Alguns números vêm de empresas que vendem serviços de recrutamento ou de currículo, sem revisão independente; quando é o caso, está dito abaixo. As funções seguem a direção das evidências, não os números exatos. Os links levam às fontes, em inglês.
+
+- **Resultados e funil.** Sem registrar o que aconteceu com cada candidatura, não dá para saber o que mudar, e nenhuma das funções abaixo pode ser medida. O funil usa só o que a pessoa registrou e avisa quando a amostra é pequena.
+- **Indicação primeiro.** Nos dados da Lever, com mais de 4 milhões de candidaturas, cerca de 1 em cada 16 indicados foi contratado, contra cerca de 1 em cada 152 de quem se candidatou pelo site da empresa ou por anúncio (dado de empresa do ramo, divulgado pela SHRM). Um estudo do Fed de Nova York com os dados de indicação de uma empresa mostrou que indicados tinham mais chance de ser contratados. [SHRM: Lever study shows 1 in 100 candidates is hired](https://shrm.org/topics-tools/news/talent-acquisition/lever-study-shows-1-100-candidates-hired); [New York Fed Staff Report 568 (Brown, Setren and Topa)](https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr568.html); [ERIN: employee referral statistics](https://erinapp.com/blog/employee-referral-statistics-you-need-to-know-for-2024-infographic).
+- **Candidatar cedo (frescor na prioridade).** O Fed de St. Louis mostrou que boa parte das candidaturas chega nos primeiros dias depois do anúncio (cerca de 41% nas primeiras 48 horas). A TalentWorks relatou chances bem maiores para quem se candidata nas primeiras 96 horas (dado da empresa, sem revisão de outros pesquisadores), e uma pesquisa da Universidade de Boston sobre Indeed e LinkedIn também aponta que vale se candidatar cedo. [St. Louis Fed: How quickly do people apply for jobs?](https://www.stlouisfed.org/on-the-economy/2017/november/how-quickly-people-apply-jobs); [TalentWorks data on application timing (summary)](https://paulvanderlaken.com/2017/10/24/talent-works-data-science-to-improve-job-application-chances/); [Boston University: best to apply early on Indeed or LinkedIn](https://www.bu.edu/articles/2025/looking-for-jobs-on-indeed-or-linkedin).
+- **Critérios eliminatórios na triagem.** Numa pesquisa da Enhancv com 25 recrutadores, 92% disseram que o sistema de candidaturas não rejeita currículo sozinho; o que filtra automaticamente são as perguntas eliminatórias que o recrutador configura (local, autorização de trabalho, formação). Pesquisa pequena, de empresa do ramo. Um estudo de 2025 também contradiz a ideia de que a IA elimina a maior parte das candidaturas. [Enhancv: does ATS reject resumes?](https://enhancv.com/blog/does-ats-reject-resumes/); [Betanews: study debunks claim that AI filters out most applicants](https://betanews.com/2025/11/10/study-debunks-viral-claim-that-ai-filters-out-most-job-applicants/).
+- **Teste dos primeiros segundos.** No estudo de rastreamento ocular da Ladders (2018), a primeira olhada num currículo durou cerca de 7 segundos e se concentrou em cargos, empresas, datas e títulos de seção. O método é criticado (ERE), então a função usa só a parte consistente: o topo do currículo pesa mais. [Ladders eye-tracking study (PDF)](https://csuglobal.edu/sites/default/files/blog-files/theladders-eyetracking-studyc2.pdf); [HR Dive: recruiters look at resumes for 7 seconds](https://www.hrdive.com/news/eye-tracking-study-shows-recruiters-look-at-resumes-for-7-seconds/); [ERE: is the 6-second resume scan a myth?](https://www.ere.net/articles/is-the-6-second-resume-scan-a-myth).
+- **Mensagem curta de apresentação.** Num experimento da ResumeGo com 7.287 candidaturas, o retorno foi de 10,7% sem carta, 12,5% com carta genérica e 16,4% com carta personalizada (pesquisa de empresa do ramo). [ResumeGo: cover letters study](https://www.resumego.net/research/cover-letters/).
+- **Números que faltam.** Currículo com resultados medidos recebe mais retorno. Os percentuais vêm de empresas do ramo e variam; a direção é consistente. O agente só pergunta: o número só entra quando a pessoa escreve. [ResumeGeni: how to quantify achievements](https://resumegeni.com/blog/how-to-quantify-achievements-on-your-resume).
+- **Dois follow-ups e "sem retorno".** A maioria dos gestores aprova o follow-up, prefere e-mail e espera receber em até umas duas semanas (Robert Half). Não há prova de que o follow-up aumente a taxa de resposta, então o agente sugere no máximo dois e depois conta a candidatura como sem retorno. [Robert Half: the art of following up](https://press.roberthalf.ca/2017-09-19-The-Art-of-Following-Up?asPDF=1); [Workforce: busy recruiters, job seekers should follow up](https://www.workforce.com/news/busy-recruiters-call-job-seekers-follow).
+- **Alerta de vaga fantasma.** Numa pesquisa de 2024 com 649 gestores, cerca de 40% disseram que a empresa publicou uma vaga falsa no último ano, e em outra pesquisa quase metade dos profissionais de RH disse publicar vagas fantasma com frequência. Anúncio antigo, republicado ou de banco de talentos são os sinais comuns. [HRKatha: 40% admit posting at least one fake job](https://www.hrkatha.com/features/research/40-admit-to-have-posted-at-least-one-fake-job-in-the-past-year/); [HCAMag: HR professionals post ghost job ads](https://www.hcamag.com/ca/specialization/recruitment/nearly-half-of-hr-professionals-admit-they-regularly-post-ghost-job-ads-survey/537439).
+
 ## Organização do código
 
 ```
@@ -341,6 +398,7 @@ src/
   providers/             cada IA + detecção (spawn.ts acha as CLIs instaladas)
   onboarding/            cadastro: leitura de PDF/DOCX/LinkedIn/sites/GitHub, entrevista, montagem
     update.ts            atualizar com uma novidade (proposta, aplicar) e refazer os currículos-base
+    numbers.ts           tópicos do currículo sem número: o que medir e o que perguntar (IA), respostas viram novidade
   profile.ts             leitura do perfil, preferências e regras
   prompts.ts · schemas.ts · market.ts
   jobs/
@@ -351,6 +409,9 @@ src/
     page.ts              texto da vaga a partir da página (JobPosting, Gupy, LinkedIn ou conteúdo principal) e cleanJobText
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
+    priority.ts          ordem das vagas: triagem, frescor, sinais de vaga fantasma, eliminatórios, indicação
+    funnel.ts            resultados: etapa da recusa, follow-ups, sem retorno, o funil e as conclusões
+    referral.ts          indicação: links de busca no LinkedIn e mensagens curtas
     store.ts             data/jobs.json
     status.ts folders.ts mudança de status e pastas por etapa
   tailor/
@@ -359,6 +420,7 @@ src/
     refine.ts            loop recrutador ⇄ editor
     guards.ts            travas anti-invenção
     ats.ts               relatório ATS
+    skim.ts              teste dos primeiros segundos do topo do currículo
   writers/               carta, e-mails, guia de entrevista, perguntas do formulário, plano e conferência do LinkedIn
     emailDraft.ts        rascunho .eml com o currículo anexado e link do Gmail
     applicationSheet.ts  ficha de candidatura (campos dos formulários, sem IA)
@@ -368,7 +430,7 @@ src/
     i18n.ts              tradução no servidor (cabeçalho x-ajf-lang)
     routes/              API: vagas, perfil (cadastro e atualização), LinkedIn, preferências
     tasks.ts             fila de tarefas
-    public/              a página: index.html, app.css, logo.svg, js/ (boot.js, i18n.js), locales/en.json
+    public/              a página: index.html, app.css, logo.svg, js/ (boot.js, i18n.js, results.js...), locales/en.json
   util/                  texto, comparação linha a linha (diff), abrir links e pastas (sem shell)
 scripts/demo.ts          npm run demo: dados fictícios para testar a interface
 scripts/i18n.ts          npm run i18n: textos da interface que faltam ou sobram em cada dicionário

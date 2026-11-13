@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ensureDir, paths, settings } from "./config.js";
+import { funnel, insightText, type Funnel } from "./jobs/funnel.js";
 import { SENDABLE } from "./jobs/status.js";
 import { loadJobs, organizePackages } from "./jobs/store.js";
 import type { Job } from "./schemas.js";
@@ -60,6 +61,27 @@ ${jobs
 </tbody></table></div>`;
 }
 
+/** Resultado das candidaturas: taxas, conclusões e follow-ups pendentes (src/jobs/funnel.ts). */
+function funnelSection(f: Funnel, jobs: Job[]): string {
+  const t = f.totals;
+  if (!t.sent) return "";
+  const rate = (r: number | null) => (r == null ? "-" : `${r}%`);
+  const name = (id: string) => {
+    const j = jobs.find((x) => x.id === id);
+    return j ? `${esc(j.company)} — ${esc(j.title)}` : id;
+  };
+  return `<h2>📊 Resultados</h2>
+<div class="stats">
+<div class="stat"><b>${t.sent}</b>enviadas</div>
+<div class="stat"><b>${rate(t.replyRate)}</b>com resposta</div>
+<div class="stat"><b>${rate(t.interviewRate)}</b>com entrevista</div>
+<div class="stat"><b>${t.noReply}</b>sem retorno</div>
+</div>
+${f.insights.map((i) => `<div class="tip">${esc(insightText(i))}</div>`).join("\n")}
+${f.followUpsDue.length ? `<div class="tip">⏰ Follow-up pendente: ${f.followUpsDue.map(name).join(" · ")}</div>` : ""}
+<div class="muted" style="margin-top:8px">Detalhes por canal, fonte e prazo: <code>ajf resultados</code> ou a página Resultados da interface.</div>`;
+}
+
 /** Gera output/painel.html com o estado de todas as vagas. Abre direto no navegador (sem servidor). */
 export function writeDashboard(): string {
   // Os links do painel apontam para as pastas: organiza antes (move pastas antigas ou que falharam antes).
@@ -75,6 +97,7 @@ export function writeDashboard(): string {
   const lowFit = by("low_fit").sort(byRating);
   const maybe = by("triaged").sort(byScore);
   const fresh = by("new");
+  const f = funnel(jobs);
 
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -117,6 +140,8 @@ ${table(recommended, ["score", "reason", "links"])}
 
 <h2>📨 Em andamento</h2>
 ${table(active, ["rating", "applied", "links"])}
+
+${funnelSection(f, jobs)}
 
 <details><summary>⚠️ Pacotes com baixa aderência (${lowFit.length})</summary>${table(lowFit, ["rating", "links"])}</details>
 <details><summary>🤔 Avaliadas — decidir (${maybe.length})</summary>${table(maybe, ["score", "reason", "links"])}</details>

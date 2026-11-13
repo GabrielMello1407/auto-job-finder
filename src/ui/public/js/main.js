@@ -5,11 +5,13 @@ import { busyChanged, closeDrawer, countIn, drawerOpen, jobsKeydown, paintJobs, 
 import { loadProfile, paintWizard, renderProfilePage, renderWizard } from "./profile.js";
 import { renderPrefsPage } from "./prefs.js";
 import { renderLinkedinPage } from "./linkedin.js";
+import { refreshResults, renderResultsPage } from "./results.js";
 
 /* ===================================================================== rotas */
 
 const ROUTES = {
   vagas: renderJobsPage,
+  resultados: renderResultsPage,
   perfil: renderProfilePage,
   comecar: renderWizard,
   preferencias: renderPrefsPage,
@@ -56,6 +58,7 @@ app.refresh = async () => {
   paintChrome();
   if (hadProfile !== S.hasProfile || (currentRoute === "comecar" && routeName() !== "comecar")) return showRoute();
   if (currentRoute === "vagas") paintJobs();
+  if (currentRoute === "resultados") await refreshResults();
   if (currentRoute === "comecar") paintWizard();
   if (drawerOpen()) await reloadDrawer();
 };
@@ -220,7 +223,17 @@ const COMMANDS = [
       app.go("vagas");
     },
   })),
+  { ico: "📊", text: t("Resultados das candidaturas"), sub: t("o que está funcionando"), run: () => app.go("resultados") },
   { ico: "🪪", text: t("Abrir meu perfil"), run: () => app.go("perfil") },
+  {
+    ico: "🔢",
+    text: t("Números que faltam no currículo"),
+    sub: t("resultados sem número"),
+    run: () => {
+      app.go("perfil");
+      setTimeout(() => $("#numbers")?.scrollIntoView({ block: "start", behavior: "smooth" }), 400);
+    },
+  },
   { ico: "🆕", text: t("Atualizar o perfil com uma novidade"), sub: t("projeto, emprego, curso"), run: () => ACTIONS["update-news"]() },
   { ico: "✅", text: t("Conferir meu LinkedIn"), run: () => app.go("linkedin") },
   { ico: "🎯", text: t("Preferências de busca"), run: () => app.go("preferencias") },

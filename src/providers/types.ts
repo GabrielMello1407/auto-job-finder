@@ -26,6 +26,11 @@ export interface CallOptions {
   maxTokens?: number;
   /** Imagens junto com o pedido (ex.: print de uma pergunta de formulário). Ver providers/images.ts. */
   images?: ImageInput[];
+  /**
+   * Tempo máximo da chamada. As CLIs encerram o processo; para todo provedor, `llm.ts` desiste e lança erro.
+   * Sem ele, vale o limite de cada provedor (15 min nas CLIs).
+   */
+  timeoutMs?: number;
 }
 
 export interface SearchOptions extends CallOptions {

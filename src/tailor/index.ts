@@ -22,6 +22,7 @@ const MAX_PAGES = 2;
 import { atsMarkdown, atsReport } from "./ats.js";
 import { runGuards, type GuardReport } from "./guards.js";
 import { ratingReport, refine } from "./refine.js";
+import { skimFeedback, skimMarkdown, skimTest } from "./skim.js";
 
 export interface TailorOptions {
   lang?: "pt-BR" | "en";
@@ -178,7 +179,17 @@ ${e.followUp.body}
 \`\`\`text
 ${e.thankYou.body}
 \`\`\`
-`;
+${
+  e.applicationNote
+    ? `
+## 6. Mensagem curta de apresentação (${e.applicationNote.length}/600 caracteres)
+Para o campo "mensagem", "carta de apresentação" ou "por que você?" das plataformas, ou para o corpo de um e-mail curto.
+\`\`\`text
+${e.applicationNote}
+\`\`\`
+`
+    : ""
+}`;
 }
 
 /** Passo a passo de candidatura conforme o canal que a vaga pede (e-mail, LinkedIn, plataforma...). */
@@ -188,8 +199,8 @@ function howToApply(a: JobAnalysis, job: Job, attachments: string[]): string {
   const steps: Record<JobAnalysis["applyChannel"], string> = {
     email: `📧 **Por e-mail**${a.recruiterEmail ? ` para **${a.recruiterEmail}**` : ""}: abra \`${DRAFT_FILE}\` (o e-mail 1 de emails.md, já com ${files} anexado), confira e envie. No Gmail pelo navegador, use "Abrir no Gmail" na interface e anexe ${files}.`,
     linkedin: `💼 **Pelo LinkedIn** (${link}): use a candidatura simplificada e envie ${attachments[0]}. Depois mande o convite de conexão (emails.md, item 2) para quem publicou a vaga.`,
-    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}. Os campos que o formulário pede (dados, resumo em 3 tamanhos, cada experiência) estão prontos para copiar em \`${SHEET_FILE}\` ou na aba Ficha da vaga. Perguntas de triagem: aba Perguntas — não invente respostas.`,
-    site: `🌐 **Pelo site da empresa** (${link}): preencha o formulário com a \`${SHEET_FILE}\` (ou a aba Ficha da vaga) e envie ${files}.`,
+    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}. Os campos que o formulário pede (dados, resumo em 3 tamanhos, cada experiência) estão prontos para copiar em \`${SHEET_FILE}\` ou na aba Ficha da vaga. Se houver campo de mensagem ou carta, use a mensagem curta (emails.md, item 6). Perguntas de triagem: aba Perguntas — não invente respostas.`,
+    site: `🌐 **Pelo site da empresa** (${link}): preencha o formulário com a \`${SHEET_FILE}\` (ou a aba Ficha da vaga) e envie ${files}. Campo de mensagem ou carta: use a mensagem curta (emails.md, item 6).`,
     whatsapp: `📱 **Por WhatsApp**: adapte a mensagem direta (emails.md, item 3) e envie ${attachments[0]}. Confirme antes que o número é da empresa.`,
     desconhecido: `🔗 Abra a vaga (${link}) e siga o que ela pede. Os textos prontos estão em emails.md.`,
   };
@@ -207,6 +218,7 @@ function withoutDashesEmails(e: EmailPack): EmailPack {
     linkedinMessage: t(e.linkedinMessage),
     followUp: { subject: subject(e.followUp.subject), body: t(e.followUp.body) },
     thankYou: { subject: subject(e.thankYou.subject), body: t(e.thankYou.body) },
+    applicationNote: t(e.applicationNote ?? ""),
   };
 }
 
@@ -245,7 +257,7 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
     maxRevisions: opts.maxRevisions ?? settings.maxRevisions,
     guard,
     evaluate: (r) => reviewer({ jd, analysis, resume: r }),
-    revise: (r, review, guards) => editor({ jd, analysis, current: r, base, review, guards, market: mp }),
+    revise: (r, review, guards) => editor({ jd, analysis, current: r, base, review, guards, market: mp, skim: skimFeedback(skimTest(r, analysis), analysis.roleTitle) }),
     onRound: (round, i) =>
       console.log(`   rodada ${i + 1}: nota ${round.rating}${round.violations ? ` · ${round.violations} violação(ões)` : ""}`),
   });
@@ -290,7 +302,7 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   fs.writeFileSync(path.join(dir, "job.md"), `# ${job.title} — ${job.company}\n\n${jd}\n`);
   fs.writeFileSync(path.join(dir, "analysis.json"), JSON.stringify({ analysis, market: mp, baseName, company: job.company }, null, 2));
   fs.writeFileSync(path.join(dir, "ats_report.md"), atsMarkdown(ats));
-  fs.writeFileSync(path.join(dir, "rating_report.md"), ratingReport(result, target));
+  fs.writeFileSync(path.join(dir, "rating_report.md"), `${ratingReport(result, target)}\n${skimMarkdown(skimTest(final, analysis))}`);
   fs.writeFileSync(path.join(dir, "coverage_review.md"), coverageReview(final, base, guards, analysis));
 
   const attachments = [pdfName];

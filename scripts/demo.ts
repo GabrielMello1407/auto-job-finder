@@ -69,6 +69,20 @@ interface DemoJob {
   closed?: string;
   /** Igual a uma antiga em que a pessoa já se candidatou: vaga reaberta. */
   reopenedFrom?: string;
+  /** Dias desde a publicação (padrão: days + 1). */
+  postedDays?: number;
+  /** Critérios eliminatórios da triagem. */
+  knockouts?: { requirement: string; kind: string; meets: "sim" | "nao" | "incerto"; evidence: string }[];
+  /** Por onde a candidatura foi enviada. */
+  via?: "plataforma" | "email" | "linkedin" | "site" | "whatsapp" | "indicacao" | "outro";
+  /** Recusa: até onde chegou e o motivo. */
+  outcome?: { stage: "sem_resposta" | "triagem" | "rh" | "tecnica" | "final" | "desconhecida"; reason?: string };
+  /** Dias atrás em que a empresa respondeu pela primeira vez. */
+  respondedDays?: number;
+  /** Dias atrás em que cada follow-up foi enviado. */
+  followUpDays?: number[];
+  /** Pedido de indicação (dias atrás). */
+  referral?: { status: "pedida" | "recebida" | "sem_resposta"; days: number };
   /** Vaga recebida sem link (indicação, e-mail, WhatsApp) e pesquisada na web. */
   research?: {
     verdict: "confirmada" | "nao_encontrada" | "suspeita";
@@ -100,6 +114,11 @@ const JOBS: DemoJob[] = [
     status: "tailored",
     days: 2,
     contactEmail: "vagas@clinicabemestar.example.com",
+    referral: { status: "recebida", days: 1 },
+    knockouts: [
+      { requirement: "Morar no Brasil", kind: "local", meets: "sim", evidence: "Mora em Londrina, PR" },
+      { requirement: "Experiência com Node.js e React", kind: "experiencia", meets: "sim", evidence: "Full stack com Node.js e React na Prefeitura Exemplo desde 2023" },
+    ],
     rating: 8.6,
     ats: 94,
     triage: {
@@ -136,6 +155,7 @@ Como se candidatar: pela página de vagas, com currículo em PDF.`,
     salary: "US$ 4,000–5,500/month (contractor)",
     status: "tailored",
     days: 3,
+    postedDays: 18,
     rating: 7.8,
     ats: 88,
     outdated: true,
@@ -169,6 +189,7 @@ Requirements
     days: 6,
     appliedDays: 3,
     notes: "via Gupy",
+    via: "plataforma",
     rating: 8.1,
     ats: 91,
     triage: {
@@ -193,6 +214,7 @@ Requirements
     days: 12,
     appliedDays: 9,
     notes: "indicação de ex-colega",
+    via: "indicacao",
     rating: 7.5,
     ats: 86,
     triage: {
@@ -218,6 +240,8 @@ Requirements
     days: 15,
     appliedDays: 11,
     notes: "entrevista técnica marcada",
+    via: "email",
+    respondedDays: 7,
     rating: 8.3,
     ats: 90,
     interviewGuide: true,
@@ -236,6 +260,11 @@ Requirements
   {
     id: "demo0006",
     company: "Nuvem Azul Tecnologia Exemplo",
+    referral: { status: "pedida", days: 4 },
+    knockouts: [
+      { requirement: "Experiência com Node.js e TypeScript em produção", kind: "experiencia", meets: "sim", evidence: "APIs REST em Node.js e TypeScript na Prefeitura Exemplo" },
+      { requirement: "Disponibilidade para começar em até 30 dias", kind: "outro", meets: "sim", evidence: "Respostas fixas: pode começar em 30 dias" },
+    ],
     title: "Desenvolvedora(or) Back-end Node.js",
     location: "Remoto (Brasil)",
     remote: true,
@@ -272,6 +301,10 @@ Requirements
   {
     id: "demo0007",
     company: "Fintech Aurora Exemplo",
+    knockouts: [
+      { requirement: "Python avançado (obrigatório)", kind: "experiencia", meets: "nao", evidence: "O perfil não mostra Python além de scripts simples" },
+      { requirement: "Experiência com LLMs em produção", kind: "experiencia", meets: "sim", evidence: "Relatórios com LLMs e RAG em uso na Prefeitura Exemplo" },
+    ],
     title: "AI Engineer — Aplicações com LLM",
     location: "Remoto (Brasil)",
     remote: true,
@@ -292,6 +325,10 @@ Requirements
   {
     id: "demo0008",
     company: "Northwind Labs Example",
+    knockouts: [
+      { requirement: "5+ years of professional experience", kind: "experiencia", meets: "nao", evidence: "Cerca de 3 anos de experiência profissional" },
+      { requirement: "Authorized to work in the US", kind: "autorizacao", meets: "incerto", evidence: "O perfil não fala de autorização de trabalho nos EUA" },
+    ],
     title: "Software Engineer (TypeScript)",
     location: "Remote — Americas",
     remote: true,
@@ -402,6 +439,9 @@ Requirements
     days: 25,
     appliedDays: 20,
     notes: "retorno: seguiram com outra pessoa",
+    via: "plataforma",
+    respondedDays: 12,
+    outcome: { stage: "rh", reason: "seguiram com outra pessoa, com experiência em saúde" },
     rating: 7.9,
     ats: 89,
     triage: {
@@ -452,7 +492,283 @@ Requirements
     },
     description: "Healthtech (fictícia) reabriu a vaga de full stack para o portal do paciente.",
   },
+  {
+    // Anúncio antigo de banco de talentos: aparece com o alerta de vaga fantasma e desce na lista.
+    id: "demo0016",
+    company: "Grupo Atlas Exemplo",
+    title: "Banco de Talentos — Tecnologia",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "triaged",
+    days: 2,
+    postedDays: 45,
+    triage: {
+      fit: "media",
+      score: 66,
+      reason: "Pede desenvolvimento web em geral, sem uma vaga específica; a stack combina com o perfil.",
+      evidence: ["Node.js e React no trabalho atual"],
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "O Grupo Atlas (fictício) mantém um banco de talentos de tecnologia. Cadastre seu currículo para oportunidades futuras em desenvolvimento web.",
+  },
+  {
+    id: "demo0017",
+    company: "Conecta Seguros Exemplo",
+    title: "Desenvolvedora(or) Full Stack Pleno",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 51,
+    postedDays: 52,
+    appliedDays: 40,
+    source: "gupy",
+    via: "plataforma",
+    respondedDays: 38,
+    outcome: {stage: "triagem",reason: "pediam 5 anos de experiência"},
+    triage: {
+      fit: "media",
+      score: 72,
+      reason: "Stack combina; a vaga pede 5 anos de experiência.",
+      evidence: EVID_FULLSTACK,
+      gaps: ["5 anos de experiência"],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Seguradora (fictícia) busca full stack pleno para o portal do corretor. Node.js, React, 5 anos de experiência.",
+  },
+  {
+    id: "demo0018",
+    company: "Rota Certa Exemplo",
+    title: "Desenvolvedora(or) Node.js",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 47,
+    postedDays: 48,
+    appliedDays: 39,
+    source: "remotive",
+    via: "plataforma",
+    outcome: {stage: "sem_resposta"},
+    triage: {
+      fit: "alta",
+      score: 76,
+      reason: "Node.js e PostgreSQL com evidência direta.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Empresa de logística (fictícia) contrata back-end Node.js para a API de rotas.",
+  },
+  {
+    id: "demo0019",
+    company: "Feira Livre Digital Exemplo",
+    title: "Desenvolvedora(or) Front-end React",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "applied",
+    days: 43,
+    postedDays: 47,
+    appliedDays: 36,
+    source: "web:google jobs",
+    via: "plataforma",
+    triage: {
+      fit: "media",
+      score: 70,
+      reason: "React e TypeScript com evidência; pouco back-end na vaga.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Marketplace (fictício) procura front-end React para o app do vendedor.",
+  },
+  {
+    id: "demo0020",
+    company: "Pagar Fácil Exemplo",
+    title: "Software Engineer (Node.js)",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 32,
+    postedDays: 33,
+    appliedDays: 31,
+    source: "manual",
+    via: "indicacao",
+    respondedDays: 27,
+    outcome: {stage: "tecnica",reason: "o teste técnico pedia Go"},
+    triage: {
+      fit: "alta",
+      score: 79,
+      reason: "Node.js e TypeScript com evidência; Go aparece como desejável.",
+      evidence: EVID_FULLSTACK,
+      gaps: ["Go (desejável)"],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Fintech (fictícia) busca engenheira(o) de software Node.js para pagamentos. Desejável: Go.",
+  },
+  {
+    id: "demo0021",
+    company: "Clima Verde Exemplo",
+    title: "Desenvolvedora(or) Full Stack",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "applied",
+    days: 16,
+    postedDays: 17,
+    appliedDays: 15,
+    source: "github-br",
+    via: "linkedin",
+    followUpDays: [7],
+    triage: {
+      fit: "alta",
+      score: 83,
+      reason: "Node.js, React e PostgreSQL com evidência direta.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Startup de energia (fictícia) contrata full stack para o painel de consumo. Node.js, React, PostgreSQL.",
+  },
+  {
+    id: "demo0022",
+    company: "Turismo Sul Exemplo",
+    title: "Desenvolvedora(or) Web",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 29,
+    postedDays: 30,
+    appliedDays: 28,
+    source: "gupy",
+    via: "email",
+    respondedDays: 24,
+    triage: {
+      fit: "media",
+      score: 74,
+      reason: "React e Node.js com evidência; a vaga é mais de front-end.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Agência de turismo (fictícia) contrata dev web para o site de reservas.",
+  },
+  {
+    id: "demo0023",
+    company: "Escola Online Exemplo",
+    title: "Pessoa Desenvolvedora Front-end",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 39,
+    postedDays: 40,
+    appliedDays: 34,
+    source: "gupy",
+    respondedDays: 31,
+    outcome: {stage: "triagem"},
+    triage: {
+      fit: "media",
+      score: 68,
+      reason: "React com evidência; a vaga pede Vue.js.",
+      evidence: EVID_FULLSTACK,
+      gaps: ["Vue.js"],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Plataforma de ensino (fictícia) procura front-end com Vue.js para a área do aluno.",
+  },
+  {
+    id: "demo0024",
+    company: "Logística Ágil Exemplo",
+    title: "Desenvolvedora(or) Back-end",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 25,
+    postedDays: 26,
+    appliedDays: 25,
+    source: "github-br",
+    via: "plataforma",
+    outcome: {stage: "sem_resposta"},
+    triage: {
+      fit: "media",
+      score: 71,
+      reason: "Node.js com evidência; filas e mensageria são lacuna.",
+      evidence: EVID_FULLSTACK,
+      gaps: ["Mensageria (RabbitMQ)"],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Transportadora (fictícia) busca back-end para integrações com parceiros. Node.js, RabbitMQ.",
+  },
+  {
+    id: "demo0025",
+    company: "Fábrica de Apps Exemplo",
+    title: "Desenvolvedora(or) Full Stack",
+    location: "Remoto (Brasil)",
+    remote: true,
+    status: "rejected",
+    days: 59,
+    postedDays: 60,
+    appliedDays: 58,
+    source: "manual",
+    via: "email",
+    respondedDays: 52,
+    outcome: {stage: "triagem",reason: "a vaga passou a exigir inglês fluente"},
+    triage: {
+      fit: "alta",
+      score: 78,
+      reason: "Node.js e React com evidência direta.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "BR",
+      lang: "pt-BR",
+      seniority: "pleno",
+    },
+    description: "Software house (fictícia) contrata full stack para projetos de clientes. Node.js, React.",
+  },
 ];
+
+const DETAILS_PT = `
+
+Responsabilidades
+- Desenvolver e manter funcionalidades de ponta a ponta, com testes automatizados.
+- Participar das revisões de código e das decisões técnicas do time.
+- Acompanhar o sistema em produção e propor melhorias.
+
+Benefícios
+- Plano de saúde, auxílio home office e horário flexível.
+
+Etapas do processo
+- Conversa com RH, entrevista técnica e conversa final com a liderança.`;
+const DETAILS_EN = `
+
+Responsibilities
+- Build and maintain features end to end, with automated tests.
+- Take part in code reviews and technical decisions.
+- Monitor the system in production and suggest improvements.
+
+Benefits
+- Health plan, home office allowance and flexible hours.
+
+Hiring process
+- Recruiter call, technical interview and a final conversation with the team lead.`;
+/** Vaga colada (com pesquisa) fica como veio; as outras ganham o corpo de um anúncio. */
+const withDetails = (j: DemoJob) => (j.research || j.description.length >= 400 ? j.description : j.description + (j.triage?.lang === "en" ? DETAILS_EN : DETAILS_PT));
 
 const FOLDER: Record<Status, string> = {
   new: "1-prontas-para-enviar",
@@ -573,8 +889,17 @@ Obrigada pela conversa de hoje sobre a vaga de ${j.title}. Gostei de entender os
 Atenciosamente,
 Ana Souza
 \`\`\`
+
+## 6. Mensagem curta de apresentação (${note(j).length}/600 caracteres)
+Para o campo "mensagem", "carta de apresentação" ou "por que você?" das plataformas, ou para o corpo de um e-mail curto.
+\`\`\`text
+${note(j)}
+\`\`\`
 `;
 }
+
+const note = (j: DemoJob) =>
+  `Sou desenvolvedora full stack com Node.js, TypeScript e React. Na Prefeitura Exemplo, construí APIs REST com PostgreSQL, migrei 5.235 documentos do sistema legado e automatizei relatórios com LLMs, de 3 horas para menos de 10 minutos. Quero levar essa experiência para a vaga de ${j.title} na ${j.company}. Meu currículo está em anexo.`;
 
 const atsReport = (j: DemoJob) => `# Relatório ATS — ${j.ats}%
 
@@ -650,6 +975,61 @@ function seedProfileUpdate(truth: string) {
   const dir = path.join(DEMO, "profile", "atualizacao");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "proposta.json"), JSON.stringify(proposal, null, 2));
+}
+
+/**
+ * "Números que faltam" já analisados, como a IA deixaria (profile/numeros_que_faltam.json): a demo não
+ * chama IA. Tópico do perfil fictício sem análise aqui ganha uma genérica.
+ */
+async function seedNumberHints() {
+  const { bulletsWithoutNumbers } = await import("../src/onboarding/numbers.js");
+  const resume = JSON.parse(fs.readFileSync(path.join(DEMO, "profile", "base_resume.pt.json"), "utf8"));
+  const KNOWN: Record<string, object> = {
+    "Desenvolvi APIs REST em Node.js (Express) e TypeScript com PostgreSQL.": {
+      worth: "alto",
+      measure: "volume e alcance: quantas chamadas, quantos sistemas ou pessoas dependem das APIs",
+      question: "Quantos sistemas ou quantas pessoas usam essas APIs, e quantas requisições elas recebem por dia?",
+      examples: ["cerca de N mil requisições por dia", "usadas por N secretarias"],
+      why: "Mostra a escala do que você mantém em produção.",
+    },
+    "Construí interfaces em React e Next.js para clientes de varejo.": {
+      worth: "alto",
+      measure: "alcance: quantos clientes ou lojas, quantas pessoas usam",
+      question: "Para quantos clientes você fez essas interfaces, e quantas pessoas as usam por mês?",
+      examples: ["N clientes de varejo", "cerca de N mil acessos por mês"],
+      why: "Transforma uma tarefa em resultado com público.",
+    },
+    "Criei testes automatizados com Jest e Testing Library.": {
+      worth: "medio",
+      measure: "qualidade: cobertura ou erros evitados",
+      question: "Quanto do código ficou coberto pelos testes, ou quantos erros em produção caíram depois deles?",
+      examples: ["cobertura de N%", "de N para N erros por mês"],
+      why: "Qualidade medida diz mais que só citar a ferramenta.",
+    },
+    "Mantive o site institucional em JavaScript e HTML/CSS.": {
+      worth: "medio",
+      measure: "alcance: visitas por mês",
+      question: "Quantas visitas o site recebia por mês?",
+      examples: ["cerca de N mil visitas por mês"],
+      why: "Mostra quantas pessoas o trabalho alcançava.",
+    },
+    "Corrigi problemas de acessibilidade apontados pela comunidade.": {
+      worth: "baixo",
+      measure: "quantidade de correções",
+      question: "Quantos problemas de acessibilidade você corrigiu?",
+      examples: ["N correções"],
+      why: "É um trabalho voluntário pontual; o número pesa pouco aqui.",
+    },
+  };
+  const generic = {
+    worth: "medio",
+    measure: "alcance, volume ou tempo",
+    question: "Quantas pessoas, itens ou horas esse trabalho envolveu?",
+    examples: ["cerca de N pessoas", "de N horas para N minutos"],
+    why: "Um número mostra o tamanho do resultado.",
+  };
+  const hints = Object.fromEntries(bulletsWithoutNumbers(resume, 12).map((b) => [b.bullet, KNOWN[b.bullet] ?? generic]));
+  fs.writeFileSync(path.join(DEMO, "profile", "numeros_que_faltam.json"), JSON.stringify({ updatedAt: ago(1), hints }, null, 2));
 }
 
 /** Um plano de LinkedIn antigo (feito antes da última mudança no perfil) e uma conferência recente. */
@@ -740,6 +1120,18 @@ async function main() {
   fs.mkdirSync(path.join(DEMO, "data"), { recursive: true });
   fs.cpSync(path.join(ROOT, "examples", "profile"), path.join(DEMO, "profile"), { recursive: true });
 
+  // Respostas fixas dos formulários (Preferências): entram na ficha, nas respostas e na triagem.
+  const prefsFile = path.join(DEMO, "profile", "preferences.json");
+  const prefs = JSON.parse(fs.readFileSync(prefsFile, "utf8"));
+  prefs.applicationFacts = {
+    salaryExpectation: "R$ 9.000 a 10.000 CLT, ou R$ 12.000 PJ",
+    availability: "em 30 dias",
+    noticePeriod: "30 dias",
+    relocation: "não; remoto ou híbrido em Londrina",
+    workAuthorization: "brasileira; sem visto para outros países, só como PJ remoto",
+  };
+  fs.writeFileSync(prefsFile, JSON.stringify(prefs, null, 2));
+
   // Um ponto "a confirmar" para a página Perfil mostrar como eles aparecem.
   const truthFile = path.join(DEMO, "profile", "profile_truth.md");
   fs.writeFileSync(
@@ -769,10 +1161,10 @@ async function main() {
       location: j.location,
       remote: j.remote,
       url: `https://example.com/vagas/${j.id}`,
-      postedAt: ago(j.days + 1),
+      postedAt: ago(j.postedDays ?? j.days + 1),
       salary: j.salary,
       tags: [],
-      description: j.description,
+      description: withDetails(j),
       addedAt: ago(j.days, 2),
       status: j.status,
     };
@@ -783,7 +1175,9 @@ async function main() {
         evidence: j.triage.evidence,
         mustHaveGaps: j.triage.gaps,
         scamSignals: j.triage.scam ?? [],
-        recommendation: j.triage.scam?.length ? "decidir" : j.triage.score >= 70 ? "candidatar" : j.triage.score < 30 ? "descartar" : "decidir",
+        recommendation:
+          j.triage.scam?.length || j.knockouts?.some((k) => k.meets === "nao") ? "decidir" : j.triage.score >= 70 ? "candidatar" : j.triage.score < 30 ? "descartar" : "decidir",
+        knockouts: j.knockouts,
         market: j.triage.market,
         jobLanguage: j.triage.lang,
         seniority: j.triage.seniority,
@@ -811,6 +1205,11 @@ async function main() {
       job.research = { at: ago(j.days, 1), verdict: r.verdict, postingUrl: r.postingUrl, companySite: r.companySite, notes: r.notes, culture: r.culture ?? [] };
     }
     if (j.appliedDays != null) job.appliedAt = ago(j.appliedDays, 3);
+    if (j.via) job.appliedVia = j.via;
+    if (j.respondedDays != null) job.respondedAt = ago(j.respondedDays, 1);
+    if (j.outcome) job.outcome = { ...j.outcome, at: ago(j.respondedDays ?? Math.max(0, (j.appliedDays ?? 30) - 30), 1) };
+    if (j.followUpDays) job.followUps = j.followUpDays.map((d) => ago(d, 2));
+    if (j.referral) job.referral = { status: j.referral.status, at: ago(j.referral.days, 2) };
     if (j.notes) job.notes = j.notes;
     if (j.source) job.source = j.source;
     if (j.duplicateOf) job.duplicateOf = j.duplicateOf;
@@ -859,6 +1258,7 @@ async function main() {
   });
   fs.writeFileSync(path.join(DEMO, "data", "jobs.json"), JSON.stringify(jobs, null, 2));
   seedProfileUpdate(fs.readFileSync(truthFile, "utf8"));
+  await seedNumberHints();
   seedLinkedin();
   console.log(`✅ Demonstração montada em ${DEMO} (${jobs.length} vagas fictícias, perfil da Ana Souza).`);
 

@@ -69,6 +69,7 @@ Escreva, em ${en ? "inglês americano" : "português do Brasil"}, os textos de c
 3. linkedinMessage: mensagem direta/InMail após conectar, até ~600 caracteres.
 4. followUp: e-mail de acompanhamento para 5–7 dias úteis depois, curto, educado, com 1 informação nova de valor.
 5. thankYou: agradecimento pós-entrevista, com [ponto discutido] para eu preencher.
+6. applicationNote: mensagem curta de apresentação para o campo "mensagem" ou "carta" das plataformas de candidatura. 3 a 5 frases, no máximo 600 caracteres (conte!): o cargo, 1 ou 2 provas que atendem os requisitos obrigatórios da vaga e o que eu entregaria nela. Sem saudação longa nem assinatura.
 
 Regras: só fatos das fontes, tom profissional e humano, sem bajulação nem clichês.`,
   });

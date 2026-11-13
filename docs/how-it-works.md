@@ -11,10 +11,12 @@ How auto-job-finder goes from "I have a resume" to "package ready to send", and 
 - [4. The package for each job](#4-the-package-for-each-job)
 - [No made-up facts](#no-made-up-facts)
 - [A job's journey](#a-jobs-journey)
+- [Results and follow-up](#results-and-follow-up)
 - [Application-form questions](#application-form-questions)
 - [LinkedIn](#linkedin)
 - [The AIs](#the-ais)
 - [The local interface](#the-local-interface)
+- [Research behind the features](#research-behind-the-features)
 - [Code map](#code-map)
 
 ## Overview
@@ -75,6 +77,7 @@ flowchart LR
 - **"Never claim" rules:** news can make a rule false (it blocked "ISO 27001" and now there is evidence) or call for a new one (a course that is not a certification). The AI only points out what to remove, copying the exact rule, and what to add; `applyRuleChanges` applies that to `rules.json` when the proposal is applied, and the other rules, including the hand-written ones, stay as they are. The changes show up in the list of what changes.
 - **Why rebuild the base resumes:** the guards only accept experiences that are in the base resumes. A new job only in `profile_truth.md` would make the package come out with a violation. `rebuildBaseResumes` hands the current base resume to the AI to update, instead of writing from scratch; it can also be called on its own, after editing the profile by hand.
 - **Outdated package:** a ready or low-fit package is flagged when the profile or the base resumes changed after it was made. The comparison uses the files' modification dates.
+- **Missing numbers** (`src/onboarding/numbers.ts`): `bulletsWithoutNumbers` lists the base resume's bullets (25+ characters) without a single digit, up to 12. `analyzeNumbers` makes one AI call for all of them (with the target roles, low effort, a 3-minute limit) and returns, for each bullet, how much a number would help (`alto`, `medio`, `baixo`), what to measure, one question about the impact (people reached, time saved, errors avoided, money) rather than the effort, answer formats and why. The prompt forbids suggesting a value; `withoutFigures` turns any digit in the formats into N, and `splitExamples` takes formats some AIs put inside the question. The result is saved in `profile/numeros_que_faltam.json` by bullet text, so it runs once ("Analisar de novo" forces it) and bullets that left the resume drop out. The page runs it on its own the first time (`POST /api/profile/numbers/analyze`, outside the task queue) and sorts by weight; `ajf numeros` asks the same questions. The person types the real or approximate number; `numbersNews` turns the answers, with the question each one replies to, into a piece of news that follows the same path (proposal, before and after, apply). An empty answer is ignored, and nothing reaches the profile without that review.
 
 ## 2. Search and filter
 
@@ -180,8 +183,24 @@ flowchart LR
 - **evidence:** parts of your profile that prove the requirements;
 - **gaps:** required items with no evidence. They are only recorded, never filled in;
 - **scam signals:** requests for payment or documents, an unrealistic salary, a test that asks you to download and run code;
+- **dealbreakers** (`knockouts`): what the job states as a hard requirement and platforms filter on before anyone reads the resume (years of experience, language level, location or on-site work, work authorization or visa, degree, certification). Each one gets `sim` (the profile proves it), `nao` (the profile shows it doesn't meet it) or `incerto` (the profile doesn't say), with the evidence. The standard form answers in the preferences (salary, availability, notice period, relocation, work authorization) count as evidence;
 - **market** (BR, US, UK, EU, LATAM...), language and seniority;
-- **recommendation:** `candidatar` (apply) goes to "Para decidir" with ⭐, `decidir` (decide) stays in "Para decidir", and `descartar` (discard) goes to "Encerradas".
+- **recommendation:** `candidatar` (apply) goes to "Para decidir" with ⭐, `decidir` (decide) stays in "Para decidir", and `descartar` (discard) goes to "Encerradas". A `nao` dealbreaker turns `candidatar` into `decidir` (`priority.ts#applyKnockouts`): the job is never discarded on its own, because "5+ years" with 4 sometimes gets through.
+
+### Priority
+
+`src/jobs/priority.ts#priorityOf`, without AI, sets the order of "Para decidir" and which jobs the autopilot packages first (`auto.ts#candidatesForPackage`):
+
+| Factor | Effect |
+|---|---|
+| Triage score | the base (40 when the job has not been triaged) |
+| Freshness | +5 up to 3 days after posting; after that, -1.5 per day, down to -30 |
+| Ghost-job signals | -10 per signal, down to -20 |
+| A `nao` dealbreaker | -25 |
+| Referral received | +10 |
+
+- **Freshness** (`ageDays`, `freshness`): `nova` up to 3 days, `recente` up to 14, `antiga` after that. Without a posting date it doesn't count.
+- **Ghost-job signals** (`ghostSignals`): posted more than 30 days ago; the same job seen before (`reopenedFrom`); a talent pool or "future opportunities" posting; under 400 characters after `cleanJobText`. A web-search summary and a pasted job don't count as short, because they are short on purpose. The signals only warn and lower the order; the person decides.
 
 ## 4. The package for each job
 
@@ -209,10 +228,12 @@ flowchart TD
 - **Market** (`src/market.ts`): sets the paper (A4 or Letter), language, file name and whether a letter goes. In the US: resume + letter, Letter paper, no photo, age or marital status.
 - **ATS** (`src/tailor/ats.ts`): compares the job's keywords with the resume, in three groups: *covered*, *you have it but didn't show it* and *real gap*.
 - **LEIA-ME** (README): explains how to apply through the right channel (e-mail, LinkedIn, platform, site or WhatsApp), with a checklist before sending.
+- **First-seconds check** (`src/tailor/skim.ts`, no AI): a recruiter's first look is short and stays at the top of the page. `skimTest` reads the top block (headline, summary and the first experience) and checks whether the job's title is there, which of the first 8 proven ATS keywords show up and whether there is a measured result. What is missing goes to the editor as `<first_seconds_check>` in every revision, and the result goes into `rating_report.md`. It only moves up what the profile already proves.
+- **Short cover message:** every package gets item 6 in `emails.md` (`applicationNote`), up to 600 characters, for the "message", "cover letter" or "why you?" field on platforms or for a short e-mail. Same rules as the other e-mails: facts from the profile, no dashes.
 - **No dashes:** "—" and "–" used as punctuation read like AI-written text. The prompts forbid them, and `util/text.ts#withoutDashes` enforces it without AI: in titles (project, job title, company, education), the rest goes in parentheses ("TV Box Educacional — UENP — em desenvolvimento" becomes "TV Box Educacional (UENP, em desenvolvimento)"); in text, it becomes a comma; in e-mail subjects, a hyphen. Date and number ranges get a plain hyphen ("02/2025 - present", "10-20"): no "—" or "–" is left. It applies to the resume (`profile.ts#withoutDashesResume`: package, base resumes, PDF and sheet), the letter, the e-mails and the form answers. The PDF template also uses a hyphen between dates and a comma between course and institution.
 - **Job title in one language:** in a Portuguese resume, a title with its translation in parentheses ("Analista Desenvolvedor (Developer Analyst)") loses the English part when it has the words of the English resume's title for the same position (`profile.ts#withoutTranslatedTitles`, no AI; a single word, like "(Sênior)", is never removed). It applies to the package, the base resumes and the sheet. The profile keeps the English name in a "Cargo em inglês: ..." line.
 - **E-mail draft** (`writers/emailDraft.ts`): `rascunho_candidatura.eml` with the recipient (the job's contact e-mail), subject, text and the PDFs in base64. The `X-Unsent: 1` header makes Outlook open it as a new e-mail, ready to send; a line break in the subject doesn't become a header. For Gmail in the browser, `gmailComposeUrl` builds the "compose" link with recipient, subject and text (the attachment goes by hand). The agent never sends: the person clicks Send. "Gerar o PDF de novo" (rebuild the PDF) rebuilds the draft with the new PDF.
-- **Application sheet** (`writers/applicationSheet.ts`): the platform-form fields from the package's `resume.json` (or the base resume in the job's language): personal details, the summary in 3 sizes (whole sentences, `fitText`), each experience field by field, education, certifications, languages, skills and projects. No AI and nothing new; it lives in `ficha_de_candidatura.md` and in the Ficha (Sheet) tab.
+- **Application sheet** (`writers/applicationSheet.ts`): the platform-form fields from the package's `resume.json` (or the base resume in the job's language): personal details, the summary in 3 sizes (whole sentences, `fitText`), each experience field by field, education, certifications, languages, skills and projects. It also brings the short cover message (item 6 of `emails.md`) and the standard form answers from the preferences (`extraSections`). No AI and nothing new; it lives in `ficha_de_candidatura.md` and in the Ficha (Sheet) tab.
 - **Application channel:** "Já me candidatei" (I applied) stores `Job.appliedVia` (platform, e-mail, LinkedIn, site, WhatsApp, referral, other), preselected with the likely channel (`status.ts#guessApplyVia`: the analysis's `applyChannel`, otherwise the site of the link). It goes into `tracker.csv` as "via ...".
 
 ## No made-up facts
@@ -261,6 +282,28 @@ Every status change:
 - is logged in `output/tracker.csv`;
 - moves the package folder to the stage's subfolder (`src/jobs/folders.ts`), keeping the paths in `data/jobs.json` in sync.
 
+## Results and follow-up
+
+What happens after an application is recorded, so the person can see what works. No AI, except for reading a rejection e-mail.
+
+- **Rejection stage** (`Job.outcome`): "I was rejected" asks how far it went (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) and the reason, if the company gave one. The suggested stage comes from `funnel.ts#defaultStage`: no reply after `noReplyDays`, technical after an interview, screening otherwise. With the rejection e-mail pasted, `readRejectionEmail` asks the AI for the stage, the reason (only if the e-mail says it) and whether it looks automated; the person confirms.
+- **First reply** (`Job.respondedAt`): saved on the first move from `applied` to an interview, an offer or a rejection with a reply. It feeds the median days to reply.
+- **Follow-ups** (`Job.followUps`, `followUpDue`): the first after `AJF_FOLLOW_UP_DAYS` (7) days without a reply, the second the same number of days after the first, two at most. "Enviei o follow-up" (I sent the follow-up) records the date (`status.ts#recordFollowUp`).
+- **No reply** (`isNoReply`): an application without a reply after `AJF_NO_REPLY_DAYS` (30) counts as no reply in the numbers, without changing its status. "Fechar como sem retorno" (close as no reply) records a rejection with the `sem_resposta` stage.
+- **Funnel** (`funnel.ts#funnel`): sent, replied, interviewed, no reply and waiting, overall and by channel, source, days between posting and applying, and triage score, plus where the rejections happened. Rates only count applications that already have a result; a group with fewer than 3 is marked "few". The conclusions (`Insight`) go out as codes with variables, so the page can translate them:
+
+  | Code | When |
+  |---|---|
+  | `missing_outcome`, `missing_channel` | a rejection without a stage, or an application without a channel |
+  | `small_sample` | fewer than 10 applications with a result |
+  | `best_channel` | two channels with 3+ results each and 15+ points apart in reply rate |
+  | `early_better` | applications sent within 7 days of posting replied 10+ points more than later ones (3+ results on each side) |
+  | `screening` | half or more of the rejections with a known stage came at screening |
+  | `no_interviews` | 15+ results and no interview |
+
+  It shows up on the Resultados (Results) page (`js/results.js`, `GET /api/funnel`), in `ajf resultados` and in the dashboard (`dashboard.ts#funnelSection`).
+- **Referral** (`src/jobs/referral.ts`): the agent never opens LinkedIn. `referralLinks` builds two LinkedIn search links for the person to open while logged in: people at the company in their network (1st and 2nd degree) and recruiters at the company. `referralMessages` writes two short messages with profile facts only, one for someone who knows the person and a connection note for someone who doesn't (up to 300 characters, LinkedIn's limit), checked by the same guards as the form answers; it never claims a connection. `Job.referral` keeps the status (asked, received, no reply). After `REFERRAL_WAIT_DAYS` (3) without a reply, the page suggests applying through the platform, since applying early weighs more than waiting.
+
 ## Application-form questions
 
 `src/writers/answers.ts` answers the questions application forms ask ("Why do you want to work here?"):
@@ -299,7 +342,7 @@ Every call goes through `src/llm.ts`, so providers are interchangeable. Detectio
    - `openai`: the Responses API, or Chat Completions with `OPENAI_BASE_URL` for OpenRouter, Groq and Ollama;
    - `gemini`: REST.
 
-The CLIs run in an empty, isolated temporary folder, with no access to your files. `AJF_PROVIDER` forces a specific AI.
+The CLIs run in an empty, isolated temporary folder, with no access to your files. `AJF_PROVIDER` forces a specific AI. A call can set a time limit (`CallOptions.timeoutMs`): the CLIs kill the process and `llm.ts#withTimeout` gives up for every provider; without it, the CLIs stop at 15 minutes.
 
 **Images** (`CallOptions.images`, `src/providers/images.ts`): a call can carry images, today the screenshot of a form question. The APIs get them in the request body (Anthropic/Bedrock/Vertex content blocks, OpenAI `input_image` or `image_url`, Gemini `inline_data`); `codex exec` gets `--image`; Claude Code and Gemini CLI get a copy in the call's isolated folder and open it with their file-reading tool (`Read`, `read_file`), the only tool enabled besides web search. The copy is deleted after the call. The type is checked by the first bytes (PNG, JPG, WEBP, GIF), up to 5 MB.
 
@@ -328,6 +371,20 @@ flowchart LR
   - `scripts/i18n.ts` (`npm run i18n`) finds every key in the code and lists what is missing or unused in each dictionary; `tests/i18n.test.ts` fails if a text has no translation, if a translation has other `{variables}` or if a key is no longer used.
   - Not translated yet: what goes to recruiters follows the job's language; AI-written text, package files, task progress and the terminal are in Portuguese.
 
+## Research behind the features
+
+Results tracking, referrals, priority, dealbreakers, the first-seconds check, the short cover message, missing numbers, follow-ups and the ghost-job alert follow what research on hiring shows. Some numbers come from companies that sell recruiting or resume services, without independent review; where that is the case, it says so below. The features follow the direction of the evidence, not the exact figures.
+
+- **Results and funnel.** Without recording what happened to each application there is no way to know what to change, and none of the features below can be measured. The funnel only uses what the person recorded and warns when the sample is small.
+- **Referral first.** In Lever's data on more than 4 million applications, about 1 in 16 referred candidates was hired, against about 1 in 152 who applied through the company site or a job ad (vendor data, reported by SHRM). A New York Fed staff report with one company's referral data found that referred candidates were more likely to be hired. [SHRM: Lever study shows 1 in 100 candidates is hired](https://shrm.org/topics-tools/news/talent-acquisition/lever-study-shows-1-100-candidates-hired); [New York Fed Staff Report 568 (Brown, Setren and Topa)](https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr568.html); [ERIN: employee referral statistics](https://erinapp.com/blog/employee-referral-statistics-you-need-to-know-for-2024-infographic).
+- **Apply early (freshness in the priority).** The St. Louis Fed found that a large share of applications arrives in the first days after a posting (about 41% in the first 48 hours). TalentWorks reported much better odds for applications sent in the first 96 hours (company data, not peer-reviewed), and Boston University research on Indeed and LinkedIn also points to applying early. [St. Louis Fed: How quickly do people apply for jobs?](https://www.stlouisfed.org/on-the-economy/2017/november/how-quickly-people-apply-jobs); [TalentWorks data on application timing (summary)](https://paulvanderlaken.com/2017/10/24/talent-works-data-science-to-improve-job-application-chances/); [Boston University: best to apply early on Indeed or LinkedIn](https://www.bu.edu/articles/2025/looking-for-jobs-on-indeed-or-linkedin).
+- **Dealbreakers in the triage.** In an Enhancv survey of 25 recruiters, 92% said their applicant tracking system doesn't reject resumes on its own; what filters automatically are the knockout questions the recruiter sets (location, work authorization, education). Small vendor survey. A 2025 study also contradicts the claim that AI filters out most applicants. [Enhancv: does ATS reject resumes?](https://enhancv.com/blog/does-ats-reject-resumes/); [Betanews: study debunks claim that AI filters out most applicants](https://betanews.com/2025/11/10/study-debunks-viral-claim-that-ai-filters-out-most-job-applicants/).
+- **First-seconds check.** In the Ladders eye-tracking study (2018), the first look at a resume lasted about 7 seconds and focused on titles, companies, dates and section headings. The method is criticized (ERE), so the feature only uses the consistent part: the top of the resume weighs more. [Ladders eye-tracking study (PDF)](https://csuglobal.edu/sites/default/files/blog-files/theladders-eyetracking-studyc2.pdf); [HR Dive: recruiters look at resumes for 7 seconds](https://www.hrdive.com/news/eye-tracking-study-shows-recruiters-look-at-resumes-for-7-seconds/); [ERE: is the 6-second resume scan a myth?](https://www.ere.net/articles/is-the-6-second-resume-scan-a-myth).
+- **Short cover message.** In a ResumeGo experiment with 7,287 applications, the callback rate was 10.7% without a cover letter, 12.5% with a generic one and 16.4% with a tailored one (company research). [ResumeGo: cover letters study](https://www.resumego.net/research/cover-letters/).
+- **Missing numbers.** Resumes with measured results get more callbacks. The percentages come from companies in the field and vary; the direction is consistent. The agent only asks: a number goes in only when the person types it. [ResumeGeni: how to quantify achievements](https://resumegeni.com/blog/how-to-quantify-achievements-on-your-resume).
+- **Two follow-ups and "no reply".** Most hiring managers welcome a follow-up, prefer e-mail and expect it within about two weeks (Robert Half). There is no proof that follow-ups raise the reply rate, so the agent suggests two at most and then counts the application as no reply. [Robert Half: the art of following up](https://press.roberthalf.ca/2017-09-19-The-Art-of-Following-Up?asPDF=1); [Workforce: busy recruiters, job seekers should follow up](https://www.workforce.com/news/busy-recruiters-call-job-seekers-follow).
+- **Ghost-job alert.** In a 2024 survey of 649 hiring managers, about 40% said their company had posted a fake job in the past year, and in another survey nearly half of HR professionals said they regularly post ghost job ads. Old postings, reposts and talent pools are the usual signs. [HRKatha: 40% admit posting at least one fake job](https://www.hrkatha.com/features/research/40-admit-to-have-posted-at-least-one-fake-job-in-the-past-year/); [HCAMag: HR professionals post ghost job ads](https://www.hcamag.com/ca/specialization/recruitment/nearly-half-of-hr-professionals-admit-they-regularly-post-ghost-job-ads-survey/537439).
+
 ## Code map
 
 ```
@@ -341,6 +398,7 @@ src/
   providers/             each AI + detection (spawn.ts finds the installed CLIs)
   onboarding/            setup: reading PDF/DOCX/LinkedIn/sites/GitHub, interview, building
     update.ts            update with news (proposal, apply) and rebuild the base resumes
+    numbers.ts           resume bullets without a number: what to measure and what to ask (AI), answers to news
   profile.ts             reading the profile, preferences and rules
   prompts.ts · schemas.ts · market.ts
   jobs/
@@ -351,6 +409,9 @@ src/
     page.ts              job text from the page (JobPosting, Gupy, LinkedIn or main content) and cleanJobText
     research.ts          web research for a job received without a link
     triage.ts            AI triage
+    priority.ts          job order: triage, freshness, ghost-job signals, dealbreakers, referral
+    funnel.ts            results: rejection stage, follow-ups, no reply, the funnel and its conclusions
+    referral.ts          referral: LinkedIn search links and short messages
     store.ts             data/jobs.json
     status.ts folders.ts status changes and folders per stage
   tailor/
@@ -359,6 +420,7 @@ src/
     refine.ts            recruiter ⇄ editor loop
     guards.ts            anti-fabrication guards
     ats.ts               ATS report
+    skim.ts              first-seconds check of the resume's top
   writers/               letter, e-mails, interview guide, form questions, LinkedIn plan and review
     emailDraft.ts        .eml draft with the resume attached and the Gmail link
     applicationSheet.ts  application sheet (form fields, no AI)
@@ -368,7 +430,7 @@ src/
     i18n.ts              server-side translation (x-ajf-lang header)
     routes/              API: jobs, profile (setup and update), LinkedIn, preferences
     tasks.ts             task queue
-    public/              the page: index.html, app.css, logo.svg, js/ (boot.js, i18n.js), locales/en.json
+    public/              the page: index.html, app.css, logo.svg, js/ (boot.js, i18n.js, results.js...), locales/en.json
   util/                  text, line-by-line diff, opening links and folders (no shell)
 scripts/demo.ts          npm run demo: fictional data to test the interface
 scripts/i18n.ts          npm run i18n: interface texts missing or unused in each dictionary

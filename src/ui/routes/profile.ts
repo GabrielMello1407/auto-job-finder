@@ -13,7 +13,8 @@ import {
   proposeProfileUpdate,
   rebuildBaseResumes,
 } from "../../onboarding/update.js";
-import { NON_EVIDENCE_HEADING } from "../../profile.js";
+import { loadBaseResume, NON_EVIDENCE_HEADING } from "../../profile.js";
+import { analyzeNumbers, bulletsWithoutNumbers, loadNumberHints, numbersNews, withHints } from "../../onboarding/numbers.js";
 import { renderBaseResumes } from "../../render/base.js";
 import { closeBrowser } from "../../render/pdf.js";
 import { diffStats } from "../../util/diff.js";
@@ -80,6 +81,17 @@ function basePdfs() {
     .filter((f) => f.toLowerCase().endsWith(".pdf"))
     .map((f) => ({ name: f, url: fileUrl(path.join(dir, f))! }));
 }
+
+/** Tópicos sem número que a página mostra (e a IA analisa), dos cargos mais recentes primeiro. */
+const NUMBERS_MAX = 12;
+function safeNumbers() {
+  try {
+    return withHints(bulletsWithoutNumbers(loadBaseResume("pt-BR"), NUMBERS_MAX));
+  } catch {
+    return [];
+  }
+}
+let analyzingNumbers: Promise<unknown> | null = null;
 
 /** Seções obrigatórias: sem elas as travas perdem a base (ex.: "A confirmar", "Lacunas"). */
 function checkTruth(text: string) {
@@ -150,6 +162,8 @@ export function profileRoutes(app: App): Route[] {
             .map((h) => h.replace(/^## /, "")),
           basePdfs: basePdfs(),
           linkedinHelp: LINKEDIN_EXPORT_HELP,
+          // Tópicos de experiência sem número, para a pessoa informar (Perfil → Números que faltam).
+          numbers: exists ? safeNumbers() : [],
           draft: draftView(),
           update: exists ? updateView() : null,
         };
@@ -336,6 +350,53 @@ export function profileRoutes(app: App): Route[] {
         return {
           task: queue.add("profile-update", c.t("Preparando a atualização do perfil"), async () => {
             const p = await proposeProfileUpdate(news);
+            app.broadcast("profile", {});
+            return c.t("{n} mudança(s) para você conferir", { n: p.changes.length });
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/numbers\/analyze$/,
+      async (c) => {
+        // Uma chamada curta, fora da fila: a fila pode estar ocupada com um pacote que leva minutos.
+        if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
+        const body = await c.body();
+        if (!analyzingNumbers) {
+          const items = bulletsWithoutNumbers(loadBaseResume("pt-BR"), NUMBERS_MAX);
+          analyzingNumbers = analyzeNumbers(items, body.force === true).finally(() => (analyzingNumbers = null));
+        }
+        try {
+          await analyzingNumbers;
+        } catch (e) {
+          throw new HttpError(502, "A IA não conseguiu analisar os tópicos: {error}", { error: (e as Error).message });
+        }
+        app.broadcast("profile", {});
+        return { numbers: safeNumbers() };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/profile\/numbers$/,
+      async (c) => {
+        // "Números que faltam": os números que a pessoa informou viram uma proposta de atualização (ela confere antes).
+        if (!hasProfile()) throw new HttpError(409, "Ainda não há perfil.");
+        busy();
+        const body = await c.body();
+        const items = (Array.isArray(body.items) ? body.items : []) as unknown[];
+        const known = bulletsWithoutNumbers(loadBaseResume("pt-BR"), 30);
+        const hints = loadNumberHints();
+        const filled = items
+          .map((x) => x as { bullet?: unknown; value?: unknown })
+          .map((x) => ({ ref: known.find((k) => k.bullet === x.bullet), value: str(x.value, 200) }))
+          .filter((x): x is { ref: NonNullable<typeof x.ref>; value: string } => Boolean(x.ref && x.value));
+        // A pergunta vai junto: "15 mil" sozinho não diz se são usuários, pedidos ou reais.
+        const text = numbersNews(filled.map((x) => ({ ...x.ref, value: x.value, question: hints[x.ref.bullet]?.question })));
+        if (!text) throw new HttpError(400, "Preencha o número de pelo menos um resultado.");
+        return {
+          task: queue.add("profile-update", c.t("Preparando a atualização do perfil"), async () => {
+            const p = await proposeProfileUpdate([{ kind: "respostas", label: "Números informados", origin: "interface", text }]);
             app.broadcast("profile", {});
             return c.t("{n} mudança(s) para você conferir", { n: p.changes.length });
           }),

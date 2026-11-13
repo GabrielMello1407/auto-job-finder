@@ -1,5 +1,6 @@
 import { structured } from "../llm.js";
-import { loadExcluded, loadPreferences } from "../profile.js";
+import { applicationFactsText, loadExcluded, loadPreferences } from "../profile.js";
+import { applyKnockouts } from "./priority.js";
 import { profileSystem } from "../prompts.js";
 import { TriageBatchSchema, type Job } from "../schemas.js";
 import { today, truncate } from "../util/text.js";
@@ -31,6 +32,7 @@ export async function triageJobs(opts: { limit?: number; ids?: string[] } = {}) 
   const system = profileSystem();
   const prefs = loadPreferences();
   const excluded = loadExcluded();
+  const facts = applicationFactsText(prefs.applicationFacts);
   const done: Job[] = [];
 
   for (let i = 0; i < pending.length; i += BATCH) {
@@ -54,6 +56,8 @@ Critérios:
 - ${prefs.onsiteCities.length ? `Vaga presencial ou híbrida só serve nestas cidades/região: ${prefs.onsiteCities.join(", ")}. Fora delas, sem opção remota → "descartar".` : "O candidato não informou cidades para trabalho presencial: vaga só presencial/híbrida sem opção remota → \"decidir\"."}
 - Cargos-alvo do candidato: ${prefs.targetRoles.join("; ") || "(ver perfil)"}. Senioridade buscada: ${prefs.seniority || "(ver perfil)"}.
 - Considere o nível de idioma declarado no perfil quando a vaga exigir fluência: isso é lacuna, não descarte automático.
+- knockouts: liste SÓ os critérios eliminatórios explícitos da vaga (o que ela diz ser obrigatório para ser considerado: anos mínimos, idioma exigido, presencial ou região, autorização de trabalho ou visto, formação ou certificação obrigatória). Para cada um: meets "sim" se o perfil comprova, "nao" se o perfil mostra que não atende (ex.: pede 5 anos e o perfil soma 2; pede inglês fluente e o perfil declara intermediário), "incerto" se o perfil não diz. Vaga sem critério eliminatório: lista vazia. Se algum for "nao", a recomendação não pode ser "candidatar".
+${facts ? `- Respostas fixas do candidato (valem para autorização de trabalho, mudança e disponibilidade):\n${facts}` : "- O candidato não informou autorização de trabalho nem se aceita mudança: nesses critérios, use \"incerto\"."}
 
 Vagas/empresas que o candidato excluiu:
 ${excluded || "(nenhuma)"}
@@ -66,7 +70,9 @@ ${batch.map(jobBlock).join("\n\n")}`,
     for (const r of result.results) {
       const job = jobs.find((j) => j.id === r.jobId);
       if (!job) continue;
-      const { jobId: _ignored, ...triage } = r;
+      const { jobId: _ignored, ...raw } = r;
+      // Critério eliminatório que o perfil não atende: no máximo "decidir" (a pessoa decide).
+      const triage = applyKnockouts(raw);
       job.triage = triage;
       if (job.status === statusBefore.get(job.id))
         job.status = triage.recommendation === "descartar" ? "discarded" : triage.recommendation === "candidatar" ? "shortlisted" : "triaged";

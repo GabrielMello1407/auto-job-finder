@@ -47,7 +47,7 @@ async function run(opts: CallOptions, model: string | undefined, jsonSchema?: ob
   if (tools.length) args.push("--allowedTools", ...tools);
   if (jsonSchema) args.push("--json-schema", JSON.stringify(jsonSchema));
   try {
-    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: opts.user + imageNote(images, "Read"), cwd: dir, name: "claude -p", installHint: INSTALL });
+    const { stdout, stderr, code } = await runCli({ bin: bin(), args, stdin: opts.user + imageNote(images, "Read"), cwd: dir, name: "claude -p", installHint: INSTALL, timeoutMs: opts.timeoutMs });
     if (!stdout.trim()) throw new Error(`claude -p saiu com código ${code}: ${stderr.trim().slice(0, 800)}`);
     let parsed: ClaudeCodeResult;
     try {

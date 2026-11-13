@@ -480,8 +480,9 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
     border-right: 0; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 92%, transparent);
   }
   .brand, .side-foot { display: none; }
-  .nav { grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
-  .nav a { flex-direction: column; height: auto; gap: 0; padding: 6px 4px; font-size: 11.5px; }
+  /* Cada item com a largura do rótulo e a sobra dividida: com 6 itens, colunas iguais estouram em 320 px. */
+  .nav { grid-auto-flow: column; grid-auto-columns: auto; justify-content: space-around; gap: 0; width: 100%; }
+  .nav a { flex-direction: column; height: auto; gap: 0; padding: 6px 4px; font-size: 11.5px; min-width: 0; }
   .nav .ico { font-size: 18px; width: auto; }
   .nav .pill { display: none; }
   .nav-more {
@@ -490,6 +491,10 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
   }
   .nav a[aria-current="page"] { box-shadow: none; border-color: transparent; background: var(--accent-soft); color: var(--accent); }
   .main { padding: 18px 16px 120px; }
+  @media (max-width: 380px) {
+    .side { padding-left: 4px; padding-right: 4px; }
+    .nav a, .nav-more { padding: 6px 2px; font-size: 10.5px; }
+  }
   .page-head h1 { font-size: 25px; }
   .pipeline { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; scrollbar-width: none; }
   .stage .count { font-size: 24px; }
@@ -523,3 +528,58 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 .ans-image { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -4px 0 10px; font-size: 13px; }
 .found-questions { display: grid; gap: 6px; margin-bottom: 10px; }
 .found-questions button { white-space: normal; height: auto; min-height: 30px; padding-top: 6px; padding-bottom: 6px; justify-content: flex-start; text-align: left; }
+
+/* Critérios eliminatórios (resumo da vaga) */
+.knockouts { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.knockouts li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.knockouts li .chip { flex: none; min-width: 26px; justify-content: center; }
+.knockouts small { display: block; margin-top: 2px; }
+
+/* Resultados: números do funil */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow-sm); display: grid; gap: 2px; }
+.kpi b { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; }
+.kpi span { color: var(--muted); font-size: 13px; }
+.kpi small { color: var(--faint); font-size: 12px; }
+.insights ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.table-wrap { overflow-x: auto; margin-top: 6px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+/* Colunas com a mesma largura em todas as tabelas da página, para comparar de olho. */
+.data-table.cols { table-layout: fixed; }
+.data-table.cols col.c-label { width: 34%; }
+.data-table.cols col.c-sent { width: 14%; }
+.data-table th, .data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.data-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 650; }
+.data-table tbody th { font-weight: 550; }
+.data-table tr:last-child th, .data-table tr:last-child td { border-bottom: 0; }
+.data-table tr.few td { color: var(--muted); }
+.rate { display: inline-flex; align-items: center; gap: 8px; min-width: 110px; }
+.rate b { font-variant-numeric: tabular-nums; min-width: 38px; }
+.rate-bar { position: relative; flex: 1; height: 6px; min-width: 50px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.rate-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); border-radius: inherit; background: var(--accent); }
+.stage-bars { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.stage-bars li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 40%) 32px; gap: 10px; align-items: center; font-size: 14px; }
+.stage-bars .n { text-align: right; font-variant-numeric: tabular-nums; }
+.todo { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.todo li { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.todo li:last-child { border-bottom: 0; }
+/* Números que faltam: um bloco por tópico, com a pergunta da IA em destaque. */
+.num-item { gap: 4px; padding: 12px 0 2px; border-top: 1px dashed var(--line); margin-top: 12px; }
+#numbers-form > .num-item:first-child { border-top: 0; margin-top: 4px; }
+.num-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.num-head small { font-weight: 500; }
+.num-bullet { font-style: italic; }
+.num-q { font-size: 14px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+.num-item input { margin-top: 4px; }
+.num-weak { margin-top: 14px; }
+.num-busy { height: auto; min-height: 36px; align-items: flex-start; padding-top: 8px; }
+.num-busy .spin { flex: none; margin-top: 2px; }
+.num-weak > summary { cursor: pointer; color: var(--muted); font-size: 13.5px; font-weight: 600; }
+.todo li > span:first-child { min-width: 0; flex: 1 1 220px; }
+@media (max-width: 640px) {
+  .stage-bars li { grid-template-columns: minmax(0, 1fr) 32px; }
+  .stage-bars li .rate { grid-column: 1 / -1; grid-row: 2; }
+  .data-table th, .data-table td { padding: 8px 6px; }
+  .rate { min-width: 80px; }
+  .data-table.cols { table-layout: auto; }
+}

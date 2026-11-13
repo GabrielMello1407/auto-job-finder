@@ -349,6 +349,7 @@ function paintProfile() {
     <div class="btn-row">${p.basePdfs.map((f) => link(f.url, `📄 ${/_en\.pdf$/i.test(f.name) ? t("Inglês") : t("Português")}`, "small")).join("")}</div>
   </div>
   ${updatePanel(p.update)}
+  ${numbersPanel(p)}
   ${
     p.pending.length
       ? `<div class="panel"><h3>⚠️ ${plural(p.pending.length, "ponto a confirmar", "pontos a confirmar")}</h3>
@@ -370,6 +371,11 @@ function paintProfile() {
     paintSaveBar();
   });
   paintSaveBar();
+  // Números que faltam: a IA analisa sozinha, uma vez por visita, os tópicos que ainda não têm análise.
+  if (!numbersTried && S.provider?.active && $("#numbers") && p.numbers.some((n) => !n.hint)) {
+    numbersTried = true;
+    analyzeNumbersNow();
+  }
 }
 
 /* ------------------------------------------------------ atualizar o perfil */
@@ -456,6 +462,125 @@ action("update-apply", async () => {
   await app.refresh();
   paintProfile();
 });
+/**
+ * Números que faltam: tópicos do currículo-base sem nenhum resultado medido. A pessoa informa o número
+ * real ou aproximado e isso vira uma proposta de atualização (confere o antes e o depois antes de salvar).
+ */
+let numbersTyped = {}; // o que a pessoa já escreveu, por tópico: sobrevive ao redesenho e à nova ordem
+let numbersState = ""; // "" | "analyzing" | "failed"
+let numbersTried = false; // a análise automática roda uma vez por visita
+let numbersStarted = 0; // quando a análise começou (para o tempo no aviso)
+
+const WORTH = {
+  alto: ["ok", t("💪 pesa muito")],
+  medio: ["accent", t("👍 ajuda")],
+  baixo: ["", t("ajuda pouco")],
+};
+
+function numberItem(n, i) {
+  const h = n.hint;
+  const [cls, label] = h ? (WORTH[h.worth] ?? WORTH.medio) : [];
+  const note = h ? [h.measure, h.why].filter(Boolean).join(" · ") : "";
+  // Sem o ponto final de cada exemplo: eles vão juntos, separados por ";" (vale para análises já salvas).
+  const examples = (h?.examples ?? []).map((e) => e.replace(/[\s.;,]+$/, "")).filter(Boolean);
+  const placeholder = examples.length ? t("ex.: {examples}", { examples: examples.join("; ") }) : t("ex.: cerca de 30%, 200 usuários, de 3 h para 10 min");
+  return `<label class="field num-item">
+      <span class="num-head"><span>${esc(n.company)} <small>${esc(n.title)}</small></span>${h ? `<span class="chip ${cls}">${label}</span>` : ""}</span>
+      <small class="num-bullet">${esc(n.bullet)}</small>
+      ${h ? `<span class="num-q">${esc(h.question)}</span>${note ? `<small class="faint">${esc(note)}</small>` : ""}` : ""}
+      <input data-num="${i}" maxlength="200" value="${esc(numbersTyped[n.bullet] ?? "")}" placeholder="${esc(placeholder)}" aria-label="${esc(h?.question ?? n.bullet)}">
+    </label>`;
+}
+
+function numbersPanel(p) {
+  if (!p.numbers?.length || p.update?.proposal || updateTask()) return "";
+  const pending = p.numbers.some((n) => !n.hint);
+  const analyzing = numbersState === "analyzing";
+  const all = p.numbers.map((n, i) => [n, i]);
+  const main = all.filter(([n]) => n.hint?.worth !== "baixo");
+  const weak = all.filter(([n]) => n.hint?.worth === "baixo");
+  const status = analyzing
+    ? `<p class="busy num-busy"><span class="spin"></span><span id="numbers-busy-text">${esc(analyzingText())}</span></p>`
+    : pending
+      ? `<div class="btn-row">${btn("numbers-analyze", t("🧠 Ver o que medir em cada tópico"), null, "small")}${
+          numbersState === "failed" ? `<span class="faint">${t("A análise não deu certo. Tente de novo ou responda assim mesmo.")}</span>` : ""
+        }</div>`
+      : "";
+  return `<div class="panel" id="numbers"><h3>${t("🔢 Números que faltam")}</h3>
+    <p class="muted">${
+      pending
+        ? t("Resultados com número pesam mais na leitura do recrutador. Estes tópicos do seu currículo não têm nenhum.")
+        : t("Resultados com número pesam mais na leitura do recrutador. Para cada tópico sem número, a IA diz o que dá para medir e faz a pergunta. Responda só o que você sabe, com o número real ou aproximado; o que ficar vazio é ignorado.")
+    } ${t("Vira uma proposta de atualização, que você confere antes de salvar. A IA nunca sugere o valor.")}</p>
+    ${status}
+    <form id="numbers-form" autocomplete="off">${main.map(([n, i]) => numberItem(n, i)).join("")}${
+      weak.length
+        ? `<details class="num-weak"${main.length ? "" : " open"}><summary>${weak.length === 1 ? t("Outro tópico, em que um número ajuda pouco") : t("Outros {n} tópicos, em que um número ajuda pouco", { n: weak.length })}</summary>${weak
+            .map(([n, i]) => numberItem(n, i))
+            .join("")}</details>`
+        : ""
+    }</form>
+    <div class="btn-row">${btn("numbers-send", t("📝 Preparar a atualização"), null, "primary small")}${
+      !pending && !analyzing ? btn("numbers-analyze-again", t("🔄 Analisar de novo"), null, "small ghost") : ""
+    }</div></div>`;
+}
+
+/** Redesenha só o painel, para não mexer no resto da página (o texto do perfil pode estar em edição). */
+function paintNumbers() {
+  const el = $("#numbers");
+  if (el && profile) el.outerHTML = numbersPanel(profile);
+}
+
+/** O aviso enquanto a IA analisa, com o tempo correndo: costuma levar meio minuto; passou disso, diz que está demorando. */
+function analyzingText() {
+  const s = Math.max(0, Math.round((Date.now() - numbersStarted) / 1000));
+  return s < 75
+    ? t("A IA está vendo o que dá para medir em cada tópico ({s} s). Costuma levar meio minuto; você já pode ir respondendo.", { s })
+    : t("Está demorando mais que o normal ({s} s). Pode continuar usando o app: as perguntas aparecem aqui quando a IA terminar.", { s });
+}
+
+async function analyzeNumbersNow(force = false) {
+  if (numbersState === "analyzing") return;
+  numbersState = "analyzing";
+  numbersStarted = Date.now();
+  paintNumbers();
+  // Atualiza só o texto do aviso, para não redesenhar os campos enquanto a pessoa escreve.
+  const tick = setInterval(() => {
+    const el = $("#numbers-busy-text");
+    if (el) el.textContent = analyzingText();
+  }, 1000);
+  try {
+    const r = await api("/api/profile/numbers/analyze", { force });
+    profile.numbers = r.numbers;
+    numbersState = "";
+  } catch (e) {
+    numbersState = "failed";
+    toast(e.message, "bad");
+  } finally {
+    clearInterval(tick);
+  }
+  paintNumbers();
+}
+
+document.addEventListener("input", (e) => {
+  const el = e.target.closest?.("[data-num]");
+  const n = el && profile?.numbers?.[Number(el.dataset.num)];
+  if (n) numbersTyped[n.bullet] = el.value;
+});
+
+action("numbers-analyze", () => analyzeNumbersNow());
+action("numbers-analyze-again", () => analyzeNumbersNow(true));
+
+action("numbers-send", async () => {
+  const items = profile.numbers.map((n) => ({ bullet: n.bullet, value: (numbersTyped[n.bullet] ?? "").trim() })).filter((x) => x.value);
+  if (!items.length) return toast(t("Preencha o número de pelo menos um resultado."), "bad");
+  await api("/api/profile/numbers", { items });
+  numbersTyped = {};
+  toast(t("📝 Preparando a atualização. Você confere antes de salvar."));
+  await app.refresh();
+  if (location.hash.startsWith("#/perfil")) paintProfile();
+});
+
 action("update-discard", async () => {
   await api("/api/profile/update/discard", {});
   await loadProfile();
