@@ -55,7 +55,7 @@ export const settings = {
   /** Fallback server-side em caso de recusa do modelo (beta, só API Anthropic). Desligue com AJF_FALLBACKS=off. */
   fallbacks: (process.env.AJF_FALLBACKS || "on") !== "off",
   chromePath: process.env.CHROME_PATH || detectChrome(),
-  userAgent: "auto-job-finder/0.2 (personal job search CLI)",
+  userAgent: "auto-job-finder/1.0 (personal job search CLI)",
 };
 
 /** O perfil já foi configurado (ajf init)? */
