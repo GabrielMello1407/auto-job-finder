@@ -6,7 +6,7 @@ import { hasProfile, settings } from "./config.js";
 import { canWebSearch } from "./llm.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
-import { chooseProvider, printProviders } from "./onboarding/provider.js";
+import { chooseProvider, chooseSearchProvider, printProviders } from "./onboarding/provider.js";
 import { loadBaseResume, loadPreferences, savePreferences } from "./profile.js";
 import { follow, isFollowed, unfollow } from "./jobs/follow.js";
 import { addJobLinks, extractJobLinks } from "./jobs/links.js";
@@ -716,6 +716,8 @@ export async function mainMenu() {
       if (choice === "init") await profileFlow();
       if (choice === "ia") {
         await chooseProvider();
+        if (await confirm({ message: "Usar outra IA só para a busca na web (achar vagas e pesquisar empresas)?", default: Boolean(process.env.AJF_SEARCH_PROVIDER) }))
+          await chooseSearchProvider();
         printProviders();
       }
     } catch (e) {

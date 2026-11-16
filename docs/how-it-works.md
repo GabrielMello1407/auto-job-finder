@@ -85,6 +85,8 @@ flowchart LR
 
 **Gupy** (`sources/gupy.ts`) is the job portal many companies in Brazil use, in every field. The portal's search page (`portal.gupy.io/job-search/term=...`) already carries the jobs as JSON (`__NEXT_DATA__`), 12 per page; the source reads up to 3 pages per term and skips jobs with an expired application deadline or from a deactivated career page. It only finds jobs with Portuguese terms, so the setup generates terms in the language of the person's country and turns Gupy on for people who live in Brazil.
 
+**Google for Jobs** (`sources/googlejobs.ts`) reads the jobs Google gathers (LinkedIn, Indeed, Glassdoor, Gupy, career pages) through the [SerpApi Google Jobs API](https://serpapi.com/google-jobs-api) (`engine=google_jobs`), with no AI. It needs `SERPAPI_KEY` in `.env` (free account at [serpapi.com/users/sign_up](https://serpapi.com/users/sign_up), key at [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key); the free plan has 250 searches a month). Each term costs one search, so it sends at most `googleJobs.maxQueries` terms per run (3 by default, 1 to 10). `countryParams` turns the preferences' country into Google's `gl`, `hl` and `location`. `parseGoogleJobs` (pure, tested) uses the first apply link outside Google (so the same job from LinkedIn or Gupy is caught as repeated), falls back to the Google link, appends the highlights to the description and turns "3 days ago" / "há 3 dias" into `postedAt`. The key never reaches the page (the route only says whether there is one), a log or an error message (`serpApiJobs` masks it).
+
 **Automatic search** (`src/routine.ts`): `runRoutine` is the same search as the button (plus the triage when `autoSearch.triage` is on), saved in `data/busca_automatica.json` and `data/busca_automatica.log`. It runs:
 - when the page opens (`POST /api/routine/open`, once per tab), if `autoSearch.onOpen` and the last run is older than `onOpenHours` (`dueOnOpen`);
 - every day through the system's scheduler (`src/scheduler.ts`), which runs `node bin/ajf.mjs rotina --agendada` with `AJF_HOME`. `syncSchedule` keeps it equal to the preferences (create, change the time, remove):
@@ -376,7 +378,11 @@ Every call goes through `src/llm.ts`, so providers are interchangeable. Detectio
    - `openai`: the Responses API, or Chat Completions with `OPENAI_BASE_URL` for OpenRouter, Groq and Ollama;
    - `gemini`: REST.
 
-The CLIs run in an empty, isolated temporary folder, with no access to your files. `AJF_PROVIDER` forces a specific AI. A call can set a time limit (`CallOptions.timeoutMs`): the CLIs kill the process and `llm.ts#withTimeout` gives up for every provider; without it, the CLIs stop at 15 minutes.
+The CLIs run in an empty, isolated temporary folder, with no access to your files. `AJF_PROVIDER` forces a specific AI.
+
+**Web search AI:** `AJF_SEARCH_PROVIDER` picks a different AI only for the web search (`llm.ts#webSearchStructured` and `canWebSearch`, used by the job search and `research.ts`), the part that spends the most. `providers/index.ts#searchProviderId` accepts it only if it is ready on the machine and supports web search (not `bedrock`); otherwise the main AI does the search. That AI is created without `AJF_MODEL`/`AJF_TRIAGE_MODEL` (`createProvider(id, false)`), which belong to the main AI, so it uses its own default model. Set in the AI window, `ajf ia --busca <ai>` or the menu.
+
+A call can set a time limit (`CallOptions.timeoutMs`): the CLIs kill the process and `llm.ts#withTimeout` gives up for every provider; without it, the CLIs stop at 15 minutes.
 
 **Images** (`CallOptions.images`, `src/providers/images.ts`): a call can carry images, today the screenshot of a form question. The APIs get them in the request body (Anthropic/Bedrock/Vertex content blocks, OpenAI `input_image` or `image_url`, Gemini `inline_data`); `codex exec` gets `--image`; Claude Code and Gemini CLI get a copy in the call's isolated folder and open it with their file-reading tool (`Read`, `read_file`), the only tool enabled besides web search. The copy is deleted after the call. The type is checked by the first bytes (PNG, JPG, WEBP, GIF), up to 5 MB.
 
@@ -438,7 +444,7 @@ src/
   profile.ts             reading the profile, preferences and rules
   prompts.ts · schemas.ts · market.ts
   jobs/
-    sources/             job sources (public APIs, Gupy, career pages, AI web search)
+    sources/             job sources (public APIs, Gupy, Google for Jobs, career pages, AI web search)
     search.ts filter.ts  search and filter (addJob: pasted job or by link)
     dedupe.ts            repeated jobs: canonical link, title, company and text
     open.ts              closed jobs: checks the link before the package and in ajf conferir

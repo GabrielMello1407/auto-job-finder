@@ -368,11 +368,25 @@ Fontes de vagas:
 |---|---|
 | busca na web com IA | LinkedIn, Gupy, Indeed, Glassdoor, Catho, sites de carreira — **qualquer área** |
 | `gupy` | o portal de vagas da Gupy, que boa parte das empresas do Brasil usa — **qualquer área**, sem gastar IA. Só acha vagas com **termos em português** |
+| `googlejobs` | Google for Jobs: o que o Google reúne de LinkedIn, Indeed, Glassdoor e páginas de carreira, **qualquer área**, sem gastar IA. Precisa de uma chave grátis da SerpApi (veja [abaixo](#google-for-jobs)) |
 | `remotive`, `himalayas`, `jobicy`, `arbeitnow` | remoto internacional, várias áreas |
 | `github-br`, `getonbrd`, `remoteok`, `weworkremotely` | tecnologia (Brasil, América Latina, remoto) |
 | `greenhouse`, `lever`, `ashby` | páginas de carreira das empresas que você indicar |
 
 **Termos de busca em dois idiomas.** Cada termo vira uma busca em cada fonte. As fontes internacionais acham vagas com termos em inglês ("data analyst"); a Gupy e os sites do Brasil, com termos em português ("analista de dados"). Se você mora no Brasil e aceita vagas de fora, deixe os dois. Quem montou o perfil antes de a Gupy entrar no agente precisa ligá-la aqui, em **Fontes de vagas**.
+
+### Google for Jobs
+
+O Google reúne vagas do LinkedIn, Indeed, Glassdoor, Gupy e páginas de carreira das empresas. A fonte `googlejobs` lê essa lista pela [SerpApi](https://serpapi.com/google-jobs-api), com a descrição completa e **sem a IA navegar**: bem mais rápido e barato que a busca na web com IA, e acha vagas do LinkedIn que as fontes gratuitas não têm.
+
+Ela precisa de uma chave da SerpApi. O plano gratuito tem 250 buscas por mês.
+
+1. Crie uma conta grátis: [serpapi.com/users/sign_up](https://serpapi.com/users/sign_up).
+2. Copie a sua chave: [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key).
+3. Em **⚙️ Preferências → 🔎 Como buscar → Google for Jobs**, cole em **Chave da SerpApi** e clique em **🔌 Testar a chave** (gasta 1 busca).
+4. Ligue `googlejobs` em **Fontes de vagas** e salve.
+
+A chave fica só no arquivo `.env` do seu computador (`SERPAPI_KEY`) e não aparece de novo na tela. Cada termo de busca gasta 1 busca da cota, por isso **Termos de busca por rodada** (3 por padrão) limita quantos termos vão para o Google for Jobs em cada busca: com 3 termos e uma busca por dia, são umas 90 buscas por mês. A busca usa o país de **🎯 O que você procura** para escolher a região e o idioma do Google.
 
 ### Vagas no exterior e visto
 
@@ -417,6 +431,8 @@ O botão no canto inferior da barra lateral mostra qual IA está em uso. Nele vo
 - **escolhe** entre as IAs encontradas na máquina;
 - **testa** se a IA responde (uma chamada curta);
 - vê o **diagnóstico**: navegador para PDF, arquivos do perfil e as notas mínimas.
+
+**IA da busca na web.** A busca na web com IA (achar vagas no LinkedIn, Gupy, Indeed e sites de empresas, e pesquisar uma vaga ou empresa) é a parte que mais gasta a IA. Na mesma janela você pode escolher outra IA só para ela, por exemplo o Claude para buscar e o Codex para todo o resto. **A mesma IA principal** mantém uma IA só. Só aparecem as IAs prontas na máquina que fazem busca na web. No terminal: `ajf ia --busca <ia>` (`ajf ia --busca principal` volta para a IA principal). O modelo de `AJF_MODEL` é da IA principal; a IA da busca usa o modelo padrão dela.
 
 O agente procura as CLIs (`claude`, `codex`, `gemini`) no PATH, nas pastas de instalação comuns (instalador do Claude Code, Homebrew, nvm, volta, pnpm, npm global, WinGet) e no PATH atual do seu usuário. Se mesmo assim não achar, informe o caminho em `AJF_CLAUDE_BIN`, `AJF_CODEX_BIN` ou `AJF_GEMINI_BIN` no `.env`.
 
@@ -476,7 +492,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf menu` | Menu no terminal |
 | `ajf init [arquivos ou links...]` | Monta o perfil do zero |
 | `ajf atualizar [arquivos ou links...] [--texto "..."]` | Atualiza o perfil com uma novidade: mostra o antes e o depois e, se você aprovar, refaz os currículos-base. `--aplicar` aplica a proposta salva (feita aqui ou na interface), `--descartar` descarta, `-y` aplica sem perguntar |
-| `ajf ia [--escolher] [--testar]` | IAs encontradas e qual usar |
+| `ajf ia [--escolher] [--testar] [--busca <ia>]` | IAs encontradas e qual usar. `--busca` escolhe outra IA só para a busca na web (`principal` volta para a principal) |
 | `ajf doctor` | Confere IA, navegador e arquivos do perfil |
 | `ajf base [--refazer]` | PDFs do currículo-base (sem IA). Com `--refazer`, refaz os currículos-base a partir do `profile_truth.md` (usa IA) |
 | `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou e de qual vaga cada repetida é cópia) |
@@ -504,7 +520,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 
 O ID da vaga aceita só o começo (`ajf tailor 78cb`).
 
-Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), por quantos dias a mesma vaga em outro site conta como repetida (`AJF_REPEAT_WINDOW_DAYS`, 90), dias até o follow-up (`AJF_FOLLOW_UP_DAYS`, 7) e até uma candidatura contar como sem retorno (`AJF_NO_REPLY_DAYS`, 30), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
+Configurações extras ficam no `.env` (veja o [`.env.example`](../.env.example)): IA e modelo (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), IA da busca na web (`AJF_SEARCH_PROVIDER`), chave do Google for Jobs (`SERPAPI_KEY`), notas (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), por quantos dias a mesma vaga em outro site conta como repetida (`AJF_REPEAT_WINDOW_DAYS`, 90), dias até o follow-up (`AJF_FOLLOW_UP_DAYS`, 7) e até uma candidatura contar como sem retorno (`AJF_NO_REPLY_DAYS`, 30), porta da interface (`AJF_UI_PORT`) e navegador (`CHROME_PATH`).
 
 ## 12. Dúvidas e problemas
 
@@ -522,6 +538,12 @@ Abra o botão da IA e veja o diagnóstico. Confira se você já entrou na conta 
 
 **O PDF não é gerado.**
 O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminho do navegador em `CHROME_PATH` no `.env`.
+
+**A busca na web demora ou gasta muito do meu plano da IA.**
+A busca na web com IA abre muitas páginas por termo de busca, e algumas IAs gastam bem mais nisso que outras. Três saídas: ligar o [Google for Jobs](#google-for-jobs), que traz vagas do LinkedIn e do Indeed sem IA; escolher uma **IA da busca na web** mais barata ou mais rápida no botão da IA (veja [A IA](#9-a-ia-escolher-testar-e-diagnosticar)); ou deixar a busca na web desligada por padrão e usar só quando precisar.
+
+**O Google for Jobs diz "A SerpApi recusou".**
+A mensagem depois vem da SerpApi. Se diz que a chave é inválida, copie de novo em [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key). Se diz que as buscas acabaram, a cota do mês terminou: diminua **Termos de busca por rodada** ou espere o mês seguinte.
 
 **A busca automática roda com o computador desligado?**
 Não: o computador precisa estar ligado. Com a busca diária no Windows, no macOS ou num timer do systemd no Linux, se o computador estava desligado no horário, a busca roda assim que ele ligar; no crontab, ela espera o dia seguinte. **Buscar ao abrir o app** cobre o resto. O log fica em `data/busca_automatica.log`.

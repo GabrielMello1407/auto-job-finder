@@ -67,7 +67,8 @@ function paintChrome() {
   const chip = $("#ia-chip");
   $("#ia-label").textContent = S.provider?.label ? t(S.provider.label).replace(/\s*\(.*\)\s*$/, "") : t("Escolher a IA");
   chip.classList.toggle("warn", !S.provider?.active);
-  chip.title = S.provider?.error || t("Trocar a IA");
+  chip.title =
+    S.provider?.error || (S.provider?.searchLabel ? `${t("Trocar a IA")} · ${t("Busca na web: {ai}", { ai: t(S.provider.searchLabel) })}` : t("Trocar a IA"));
   const ready = S.hasProfile ? countIn("ready") : 0;
   const pill = $("#nav-vagas");
   pill.hidden = !ready;
@@ -167,6 +168,15 @@ action("ia", async () => {
         )
         .join("")}
       ${usable.length ? "" : `<p class="muted" style="margin-top:12px">${esc(t("Nenhuma IA pronta nesta máquina. Siga a instrução de uma delas e abra esta janela de novo."))}</p>`}
+      ${
+        usable.some((x) => x.webSearch)
+          ? `<label class="field"><span>${t("IA da busca na web")}</span><small>${t("Para achar vagas na web e pesquisar empresas, a parte que mais gasta. Pode ser outra IA, por exemplo o Claude para buscar e o Codex para o resto.")}</small>
+            <select name="searchId"><option value="">${esc(t("A mesma IA principal"))}</option>${usable
+              .filter((x) => x.webSearch)
+              .map((x) => `<option value="${esc(x.id)}"${x.id === p.search ? " selected" : ""}>${esc(x.label)}</option>`)
+              .join("")}</select></label>`
+          : ""
+      }
       ${p.active ? `<div class="btn-row" style="margin-top:12px"><button type="button" class="small" id="ia-test">${esc(t("⚡ Testar se a IA em uso responde"))}</button><span class="muted" id="ia-test-out"></span></div>` : ""}
       <details class="panel" style="margin-top:16px"><summary>${esc(t("Diagnóstico"))}</summary>
         <p>${doc.chrome ? "✅" : "❌"} ${esc(t("Chrome/Edge para gerar PDF:"))} ${doc.chrome ? `<code>${esc(doc.chrome)}</code>` : esc(t("não encontrado, defina CHROME_PATH no .env"))}</p>
@@ -194,8 +204,19 @@ action("ia", async () => {
       };
     },
   });
-  if (!r?.id || r.id === p.active) return;
-  await api("/api/providers", { id: r.id });
+  if (!r) return;
+  let changed = false;
+  if (r.id && r.id !== p.active) {
+    await api("/api/providers", { id: r.id });
+    changed = true;
+  }
+  // A IA da busca igual à principal é o mesmo que "a mesma IA principal".
+  const search = r.searchId && r.searchId !== (r.id || p.active) ? r.searchId : "";
+  if (r.searchId !== undefined && search !== (p.search ?? "")) {
+    await api("/api/providers/search", { id: search });
+    changed = true;
+  }
+  if (!changed) return;
   toast(t("🤖 IA trocada."));
   await app.refresh();
 });

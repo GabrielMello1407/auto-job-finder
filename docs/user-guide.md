@@ -368,11 +368,25 @@ Job sources:
 |---|---|
 | AI web search | LinkedIn, Gupy, Indeed, Glassdoor, Catho, careers sites: **any field** |
 | `gupy` | the Gupy job portal, used by many companies in Brazil: **any field**, without spending the AI. It only finds jobs with **Portuguese search terms** |
+| `googlejobs` | Google for Jobs: what Google gathers from LinkedIn, Indeed, Glassdoor and career pages, **any field**, without spending the AI. Needs a free SerpApi key (see [below](#google-for-jobs)) |
 | `remotive`, `himalayas`, `jobicy`, `arbeitnow` | international remote, several fields |
 | `github-br`, `getonbrd`, `remoteok`, `weworkremotely` | tech (Brazil, Latin America, remote) |
 | `greenhouse`, `lever`, `ashby` | career pages of the companies you choose |
 
 **Search terms in two languages.** Each term becomes a search in each source. International sources find jobs with English terms ("data analyst"); Gupy and Brazilian sites, with Portuguese terms ("analista de dados"). If you live in Brazil and accept jobs from abroad, keep both. If you built your profile before Gupy was added to the agent, turn it on here, under **Job sources**.
+
+### Google for Jobs
+
+Google gathers jobs from LinkedIn, Indeed, Glassdoor, Gupy and company career pages. The `googlejobs` source reads that list through [SerpApi](https://serpapi.com/google-jobs-api), with the full description and **without the AI browsing**: much faster and cheaper than the AI web search, and it finds jobs from LinkedIn that the free sources don't have.
+
+It needs a SerpApi key. The free plan has 250 searches a month.
+
+1. Create a free account: [serpapi.com/users/sign_up](https://serpapi.com/users/sign_up).
+2. Copy your key: [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key).
+3. In **⚙️ Preferences → 🔎 How to search → Google for Jobs**, paste it in **SerpApi key** and click **🔌 Test the key** (uses 1 search).
+4. Turn on `googlejobs` in **Job sources** and save.
+
+The key stays only in the `.env` file on your computer (`SERPAPI_KEY`) and is not shown on screen again. Each search term uses 1 search from the quota, so **Search terms per run** (3 by default) limits how many terms go to Google for Jobs each time: with 3 terms and one search a day, that is about 90 searches a month. The search uses the country in **🎯 What you're looking for** to pick Google's region and language.
 
 ### Jobs abroad and visas
 
@@ -417,6 +431,8 @@ The button at the bottom of the sidebar shows which AI is in use. In it you:
 - **choose** among the AIs found on the machine;
 - **test** whether the AI answers (one short call);
 - see the **diagnosis**: the browser for PDFs, the profile files and the minimum scores.
+
+**Web search AI.** The AI web search (finding jobs on LinkedIn, Gupy, Indeed and company sites, and researching a job or company) is the part that uses the AI the most. In the same window you can pick a different AI only for it, for example Claude to search and Codex for everything else. **Same as the main AI** keeps a single AI. Only AIs that are ready on the machine and can search the web show up. In the terminal: `ajf ia --busca <ai>` (`ajf ia --busca principal` goes back to the main AI). The model in `AJF_MODEL` belongs to the main AI; the web search AI uses its own default model.
 
 The agent looks for the CLIs (`claude`, `codex`, `gemini`) in PATH, in the usual install folders (Claude Code installer, Homebrew, nvm, volta, pnpm, global npm, WinGet) and in your user's current PATH. If it still can't find one, set the path in `AJF_CLAUDE_BIN`, `AJF_CODEX_BIN` or `AJF_GEMINI_BIN` in `.env`.
 
@@ -476,7 +492,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf menu` | Terminal menu |
 | `ajf init [files or links...]` | Builds the profile from scratch |
 | `ajf atualizar [files or links...] [--texto "..."]` | Updates the profile with something new: shows the before and after and, if you approve, rebuilds the base resumes. `--aplicar` applies the saved proposal (made here or in the interface), `--descartar` discards it, `-y` applies without asking |
-| `ajf ia [--escolher] [--testar]` | AIs found and which one to use |
+| `ajf ia [--escolher] [--testar] [--busca <ai>]` | AIs found and which one to use. `--busca` picks another AI only for the web search (`principal` goes back to the main one) |
 | `ajf doctor` | Checks the AI, the browser and the profile files |
 | `ajf base [--refazer]` | Base resume PDFs (no AI). With `--refazer`, rebuilds the base resumes from `profile_truth.md` (uses the AI) |
 | `ajf search [--web] [--hint "only Londrina"] [-q terms] [-s sources] [-v]` | Searches jobs (`-v` shows what the filter cut and which job each repeated one copies) |
@@ -504,7 +520,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 
 A job ID accepts just its beginning (`ajf tailor 78cb`).
 
-Extra settings live in `.env` (see [`.env.example`](../.env.example)): AI and model (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), scores (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), for how many days the same job on another site counts as repeated (`AJF_REPEAT_WINDOW_DAYS`, 90), days until a follow-up (`AJF_FOLLOW_UP_DAYS`, 7) and until an application counts as no reply (`AJF_NO_REPLY_DAYS`, 30), the interface port (`AJF_UI_PORT`) and the browser (`CHROME_PATH`).
+Extra settings live in `.env` (see [`.env.example`](../.env.example)): AI and model (`AJF_PROVIDER`, `AJF_MODEL`, `AJF_TRIAGE_MODEL`), the web search AI (`AJF_SEARCH_PROVIDER`), the Google for Jobs key (`SERPAPI_KEY`), scores (`AJF_MIN_RATING`, `AJF_MIN_TRIAGE_SCORE`, `AJF_TARGET_RATING`), for how many days the same job on another site counts as repeated (`AJF_REPEAT_WINDOW_DAYS`, 90), days until a follow-up (`AJF_FOLLOW_UP_DAYS`, 7) and until an application counts as no reply (`AJF_NO_REPLY_DAYS`, 30), the interface port (`AJF_UI_PORT`) and the browser (`CHROME_PATH`).
 
 ## 12. FAQ and troubleshooting
 
@@ -522,6 +538,12 @@ Open the AI button and look at the diagnosis. Check that you signed in (`claude`
 
 **The PDF is not generated.**
 The agent didn't find a Chromium browser. Install Chrome, or set the browser path in `CHROME_PATH` in `.env`.
+
+**The web search is slow or uses up my AI plan.**
+The AI web search opens many pages per search term, and some AIs spend a lot more on it than others. Three ways out: turn on [Google for Jobs](#google-for-jobs), which brings LinkedIn and Indeed jobs without the AI; pick a cheaper or faster **Web search AI** in the AI button (see [The AI](#9-the-ai-choose-test-and-diagnose)); or leave the web search off by default and use it only when you need it.
+
+**Google for Jobs says "SerpApi refused".**
+The message after it comes from SerpApi. If it says the key is invalid, copy it again from [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key). If it says the searches ran out, the month's quota is over: lower **Search terms per run** or wait for the next month.
 
 **Does the automatic search run with the computer off?**
 No: the computer must be on. With the daily search on Windows, macOS or a systemd timer on Linux, if the computer was off at that time, the search runs as soon as it starts; with crontab, it waits for the next day. **Search when the app opens** covers the rest. The log is in `data/busca_automatica.log`.

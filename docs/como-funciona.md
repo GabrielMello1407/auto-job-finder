@@ -85,6 +85,8 @@ flowchart LR
 
 A **Gupy** (`sources/gupy.ts`) é o portal de vagas que boa parte das empresas do Brasil usa, em todas as áreas. A página de busca do portal (`portal.gupy.io/job-search/term=...`) já traz as vagas em JSON (`__NEXT_DATA__`), 12 por página; a fonte lê até 3 páginas por termo e pula as vagas com prazo de inscrição vencido ou de página de carreira desativada. Ela só acha vagas com termos em português, por isso o cadastro gera termos no idioma do país e liga a Gupy para quem mora no Brasil.
 
+O **Google for Jobs** (`sources/googlejobs.ts`) lê as vagas que o Google reúne (LinkedIn, Indeed, Glassdoor, Gupy, páginas de carreira) pela [API Google Jobs da SerpApi](https://serpapi.com/google-jobs-api) (`engine=google_jobs`), sem IA. Precisa de `SERPAPI_KEY` no `.env` (conta grátis em [serpapi.com/users/sign_up](https://serpapi.com/users/sign_up), chave em [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key); o plano gratuito tem 250 buscas por mês). Cada termo gasta uma busca, então ela manda no máximo `googleJobs.maxQueries` termos por rodada (3 por padrão, de 1 a 10). `countryParams` transforma o país das preferências em `gl`, `hl` e `location` do Google. `parseGoogleJobs` (puro, testado) usa o primeiro link de candidatura fora do Google (assim a mesma vaga vinda do LinkedIn ou da Gupy é reconhecida como repetida), cai no link do Google se não houver, junta os destaques à descrição e transforma "3 days ago" / "há 3 dias" em `postedAt`. A chave nunca chega à página (a rota só diz se existe), a um log ou a uma mensagem de erro (`serpApiJobs` mascara).
+
 **Busca automática** (`src/routine.ts`): o `runRoutine` é a mesma busca do botão (mais a triagem, com `autoSearch.triage` ligado), guardada em `data/busca_automatica.json` e `data/busca_automatica.log`. Ela roda:
 - quando a página abre (`POST /api/routine/open`, uma vez por aba), se `autoSearch.onOpen` estiver ligado e a última busca for mais velha que `onOpenHours` (`dueOnOpen`);
 - todo dia, pelo agendador do sistema (`src/scheduler.ts`), que roda `node bin/ajf.mjs rotina --agendada` com o `AJF_HOME`. O `syncSchedule` deixa o agendador igual às preferências (criar, trocar o horário, tirar):
@@ -376,7 +378,11 @@ Todas as chamadas passam por `src/llm.ts`, então os provedores são intercambi�
    - `openai`: Responses API, ou Chat Completions com `OPENAI_BASE_URL` para OpenRouter, Groq e Ollama;
    - `gemini`: REST.
 
-As CLIs rodam numa pasta temporária vazia e isolada, sem acesso aos seus arquivos. `AJF_PROVIDER` força uma IA específica. Uma chamada pode ter limite de tempo (`CallOptions.timeoutMs`): as CLIs encerram o processo e `llm.ts#withTimeout` desiste em qualquer provedor; sem ele, as CLIs param em 15 minutos.
+As CLIs rodam numa pasta temporária vazia e isolada, sem acesso aos seus arquivos. `AJF_PROVIDER` força uma IA específica.
+
+**IA da busca na web:** `AJF_SEARCH_PROVIDER` escolhe outra IA só para a busca na web (`llm.ts#webSearchStructured` e `canWebSearch`, usados pela busca de vagas e por `research.ts`), a parte que mais gasta. `providers/index.ts#searchProviderId` só aceita uma IA pronta na máquina e que faz busca na web (não o `bedrock`); senão a busca fica com a IA principal. Essa IA é criada sem `AJF_MODEL`/`AJF_TRIAGE_MODEL` (`createProvider(id, false)`), que são da IA principal, e usa o modelo padrão dela. Escolha na janela da IA, em `ajf ia --busca <ia>` ou no menu.
+
+Uma chamada pode ter limite de tempo (`CallOptions.timeoutMs`): as CLIs encerram o processo e `llm.ts#withTimeout` desiste em qualquer provedor; sem ele, as CLIs param em 15 minutos.
 
 **Imagens** (`CallOptions.images`, `src/providers/images.ts`): uma chamada pode levar imagens, hoje o print de uma pergunta de formulário. As APIs recebem a imagem no corpo do pedido (blocos de conteúdo da Anthropic/Bedrock/Vertex, `input_image` ou `image_url` da OpenAI, `inline_data` do Gemini); o `codex exec` recebe `--image`; o Claude Code e o Gemini CLI recebem uma cópia na pasta isolada da chamada e abrem com a ferramenta de ler arquivos (`Read`, `read_file`), a única liberada além da busca na web. A cópia é apagada depois da chamada. O tipo é conferido pelos primeiros bytes (PNG, JPG, WEBP, GIF), até 5 MB.
 
@@ -438,7 +444,7 @@ src/
   profile.ts             leitura do perfil, preferências e regras
   prompts.ts · schemas.ts · market.ts
   jobs/
-    sources/             fontes de vagas (APIs públicas, Gupy, páginas de carreira, web com IA)
+    sources/             fontes de vagas (APIs públicas, Gupy, Google for Jobs, páginas de carreira, web com IA)
     search.ts filter.ts  busca e filtro (addJob: vaga colada ou por link)
     dedupe.ts            vaga repetida: link canônico, título, empresa e texto
     open.ts              vaga encerrada: confere o link antes do pacote e no ajf conferir

@@ -313,7 +313,7 @@ details.panel[open] > summary { margin-bottom: 10px; }
 .field { display: grid; gap: 6px; margin-top: 14px; }
 .field > span, .field > label { font-size: 13.5px; font-weight: 600; }
 .field small { color: var(--muted); font-size: 12.5px; }
-input[type=text], input[type=url], input[type=number], input[type=time], input[type=search]:not(.palette-input), input:not([type]), textarea, select {
+input[type=text], input[type=url], input[type=number], input[type=time], input[type=password], input[type=search]:not(.palette-input), input:not([type]), textarea, select {
   width: 100%; padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
   background: var(--bg); color: var(--ink); font: inherit;
 }
@@ -576,6 +576,9 @@ textarea.code { font: 13px/1.55 var(--mono); min-height: 420px; tab-size: 2; }
 /* Listas simples (últimas buscas automáticas) e texto de erro. */
 .plain-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 3px; }
 .bad-text { color: var(--bad); }
+/* Bloco dentro de um painel (Google for Jobs nas Preferências). */
+.panel.inset { background: var(--surface-2); box-shadow: none; margin-top: 14px; }
+.panel.inset h4 { margin: 0 0 6px; font-size: 15px; font-weight: 650; }
 .num-busy { height: auto; min-height: 36px; align-items: flex-start; padding-top: 8px; }
 .num-busy .spin { flex: none; margin-top: 2px; }
 .num-weak > summary { cursor: pointer; color: var(--muted); font-size: 13.5px; font-weight: 600; }
