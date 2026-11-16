@@ -268,6 +268,18 @@ Platform forms ask again for what is already in the resume: name, phone, LinkedI
 
 Everything comes from the resume tailored for the job (or from the base resume, before the package), with nothing new. The same sheet is saved as `ficha_de_candidatura.md` in the package folder.
 
+#### Fill in forms with one click
+
+A browser bookmark, **🪄 Fill with ajf**, fills in the application form (Greenhouse, Lever, Ashby, Workable, company sites) with your details. It is off by default.
+
+1. Turn it on in [Preferences](#7-search-preferences) → **📨 Applying and results** → **🪄 Fill in forms with one click**. Pick **What to fill in**: name, e-mail and phone; LinkedIn, GitHub and website; city; current company and title; the short message; and, if you want, your standard answers (salary, availability, visa).
+2. Install the bookmark once: show the bookmarks bar (Ctrl+Shift+B in Chrome and Edge, Cmd+Shift+B on a Mac) and drag the **🪄 Fill with ajf** button onto it. Can't drag it? **📋 Copy the bookmark code**, create a bookmark and paste the code as its address.
+3. For each job: in [apply mode](#apply-mode) or the job's **Form sheet** tab, click **🪄 Copy for autofill**. Open the form, click the bookmark and paste (Ctrl+V).
+
+It fills only **empty** fields it recognizes and outlines each one. A box on the page says what it filled. It doesn't attach files (attach the resume yourself), doesn't answer questions like "why do you want to work here?" (use the [Questions](#application-form-questions) tab) and **never clicks Submit**. It sends nothing anywhere: your details only leave ajf when you copy and paste them. If the form is inside a frame from another site, the box shows a link to open it directly; click the bookmark again there.
+
+In the terminal: `ajf preencher <company>` shows the line to copy, and `ajf preencher --favorito` opens a page with the bookmark to install.
+
 ### Following up
 
 ![Applications in progress](images/en/vagas-em-andamento.jpg)
@@ -382,7 +394,7 @@ What changes: the menus, buttons, dialogs, messages and the names of tasks. What
 | **📍 Where** | Where you can work from (for remote jobs restricted by country), cities for on-site/hybrid, and whether you would move abroad with a sponsored visa (see [below](#jobs-abroad-and-visas)) |
 | **🏢 Companies** | Companies you follow (see [Follow a company](#follow-a-company)), companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
 | **📝 Standard form answers** | What forms always ask and is not in the resume (see [below](#standard-form-answers)) |
-| **📨 Applying and results** | Whether [apply mode](#apply-mode) shows the referral step, and whether [Results](#results) compares resume versions (both on by default) |
+| **📨 Applying and results** | Whether [apply mode](#apply-mode) shows the referral step, whether [Results](#results) compares resume versions (both on by default), and [filling in forms with one click](#fill-in-forms-with-one-click) (off by default) |
 | **⭐ Minimum scores** | Minimum triage for the autopilot to build a package and minimum rating for "ready to send" |
 
 Job sources:
@@ -529,6 +541,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Answers an application-form question and lets you refine it until you press Enter. `--imagem` reads the question (and its limit) from a screenshot; without options, you can also drop the screenshot file in the terminal instead of typing. For a question about the company, it offers to research its mission and values first; `--pesquisar` does it without asking |
 | `ajf linkedin [--current profile.pdf]` · `ajf linkedin --conferir --current profile.pdf` | LinkedIn plan, or a review of your current LinkedIn (exported PDF or text in `.md`/`.txt`) |
 | `ajf candidatar [--sem-indicacao]` | Apply mode: the ready packages one at a time, highest priority first, with the link, how to apply, the short message, the form sheet and "Sent" with the channel. `--sem-indicacao` hides the referral step |
+| `ajf preencher [company, title or id] [--favorito]` | Fill in forms with the browser bookmark: shows the job's details to paste into **🪄 Fill with ajf**. `--favorito` opens a page to install the bookmark |
 | `ajf ficha [company, title or id]` | Shows the application-form fields (details, summary in 3 sizes, each experience), ready to copy |
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |
 | `ajf enviei [company or title] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marks that you applied and where (finds the job by name; without `--via`, it asks) |
@@ -568,6 +581,9 @@ The AI web search opens many pages per search term, and some AIs spend a lot mor
 
 **Google for Jobs says "SerpApi refused".**
 The message after it comes from SerpApi. If it says the key is invalid, copy it again from [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key). If it says the searches ran out, the month's quota is over: lower **Search terms per run** or wait for the next month.
+
+**The 🪄 bookmark left a field empty, or nothing happened.**
+It only fills empty text fields it recognizes by their name or label; drop-downs, yes/no options, file uploads and questions stay with you. If the box says it found no fields, the form may be inside a frame from another site (open it from the link in the box) or on a page that builds its fields in an unusual way, such as some Workday forms: use the **Form sheet** tab there. Paste exactly what **🪄 Copy for autofill** copied; anything else is refused.
 
 **Does the automatic search run with the computer off?**
 No: the computer must be on. With the daily search on Windows, macOS or a systemd timer on Linux, if the computer was off at that time, the search runs as soon as it starts; with crontab, it waits for the next day. **Search when the app opens** covers the rest. The log is in `data/busca_automatica.log`.
