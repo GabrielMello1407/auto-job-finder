@@ -12,6 +12,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Triage } from "../src/schemas.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEMO = path.join(ROOT, "demo");
@@ -49,7 +50,7 @@ interface DemoJob {
     evidence: string[];
     gaps: string[];
     scam?: string[];
-    market: "BR" | "US" | "LATAM" | "GLOBAL";
+    market: "BR" | "US" | "EU" | "LATAM" | "GLOBAL";
     lang: "pt-BR" | "en";
     seniority: string;
   };
@@ -83,6 +84,8 @@ interface DemoJob {
   followUpDays?: number[];
   /** Pedido de indicação (dias atrás). */
   referral?: { status: "pedida" | "recebida" | "sem_resposta"; days: number };
+  /** Vaga que exige morar em outro país: o país e o que o anúncio diz sobre visto (src/jobs/abroad.ts). */
+  abroad?: { country: string; visa: "sim" | "nao" | "nao_informado" };
   /** Vaga recebida sem link (indicação, e-mail, WhatsApp) e pesquisada na web. */
   research?: {
     verdict: "confirmada" | "nao_encontrada" | "suspeita";
@@ -491,6 +494,73 @@ Requirements
       seniority: "pleno",
     },
     description: "Healthtech (fictícia) reabriu a vaga de full stack para o portal do paciente.",
+  },
+  {
+    // Presencial no exterior com visto patrocinado: a Ana aceita se mudar, então a vaga segue recomendada (✈️).
+    id: "demo0026",
+    company: "Atlântico Software Exemplo",
+    title: "Full Stack Engineer (Node.js/React)",
+    location: "Lisboa, Portugal (presencial)",
+    remote: false,
+    salary: "€ 38.000–45.000/ano",
+    status: "shortlisted",
+    days: 2,
+    abroad: { country: "Portugal", visa: "sim" },
+    triage: {
+      fit: "alta",
+      score: 83,
+      reason: "Node.js, React e PostgreSQL com evidência; a empresa patrocina o visto e a mudança para Lisboa.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "EU",
+      lang: "en",
+      seniority: "pleno",
+    },
+    description: "Fictional software company hiring a full stack engineer for its Lisbon office. Node.js, TypeScript, React, PostgreSQL. We offer visa sponsorship and a relocation package for international candidates.",
+  },
+  {
+    // Híbrida no exterior que não diz nada sobre visto: pergunte ao recrutador antes do pacote.
+    id: "demo0027",
+    company: "Spreebyte Example GmbH",
+    title: "Software Engineer (TypeScript)",
+    location: "Berlin, Germany (hybrid)",
+    remote: false,
+    status: "triaged",
+    days: 3,
+    abroad: { country: "Alemanha", visa: "nao_informado" },
+    triage: {
+      fit: "alta",
+      score: 80,
+      reason: "TypeScript, Node.js e React com evidência; o anúncio não diz se patrocina visto.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "EU",
+      lang: "en",
+      seniority: "pleno",
+    },
+    description: "Fictional startup hiring a software engineer to work 3 days a week from its Berlin office. TypeScript, Node.js, React.",
+  },
+  {
+    // Remota só para quem mora nos EUA: a empresa não leva ninguém (⛔).
+    id: "demo0028",
+    company: "Maple Health Example",
+    title: "Full Stack Engineer",
+    location: "United States",
+    remote: true,
+    status: "triaged",
+    days: 1,
+    abroad: { country: "Estados Unidos", visa: "nao_informado" },
+    triage: {
+      fit: "alta",
+      score: 88,
+      reason: "Stack combina, mas a vaga é remota só para quem mora nos Estados Unidos.",
+      evidence: EVID_FULLSTACK,
+      gaps: [],
+      market: "US",
+      lang: "en",
+      seniority: "pleno",
+    },
+    description: "Fictional health company hiring a full stack engineer. This remote position is open only to candidates located in the United States.",
   },
   {
     // Anúncio antigo de banco de talentos: aparece com o alerta de vaga fantasma e desce na lista.
@@ -1127,9 +1197,12 @@ async function main() {
     salaryExpectation: "R$ 9.000 a 10.000 CLT, ou R$ 12.000 PJ",
     availability: "em 30 dias",
     noticePeriod: "30 dias",
-    relocation: "não; remoto ou híbrido em Londrina",
+    relocation: "sim, para outro país, se a empresa patrocinar o visto e a mudança",
     workAuthorization: "brasileira; sem visto para outros países, só como PJ remoto",
   };
+  // Aceita se mudar para outro país com visto patrocinado: mostra os selos ✈️ (vaga no exterior).
+  prefs.relocateAbroad = true;
+  prefs.relocationCountries = [];
   fs.writeFileSync(prefsFile, JSON.stringify(prefs, null, 2));
 
   // Um ponto "a confirmar" para a página Perfil mostrar como eles aparecem.
@@ -1152,6 +1225,9 @@ async function main() {
   }
 
   const { researchBlock } = await import("../src/jobs/research.js");
+  const { applyAbroad } = await import("../src/jobs/abroad.js");
+  const { applyKnockouts } = await import("../src/jobs/priority.js");
+  const { loadPreferences } = await import("../src/profile.js");
   const jobs = JOBS.map((j) => {
     const job: Record<string, unknown> = {
       id: j.id,
@@ -1183,6 +1259,11 @@ async function main() {
         seniority: j.triage.seniority,
         reason: j.triage.reason,
       };
+    // Vaga no exterior: o critério de local sai do mesmo código da triagem de verdade, com as Preferências da demo.
+    if (j.triage && j.abroad)
+      job.triage = applyKnockouts(
+        applyAbroad({ ...(job.triage as Triage), workCountry: j.abroad.country, visaSponsorship: j.abroad.visa }, j.remote, loadPreferences()),
+      );
     if (j.research) {
       const r = j.research;
       job.source = "manual";

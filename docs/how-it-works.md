@@ -89,8 +89,8 @@ Before spending the AI, a **deterministic filter** (`src/jobs/filter.ts`) cuts j
 - a title without any target title, or with an excluded word;
 - a company you don't want;
 - a job posted more days ago than the limit;
-- on-site or hybrid outside your cities;
-- remote, but restricted to countries you didn't accept.
+- on-site or hybrid outside your cities (unless you accept moving abroad and the job is in another country: `abroad.ts#onsiteAbroadOk`, limited to `relocationCountries` when set);
+- remote, but restricted to places outside `acceptedRegions` (where the person can work from, not where the company is).
 
 The jobs that pass go to `data/jobs.json` with status `new`.
 
@@ -198,9 +198,25 @@ flowchart LR
 | Ghost-job signals | -10 per signal, down to -20 |
 | A `nao` dealbreaker | -25 |
 | Referral received | +10 |
+| Job abroad that doesn't say whether it sponsors the visa | -10 |
 
 - **Freshness** (`ageDays`, `freshness`): `nova` up to 3 days, `recente` up to 14, `antiga` after that. Without a posting date it doesn't count.
 - **Ghost-job signals** (`ghostSignals`): posted more than 30 days ago; the same job seen before (`reopenedFrom`); a talent pool or "future opportunities" posting; under 400 characters after `cleanJobText`. A web-search summary and a pasted job don't count as short, because they are short on purpose. The signals only warn and lower the order; the person decides.
+
+### Jobs abroad (`src/jobs/abroad.ts`)
+
+A remote job restricted to a country wants people who already live there; an on-site or hybrid job abroad may relocate someone if it sponsors the visa. The triage only reports `workCountry` (the country the person would have to live in, empty when the job can be done from home) and `visaSponsorship` (`sim`, `nao`, `nao_informado`, from the posting). `applyAbroad`, without AI, turns that into one `local` dealbreaker, "Morar e trabalhar no exterior (country)", replacing the AI's own location and authorization dealbreakers:
+
+| Case | Meets |
+|---|---|
+| `workCountry` is in `acceptedRegions` (the person can already work there) | `sim` |
+| Remote and not sponsored | `nao` |
+| The person doesn't accept moving (`relocateAbroad`), or the country isn't in `relocationCountries` | `nao` |
+| Sponsors the visa | `sim` |
+| Doesn't sponsor | `nao` |
+| Doesn't say | `incerto` (ask the recruiter) |
+
+Anything but `sim` keeps the job from being `candidatar`, so the autopilot doesn't package it. Country names are compared in Portuguese and English (`sameCountry`, `mentionsCountry`). The UI shows ✈️ (`abroadStatus`) and translates the requirement.
 
 ## 4. The package for each job
 
@@ -409,6 +425,7 @@ src/
     page.ts              job text from the page (JobPosting, Gupy, LinkedIn or main content) and cleanJobText
     research.ts          web research for a job received without a link
     triage.ts            AI triage
+    abroad.ts            jobs abroad: remote restricted to a country vs. relocation with a sponsored visa
     priority.ts          job order: triage, freshness, ghost-job signals, dealbreakers, referral
     funnel.ts            results: rejection stage, follow-ups, no reply, the funnel and its conclusions
     referral.ts          referral: LinkedIn search links and short messages

@@ -53,8 +53,17 @@ function paint() {
     ${section(
       t("📍 Onde"),
       "",
-      `${tags(t("Regiões aceitas em vagas remotas com restrição"), "acceptedRegions", p.acceptedRegions, t("Ex.: brasil, latam, worldwide."))}
-      ${tags(t("Cidades onde aceita presencial ou híbrido"), "onsiteCities", p.onsiteCities, t("Vazio = só remoto."))}`,
+      `${tags(
+        t("De onde você pode trabalhar (vagas remotas com restrição de país)"),
+        "acceptedRegions",
+        p.acceptedRegions,
+        t("O seu país e regiões que o incluem: brasil, latam, americas, worldwide. Não coloque um país só porque a empresa é de lá: vaga “só Estados Unidos” exige morar e ter autorização de trabalho lá. Se você tem essa autorização, aí sim inclua o país."),
+      )}
+      ${tags(t("Cidades onde aceita presencial ou híbrido"), "onsiteCities", p.onsiteCities, t("Vazio = só remoto."))}
+      <label class="switch"><input type="checkbox" name="relocateAbroad"${p.relocateAbroad ? " checked" : ""}><span>${t("✈️ Aceito me mudar para outro país se a empresa patrocinar o visto e a mudança")}<small>${t(
+        "Vagas presenciais ou híbridas no exterior passam a aparecer. A triagem confere o que o anúncio diz sobre visto: se patrocina, a vaga ganha ✈️; se não diz, você pergunta ao recrutador antes; se não patrocina, ela desce. Vaga remota só para quem já mora em outro país continua de fora: a empresa não leva ninguém.",
+      )}</small></span></label>
+      ${tags(t("Países para onde aceita se mudar"), "relocationCountries", p.relocationCountries ?? [], t("Vazio = qualquer país. Só vale com a opção acima. Ex.: portugal, alemanha, canadá."))}`,
     )}
     ${section(
       t("🏢 Empresas"),

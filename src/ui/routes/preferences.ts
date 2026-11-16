@@ -37,6 +37,8 @@ export function preferenceRoutes(): Route[] {
           titleExclude: strList(b.titleExclude, { lower: true, max: 120 }),
           acceptedRegions: strList(b.acceptedRegions, { lower: true, max: 40 }),
           onsiteCities: strList(b.onsiteCities, { max: 30 }),
+          relocateAbroad: Boolean(b.relocateAbroad),
+          relocationCountries: strList(b.relocationCountries, { max: 30 }),
           excludedCompanies: strList(b.excludedCompanies, { max: 200 }),
           companyBoards: {
             greenhouse: strList(boards.greenhouse, { lower: true, max: 60 }),

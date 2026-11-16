@@ -20,10 +20,20 @@ export interface Preferences {
   titleMustInclude: string[];
   /** Palavras que eliminam a vaga pelo título. */
   titleExclude: string[];
-  /** Locais aceitos para vagas remotas com restrição geográfica. */
+  /**
+   * De onde a pessoa pode trabalhar: o país dela e regiões que o incluem (latam, americas, worldwide). Vaga
+   * remota restrita a um lugar fora desta lista é descartada no filtro. Não é "de onde pode ser a empresa".
+   */
   acceptedRegions: string[];
   /** Aceita vagas presenciais/híbridas nestas cidades. */
   onsiteCities: string[];
+  /**
+   * Aceita se mudar para outro país se a empresa patrocinar o visto e a mudança. Com isso, vagas presenciais ou
+   * híbridas no exterior passam pelo filtro e a triagem confere o patrocínio (src/jobs/abroad.ts).
+   */
+  relocateAbroad: boolean;
+  /** Países para onde aceita se mudar (vazio = qualquer um). Só vale com relocateAbroad. */
+  relocationCountries: string[];
   /** Empresas que a pessoa não quer (também lidas de excluded.md). */
   excludedCompanies: string[];
   /** Empresas com páginas Greenhouse/Lever/Ashby para monitorar. */
@@ -79,6 +89,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   titleExclude: ["estagio", "estagiario", "intern", "trainee"],
   acceptedRegions: ["brazil", "brasil", "latam", "latin america", "south america", "americas", "worldwide", "anywhere", "global"],
   onsiteCities: [],
+  relocateAbroad: false,
+  relocationCountries: [],
   excludedCompanies: [],
   companyBoards: { greenhouse: [], lever: [], ashby: [] },
   defaultSources: ["remotive", "himalayas", "jobicy", "arbeitnow"],

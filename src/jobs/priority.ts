@@ -1,4 +1,5 @@
 import type { Job, Knockout, Triage } from "../schemas.js";
+import { abroadStatus } from "./abroad.js";
 import { cleanJobText, isWebSummary } from "./page.js";
 
 /**
@@ -8,6 +9,7 @@ import { cleanJobText, isWebSummary } from "./page.js";
  *   antes (ver docs/how-it-works.md, "Research behind the features");
  * - critérios eliminatórios que o perfil não atende;
  * - sinais de vaga fantasma (anúncio sem contratação real);
+ * - vaga no exterior sem patrocínio de visto informado (src/jobs/abroad.ts);
  * - indicação recebida.
  */
 
@@ -67,6 +69,8 @@ export function priorityOf(job: Job, now = Date.now()): number {
   if (age != null) p += age <= 3 ? 5 : -Math.min(30, (age - 3) * 1.5);
   p -= Math.min(20, ghostSignals(job, now).length * 10);
   if (failedKnockouts(job.triage).length) p -= 25;
+  // Vaga no exterior que não diz se patrocina o visto: depende de perguntar ao recrutador antes.
+  else if (abroadStatus(job.triage)?.meets === "incerto") p -= 10;
   if (job.referral?.status === "recebida") p += 10;
   return Math.round(p);
 }

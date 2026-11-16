@@ -412,8 +412,6 @@
   "O título não pode ter": "The title can't have",
   "Ex.: senioridades que você não quer, tecnologias fora do seu foco.": "E.g. seniority levels you don't want, technologies outside your focus.",
   "📍 Onde": "📍 Where",
-  "Regiões aceitas em vagas remotas com restrição": "Regions accepted for remote jobs with restrictions",
-  "Ex.: brasil, latam, worldwide.": "E.g. brazil, latam, worldwide.",
   "Cidades onde aceita presencial ou híbrido": "Cities where you accept on-site or hybrid",
   "Vazio = só remoto.": "Empty = remote only.",
   "🏢 Empresas": "🏢 Companies",
@@ -938,5 +936,16 @@
   "A IA não conseguiu analisar os tópicos: {error}": "The AI couldn't analyze the points: {error}",
   "Outro tópico, em que um número ajuda pouco": "One other point, where a number helps little",
   "A IA está vendo o que dá para medir em cada tópico ({s} s). Costuma levar meio minuto; você já pode ir respondendo.": "The AI is working out what can be measured in each point ({s} s). It usually takes about half a minute; you can start answering.",
-  "Está demorando mais que o normal ({s} s). Pode continuar usando o app: as perguntas aparecem aqui quando a IA terminar.": "This is taking longer than usual ({s} s). You can keep using the app: the questions show up here when the AI is done."
+  "Está demorando mais que o normal ({s} s). Pode continuar usando o app: as perguntas aparecem aqui quando a IA terminar.": "This is taking longer than usual ({s} s). You can keep using the app: the questions show up here when the AI is done.",
+  "A vaga não diz se patrocina o visto. Pergunte ao recrutador antes de gerar o pacote.": "The job doesn't say whether it sponsors the visa. Ask the recruiter before generating the package.",
+  "✈️ {country}: pergunte sobre o visto": "✈️ {country}: ask about the visa",
+  "✈️ patrocina visto · {country}": "✈️ sponsors visa · {country}",
+  "✈️ {country}": "✈️ {country}",
+  "De onde você pode trabalhar (vagas remotas com restrição de país)": "Where you can work from (remote jobs restricted by country)",
+  "O seu país e regiões que o incluem: brasil, latam, americas, worldwide. Não coloque um país só porque a empresa é de lá: vaga “só Estados Unidos” exige morar e ter autorização de trabalho lá. Se você tem essa autorização, aí sim inclua o país.": "Your country and regions that include it: brazil, latam, americas, worldwide. Don't add a country just because the company is there: a “United States only” job requires living and being authorized to work there. If you have that authorization, then add the country.",
+  "✈️ Aceito me mudar para outro país se a empresa patrocinar o visto e a mudança": "✈️ I'd move to another country if the company sponsors the visa and the relocation",
+  "Vagas presenciais ou híbridas no exterior passam a aparecer. A triagem confere o que o anúncio diz sobre visto: se patrocina, a vaga ganha ✈️; se não diz, você pergunta ao recrutador antes; se não patrocina, ela desce. Vaga remota só para quem já mora em outro país continua de fora: a empresa não leva ninguém.": "On-site and hybrid jobs abroad start showing up. The triage checks what the posting says about visas: if it sponsors, the job gets ✈️; if it doesn't say, you ask the recruiter first; if it doesn't sponsor, the job goes down. Remote jobs only for people already living in another country stay out: the company doesn't relocate anyone.",
+  "Países para onde aceita se mudar": "Countries you'd move to",
+  "Vazio = qualquer país. Só vale com a opção acima. Ex.: portugal, alemanha, canadá.": "Empty = any country. Only applies with the option above. E.g. portugal, germany, canada.",
+  "Morar e trabalhar no exterior ({country})": "Live and work abroad ({country})"
 }

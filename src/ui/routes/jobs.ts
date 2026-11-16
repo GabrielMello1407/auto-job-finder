@@ -10,6 +10,7 @@ import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
 import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, recordFollowUp, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
 import { followUpDue, funnel, isNoReply, isRejectionStage, readRejectionEmail } from "../../jobs/funnel.js";
+import { abroadStatus } from "../../jobs/abroad.js";
 import { ageDays, ghostSignals, priorityOf } from "../../jobs/priority.js";
 import { referralLinks, referralMessages, referralOverdue, setReferral } from "../../jobs/referral.js";
 import { track } from "../../tracker.js";
@@ -112,6 +113,8 @@ export function jobSummary(j: Job, changedAt = profileChangedAt(), now = Date.no
     ageDays: ageDays(j, now),
     ghost: ghostSignals(j, now),
     knockouts: j.triage?.knockouts ?? [],
+    // Vaga no exterior: país, o que o anúncio diz sobre visto e se atende (selo ✈️).
+    abroad: abroadStatus(j.triage),
     outcome: j.outcome,
     respondedAt: j.respondedAt,
     followUps: j.followUps?.length ?? 0,
