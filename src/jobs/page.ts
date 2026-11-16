@@ -254,3 +254,52 @@ function mainContent(html: string): string {
   const pick = (tag: string) => clean.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*)</${tag}>`, "i"))?.[1];
   return pick("main") ?? pick("article") ?? pick("body") ?? clean;
 }
+
+/** Nome legível a partir de um identificador de link ("rd-station" → "Rd Station"). */
+const fromSlug = (s: string) => s.replace(/[-_.]+/g, " ").replace(/\b\p{L}/gu, (c) => c.toUpperCase()).trim();
+
+/**
+ * Cargo, empresa e local da página de uma vaga, para quem chega só pelo link (vários links de um alerta,
+ * por exemplo). Na ordem: o bloco JobPosting (JSON-LD), os dados da Gupy, o topo da vaga do LinkedIn, o
+ * título da página e, para a empresa, o nome que está no próprio link (Greenhouse, Lever, Ashby, Gupy).
+ */
+export function jobPageMeta(html: string, url = ""): { title?: string; company?: string; location?: string } {
+  const out: { title?: string; company?: string; location?: string } = {};
+  const set = (k: keyof typeof out, v: string) => {
+    const clean = htmlToText(v).replace(/\s+/g, " ").trim();
+    if (!out[k] && clean && clean.length <= 160) out[k] = clean;
+  };
+  const ld = jobPostingLd(html);
+  if (ld) {
+    set("title", str(ld.title));
+    set("company", nameOf(ld.hiringOrganization));
+    const remote = list(ld.jobLocationType).some((t) => /telecommute/i.test(str(t)));
+    set("location", [remote ? "Remoto" : "", ...list(ld.jobLocation).map(place)].filter(Boolean).join(" · "));
+  }
+  const gupy = gupyJobData(html);
+  if (gupy) {
+    set("title", str(gupy.name));
+    set("company", isObj(gupy.careerPage) ? str(gupy.careerPage.name) : "");
+    set("location", [GUPY_WORKPLACE[str(gupy.workplaceType)] ?? "", [str(gupy.addressCity), str(gupy.addressState)].filter(Boolean).join(", ")].filter(Boolean).join(" · "));
+  }
+  const pick = (re: RegExp) => html.match(re)?.[1] ?? "";
+  set("title", pick(/class="[^"]*top-card-layout__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i));
+  set("company", pick(/class="[^"]*topcard__org-name-link[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+  set("location", pick(/class="[^"]*topcard__flavor--bullet[^"]*"[^>]*>([\s\S]*?)<\/span>/i));
+  // Título da página: "Cargo - Empresa", "Cargo at Empresa", "Empresa - Cargo" varia; só o cargo é seguro.
+  const og = pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  set("title", og.split(/\s+[|–—-]\s+|\s+at\s+/i)[0] ?? "");
+  // O nome do site só vale quando é a própria empresa, não um site de vagas.
+  const site = pick(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i);
+  if (!/linkedin|indeed|glassdoor|gupy|workable|greenhouse|lever|ashby|catho|infojobs|vagas\.com|solides|programathor|wellfound|remotive|himalayas|jobs?\b/i.test(site)) set("company", site);
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const first = u.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (/greenhouse\.io$|lever\.co$|ashbyhq\.com$/.test(host) && first && first !== "embed") set("company", fromSlug(first));
+    if (host.endsWith(".gupy.io")) set("company", fromSlug(host.split(".")[0]));
+  } catch {
+    /* sem link válido: fica com o que a página disse */
+  }
+  return out;
+}

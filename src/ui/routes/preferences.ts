@@ -1,7 +1,9 @@
-import fs from "node:fs";
 import { ensureDir, paths, setEnvVar, settings } from "../../config.js";
 import { SOURCES } from "../../jobs/sources/index.js";
-import { loadPreferences, type Preferences } from "../../profile.js";
+import { sameCompany, unfollow } from "../../jobs/follow.js";
+import { loadPreferences, savePreferences, type Preferences } from "../../profile.js";
+import { loadRoutineState, syncSchedule } from "../../routine.js";
+import { parseTime, SCHEDULER_LABELS, schedulerKind } from "../../scheduler.js";
 import { clamp, HttpError, str, strList, type Route } from "../http.js";
 
 /** Preferências de busca (profile/preferences.json) e as notas mínimas (.env). */
@@ -16,6 +18,12 @@ export function preferenceRoutes(): Route[] {
         sources: Object.entries(SOURCES).map(([id, s]) => ({ id, description: s.description })),
         minRating: settings.minRating,
         minTriageScore: settings.minTriageScore,
+        // Busca automática: qual agendador o sistema tem, o que está agendado e as últimas buscas.
+        routine: (() => {
+          const state = loadRoutineState();
+          const kind = state.schedule?.kind ?? schedulerKind();
+          return { scheduler: kind ? SCHEDULER_LABELS[kind] : null, schedule: state.schedule ?? null, runs: state.runs.slice(0, 5) };
+        })(),
       }),
     ],
     [
@@ -57,11 +65,40 @@ export function preferenceRoutes(): Route[] {
             workAuthorization: str(b.workAuthorization, 300),
           },
         };
+        // Busca automática (src/routine.ts).
+        const time = str(b.autoTime, 5) || old.autoSearch.time;
+        if (!parseTime(time)) throw new HttpError(400, "Horário inválido: {time} (use HH:MM, por exemplo 08:00).", { time });
+        prefs.autoSearch = {
+          onOpen: Boolean(b.autoOnOpen),
+          onOpenHours: Math.round(clamp(b.autoOnOpenHours, 1, 168, old.autoSearch.onOpenHours)),
+          daily: Boolean(b.autoDaily),
+          time,
+          web: Boolean(b.autoWeb),
+          triage: Boolean(b.autoTriage),
+        };
+        // Empresas seguidas: a lista de nomes da tela. Quem saiu deixa de ser seguida (e a página de carreira que
+        // entrou ao seguir sai junto); quem entrou à mão fica só com o nome.
+        const names = strList(b.followedCompanies, { max: 200 });
+        let next: Preferences = prefs;
+        for (const f of old.followedCompanies) if (!names.some((n) => sameCompany(n, f.name))) next = unfollow(next, f.name);
+        const kept = next.followedCompanies.filter((f) => names.some((n) => sameCompany(n, f.name)));
+        const added = names.filter((n) => !kept.some((f) => sameCompany(f.name, n))).map((name) => ({ name }));
+        Object.assign(prefs, next, { followedCompanies: [...kept, ...added] });
+
         if (!prefs.queries.length) throw new HttpError(400, "Deixe pelo menos um termo de busca.");
         if (!prefs.defaultSources.length && !prefs.webSearchByDefault) throw new HttpError(400, "Ligue pelo menos uma fonte de vagas ou a busca na web.");
 
         ensureDir(paths.profileDir);
-        fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
+        savePreferences(prefs);
+
+        // O agendador do sistema acompanha a opção "todo dia". Se não der, a opção volta a desligada e a tela avisa.
+        try {
+          syncSchedule(prefs.autoSearch);
+        } catch (e) {
+          prefs.autoSearch.daily = false;
+          savePreferences(prefs);
+          throw new HttpError(400, "Preferências salvas, mas a busca diária não foi agendada: {error}", { error: (e as Error).message });
+        }
 
         const minRating = clamp(b.minRating, 0, 10, settings.minRating);
         const minTriageScore = Math.round(clamp(b.minTriageScore, 0, 100, settings.minTriageScore));

@@ -144,9 +144,26 @@ Each job shows three indicators:
 
 - **🔎 Search jobs**: searches the sources in your [preferences](#7-search-preferences), and the AI scores each new job. Turn on **Include AI web search** to include LinkedIn, Gupy, Indeed and company sites; you can add an instruction, like "only jobs in Londrina".
 - **🚀 Autopilot**: searches, scores and builds packages for the best jobs (triage ≥ 70 and no scam signals). You choose the maximum number of packages. A job that already closed is discarded and the autopilot moves on to the next one, without using up one of the packages.
-- **➕ Paste a job**: for a job you saw on LinkedIn, in a WhatsApp group or through a referral. Paste the full text or, if the page opens without login (Gupy, the company site), just the link.
+- **➕ Paste a job**: for a job you saw on LinkedIn, in a WhatsApp group or through a referral. Paste the full text or, if the job page opens without login (LinkedIn, Gupy, the company site), just the link. Got a **job alert by e-mail** (LinkedIn, Indeed, Gupy)? Paste the whole e-mail: the agent finds the job links (up to 30), opens each public page, fills in the title, company and location from it, and the AI reviews them. Links that ask for login or no longer exist are listed in the task log, so you can open them and paste the text.
+
+A job you paste is never discarded on its own: if the AI wouldn't recommend it, it stays in **To decide** with the reason, and the task notice tells you its score.
 
 The search never brings the same job twice: a job that shows up again on another site (same company, same title, same text) goes straight to "Closed", marked **🔁 duplicate**, and is not scored and doesn't become another package. This also covers jobs you already applied to: then the same company and the same title are enough. If the agent gets it wrong, open the job and click **↩ Reopen**, or **It's not the same job** if it already has a package.
+
+#### Automatic search
+
+Most applications arrive in the first days after a job is posted, so finding it early matters. In **Preferences → ⏰ Automatic search**:
+- **Search when the app opens**: when you open the app and the last automatic search was more than N hours ago (12 by default).
+- **Search every day, even with the app closed**: at the time you choose, through your system's own scheduler. Windows: Task Scheduler. macOS: launchd. Linux: a systemd timer, or crontab where there is no systemd. The computer must be on; if it was off at that time, the search runs when it starts (with crontab, only the next day). Turning it off removes the scheduled task.
+- **Review the new jobs with the AI** right after the search, and **Include the AI web search** (more jobs, but the slowest and most expensive part).
+
+Everything is off by default. The last searches show up in the same section, and when you open **Jobs** the banner **🆕 N new job(s) since your last visit** has **Show only the new ones** and **✓ Seen**. In the terminal: `ajf rotina` (search now), `ajf rotina --agendar 08:00`, `ajf rotina --desagendar` and `ajf rotina --status`.
+
+> If you change the Node.js version or move the project folder, turn the daily search off and on again (or run `ajf rotina --agendar` again) so the scheduler points to the new place.
+
+#### Follow a company
+
+In a job's details, **☆ Follow company**: that company's jobs get **⭐ you follow**, go up the list and are included in the web search. If the job link is from Greenhouse, Lever or Ashby, the company's careers page also starts being watched in every search, so its new openings arrive on the day they open. The list is in **Preferences → 🏢 Companies → Companies you follow**; removing a name stops following it (and the careers page added by following leaves too). In the terminal: `ajf seguir <company or job id>`, `ajf seguir --parar <...>` and `ajf seguir` to list.
 
 #### Job without a link (referral, e-mail, WhatsApp)
 
@@ -187,6 +204,7 @@ Jobs with **🚩 scam signals** (requests for payment or documents, or an unreal
 | **👻 may be a ghost job** | Posted more than 30 days ago, the same job seen before, a talent pool with no specific job, or almost no details. Not every posting leads to a hire: check the company site to see whether the job still exists. Hover over the badge to see why | goes down |
 | **⛔ dealbreaker: ...** | A requirement the job filters on (years of experience, language, location, work authorization, degree) that your profile shows you don't meet | goes down and is no longer recommended |
 | **🤝 referred** | Someone at the company referred you (see [Ask for a referral](#ask-for-a-referral)) | goes up |
+| **⭐ you follow** | A company you follow (see [Follow a company](#follow-a-company)) | goes up |
 | **✈️ sponsors visa · country** | An on-site or hybrid job abroad that sponsors the visa and the relocation, and you accept moving (see [Jobs abroad and visas](#jobs-abroad-and-visas)) | stays as it is |
 | **✈️ country: ask about the visa** | A job abroad whose posting doesn't say whether it sponsors the visa. Ask the recruiter before building the package | goes down a little |
 | **⛔ dealbreaker: Live and work abroad (country)** | A remote job only for people who already live in another country, or a job abroad that doesn't sponsor the visa (or you don't accept moving) | goes down and is no longer recommended |
@@ -337,9 +355,10 @@ What changes: the menus, buttons, dialogs, messages and the names of tasks. What
 |---|---|
 | **🎯 What you're looking for** | Target titles and seniority: the triage compares each job with them |
 | **🔎 How to search** | Search terms, job sources, AI web search by default and how many days old a job can be |
+| **⏰ Automatic search** | Search when the app opens and/or every day at a set time, even with the app closed (see [Automatic search](#automatic-search)) |
 | **🧹 Title filter** | Words the title must have and words that rule the job out. Cuts jobs **without spending the AI** |
 | **📍 Where** | Where you can work from (for remote jobs restricted by country), cities for on-site/hybrid, and whether you would move abroad with a sponsored visa (see [below](#jobs-abroad-and-visas)) |
-| **🏢 Companies** | Companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
+| **🏢 Companies** | Companies you follow (see [Follow a company](#follow-a-company)), companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
 | **📝 Standard form answers** | What forms always ask and is not in the resume (see [below](#standard-form-answers)) |
 | **⭐ Minimum scores** | Minimum triage for the autopilot to build a package and minimum rating for "ready to send" |
 
@@ -463,7 +482,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf search [--web] [--hint "only Londrina"] [-q terms] [-s sources] [-v]` | Searches jobs (`-v` shows what the filter cut and which job each repeated one copies) |
 | `ajf triage [--id <ids...>] [-l 10]` | Triage of new jobs, or again for the given ones |
 | `ajf jobs [--status shortlisted] [-a]` · `ajf show <id>` | List and details |
-| `ajf add --file job.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` | Adds a job. With `--pesquisar`, researches the job and the company on the web before the triage (job without a link) |
+| `ajf add --file job.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` · `ajf add --links alert.txt` | Adds a job. With `--pesquisar`, researches the job and the company on the web before the triage (job without a link). With `--links`, adds every job link in a file (a list or a job alert e-mail) |
 | `ajf pesquisar [company, title or id]` | Researches a saved job on the web: official posting, company site, what the text was missing and whether it is real |
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Builds the package. First checks whether the job is still open; `--mesmo-encerrada` builds it anyway |
 | `ajf conferir [company, title or id]` | Checks whether jobs still take applications. With nothing, checks every job you haven't sent |
@@ -474,6 +493,8 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |
 | `ajf enviei [company or title] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marks that you applied and where (finds the job by name; without `--via`, it asks) |
 | `ajf status [company, title or id] [status] [--etapa triagem] [--motivo "..."]` | Changes the status (interview, offer, rejection...). On a rejection, `--etapa` records how far it went (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) and `--motivo` the reason; without them, it asks |
+| `ajf rotina [--agendar 08:00\|--desagendar\|--status]` | Automatic search: runs it now, or schedules / removes the daily search in the system's scheduler (Windows, macOS, Linux), or shows the last runs |
+| `ajf seguir [company or job id] [--parar]` | Follows (or stops following) a job's company; with nothing, lists the companies you follow |
 | `ajf followup [company, title or id] [--enviei]` | Lists the follow-ups due; with a job and `--enviei`, records the follow-up you sent |
 | `ajf indicacao [company, title or id] [--pedi\|--recebi\|--sem-resposta] [--refazer]` | Referral: LinkedIn search links (you open them) and ready messages; records whether you asked for it or got it |
 | `ajf resultados` | The funnel of your applications: reply and interview rates by channel, source, timing and score, and where rejections happen |
@@ -501,6 +522,9 @@ Open the AI button and look at the diagnosis. Check that you signed in (`claude`
 
 **The PDF is not generated.**
 The agent didn't find a Chromium browser. Install Chrome, or set the browser path in `CHROME_PATH` in `.env`.
+
+**Does the automatic search run with the computer off?**
+No: the computer must be on. With the daily search on Windows, macOS or a systemd timer on Linux, if the computer was off at that time, the search runs as soon as it starts; with crontab, it waits for the next day. **Search when the app opens** covers the rest. The log is in `data/busca_automatica.log`.
 
 **A job only for people in the United States (or another country) showed up.**
 If the source says so in a field (Himalayas, Remotive, Remote OK, Jobicy, We Work Remotely, Get on Board), the filter drops it, unless that country is in **Where you can work from**. Check that list: it is where you can legally work, not where companies can be. When the restriction is only written in the description (Greenhouse, Lever, Ashby, Arbeitnow, the web search), the triage catches it and shows **⛔ dealbreaker: Live and work abroad (country)**. See [Jobs abroad and visas](#jobs-abroad-and-visas).

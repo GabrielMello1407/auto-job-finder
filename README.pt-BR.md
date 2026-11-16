@@ -32,7 +32,7 @@
 ## O que ele faz
 
 1. **Monta o seu perfil** a partir do que você tiver: currículo (PDF ou DOCX), PDF do LinkedIn, portfólio, GitHub, um texto, ou respondendo a perguntas.
-2. **Busca vagas** em sites de vagas, no portal da Gupy e na web (LinkedIn, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas, critérios eliminatórios e sinais de golpe. As vagas mais recentes e que mais combinam vêm primeiro, e possíveis vagas fantasma (antigas, republicadas, banco de talentos) ficam marcadas. A mesma vaga publicada em vários sites aparece uma vez só, e vaga que já acabou é descartada antes de virar pacote. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
+2. **Busca vagas** em sites de vagas, no portal da Gupy e na web (LinkedIn, Indeed) e **avalia cada uma** contra o seu perfil: aderência, lacunas, critérios eliminatórios e sinais de golpe. As vagas mais recentes e que mais combinam vêm primeiro, e possíveis vagas fantasma (antigas, republicadas, banco de talentos) ficam marcadas. Ele pode buscar sozinho todo dia, mesmo com o app fechado (Windows, macOS e Linux), receber um e-mail de alerta de vagas inteiro de uma vez e seguir as empresas de que você gosta. A mesma vaga publicada em vários sites aparece uma vez só, e vaga que já acabou é descartada antes de virar pacote. Vaga que chegou por indicação, e-mail ou WhatsApp, mesmo sem link, também entra: o agente procura o anúncio oficial e a empresa na web e confere se a vaga é real.
 3. **Prepara o pacote** de cada vaga boa:
    - currículo adaptado no padrão ATS, em PDF;
    - carta de apresentação, quando o mercado pede;

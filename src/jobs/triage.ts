@@ -3,7 +3,7 @@ import { applicationFactsText, loadExcluded, loadPreferences } from "../profile.
 import { applyAbroad } from "./abroad.js";
 import { applyKnockouts } from "./priority.js";
 import { profileSystem } from "../prompts.js";
-import { TriageBatchSchema, type Job } from "../schemas.js";
+import { TriageBatchSchema, type Job, type JobStatus } from "../schemas.js";
 import { today, truncate } from "../util/text.js";
 import { cleanJobText } from "./page.js";
 import { loadJobs, saveJobs } from "./store.js";
@@ -20,6 +20,15 @@ Link: ${j.url}
 Descrição:
 ${truncate(cleanJobText(j.description), 5000)}
 </job>`;
+}
+
+/**
+ * Etapa da vaga depois da triagem. Vaga que a pessoa colou (fonte "manual") não some sozinha: com
+ * "descartar", fica em "Para decidir" com o motivo, e ela decide.
+ */
+export function statusAfterTriage(recommendation: "candidatar" | "decidir" | "descartar", source: string): JobStatus {
+  if (recommendation === "candidatar") return "shortlisted";
+  return recommendation === "descartar" && !source.startsWith("manual") ? "discarded" : "triaged";
 }
 
 /** Triagem por IA: aderência, lacunas obrigatórias, sinais de golpe e mercado (BR/US/...). */
@@ -82,8 +91,7 @@ ${batch.map(jobBlock).join("\n\n")}`,
       // máximo "decidir" (a pessoa decide).
       const triage = applyKnockouts(applyAbroad(raw, job.remote, prefs));
       job.triage = triage;
-      if (job.status === statusBefore.get(job.id))
-        job.status = triage.recommendation === "descartar" ? "discarded" : triage.recommendation === "candidatar" ? "shortlisted" : "triaged";
+      if (job.status === statusBefore.get(job.id)) job.status = statusAfterTriage(triage.recommendation, job.source);
       done.push(job);
     }
     saveJobs(jobs);

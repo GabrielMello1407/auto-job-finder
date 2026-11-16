@@ -62,7 +62,7 @@ function meta(j) {
   const fresh = j.status === "new" ? `<span class="chip accent">${t("nova · sem triagem")}</span>` : "";
   const outdated = j.pkg?.outdated ? `<span class="chip warn" title="${esc(t("O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades."))}">${t("perfil mudou depois")}</span>` : "";
   const research = j.research ? researchChip(j.research) : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}${ageChip(j)}${ghostChip(j)}${knockoutChip(j)}${abroadChip(j)}${referralChip(j)}</div>`;
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}${ageChip(j)}${ghostChip(j)}${knockoutChip(j)}${abroadChip(j)}${referralChip(j)}${followedChip(j)}</div>`;
 }
 
 /* Prioridade: frescor, vaga fantasma, critérios eliminatórios e indicação (src/jobs/priority.ts e referral.ts). */
@@ -102,6 +102,8 @@ function knockoutChip(j) {
   return `<span class="chip bad" title="${esc(failed.map((k) => requirementText(k, j)).join("; "))}">${esc(t("⛔ eliminatório: {what}", { what: requirementText(failed[0], j) }))}</span>`;
 }
 // Vaga no exterior (src/jobs/abroad.ts): quando não atende, o ⛔ do critério já aparece.
+// Empresa que a pessoa segue.
+const followedChip = (j) => (j.followed && TO_SEND.includes(j.status) ? `<span class="chip accent">${t("⭐ você segue")}</span>` : "");
 function abroadChip(j) {
   const a = j.abroad;
   if (!a || a.meets === "nao" || !TO_SEND.includes(j.status)) return "";
@@ -272,9 +274,17 @@ function sorted(st, jobs) {
   return [...jobs].sort(by);
 }
 
+/*
+ * Vagas novas desde a última visita: a data em que a pessoa marcou "Já vi" fica no navegador (só uma
+ * conveniência; sem ela, contam as das últimas 24 horas).
+ */
+let seenAt = Number(store.get("ajf.seenAt")) || Date.now() - 86_400_000;
+let onlyNew = false;
+const isNew = (j) => Date.parse(j.addedAt) > seenAt;
+
 function visible(st) {
   const words = norm(filterText).split(/\s+/).filter(Boolean);
-  const jobs = S.jobs.filter((j) => st.statuses.includes(j.status));
+  const jobs = S.jobs.filter((j) => st.statuses.includes(j.status) && (!onlyNew || st.id !== "decide" || isNew(j)));
   return sorted(st, words.length ? jobs.filter((j) => words.every((w) => norm(`${j.company} ${j.title}`).includes(w))) : jobs);
 }
 
@@ -342,6 +352,15 @@ function paintList() {
   let html = "";
   if (st.id === "decide") {
     const fresh = S.jobs.filter((j) => j.status === "new").length;
+    const news = S.jobs.filter((j) => st.statuses.includes(j.status) && isNew(j)).length;
+    const last = S.routine?.last;
+    const lastText = last
+      ? ` ${t("Última busca automática: {when}.", { when: new Date(last.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) })}`
+      : "";
+    if (onlyNew)
+      html += `<div class="banner"><span>${t("🆕 Mostrando só as {n} vaga(s) nova(s) desde a sua última visita.", { n: news })}</span><div class="btn-row">${btn("news-all", t("Ver todas"), null, "small")}${btn("news-seen", t("✓ Já vi"), null, "small ghost")}</div></div>`;
+    else if (news)
+      html += `<div class="banner"><span>${t("🆕 {n} vaga(s) nova(s) desde a sua última visita.", { n: news })}${esc(lastText)}</span><div class="btn-row">${btn("news-only", t("Ver só as novas"), null, "primary small")}${btn("news-seen", t("✓ Já vi"), null, "small ghost")}</div></div>`;
     const triaging = S.tasks.some((k) => k.kind === "triage" && !k.jobId && (k.status === "queued" || k.status === "running"));
     if (fresh && !triaging)
       html += `<div class="banner"><span>🧠 ${fresh === 1 ? t("1 vaga nova ainda não foi avaliada pela IA.") : t("{n} vagas novas ainda não foram avaliadas pela IA.", { n: fresh })}</span>${btn("triage", t("Avaliar agora"), null, "primary small")}</div>`;
@@ -478,6 +497,12 @@ function drawerExtras(j) {
   if (S.webSearch && !["rejected", "discarded"].includes(j.status))
     out.push(btn("research", j.research ? t("🔎 Pesquisar de novo na web") : t("🔎 Pesquisar na web"), j.id, "ghost small", t("Anúncio oficial, site da empresa e se a vaga é real")));
   if (CHECKABLE.includes(j.status) && j.url) out.push(btn("check-one", t("🔒 Conferir se está aberta"), j.id, "ghost small", t("Abre o link da vaga e procura sinais de que ela acabou")));
+  // Seguir a empresa (src/jobs/follow.ts): as vagas dela sobem e, se der, a página de carreira entra na busca.
+  out.push(
+    j.followed
+      ? btn("unfollow", t("⭐ Seguindo a empresa"), j.id, "ghost small", t("Clique para deixar de seguir"))
+      : btn("follow", t("☆ Seguir empresa"), j.id, "ghost small", t("As vagas dela sobem na lista e entram na busca")),
+  );
   return out.join("");
 }
 
@@ -1177,17 +1202,50 @@ action("auto", async () => {
   toast(t("🚀 Piloto automático começou. Acompanhe no canto da tela."));
   await app.refresh();
 });
+async function setFollow(id, on) {
+  const j = findJob(id);
+  if (!j) return;
+  const r = await api(`/api/jobs/${enc(id)}/follow`, { follow: on });
+  toast(
+    on
+      ? r.board
+        ? t("⭐ Seguindo {company}. A página de carreira dela ({board}) passa a ser monitorada na busca.", { company: j.company, board: `${r.board.type}/${r.board.id}` })
+        : t("⭐ Seguindo {company}. As vagas dela sobem na lista.", { company: j.company })
+      : t("Você deixou de seguir {company}.", { company: j.company }),
+  );
+  await app.refresh();
+}
+action("follow", (id) => setFollow(id, true));
+action("unfollow", (id) => setFollow(id, false));
+
+action("news-only", () => {
+  onlyNew = true;
+  paintList();
+});
+action("news-all", () => {
+  onlyNew = false;
+  paintList();
+});
+action("news-seen", () => {
+  seenAt = Date.now();
+  store.set("ajf.seenAt", String(seenAt));
+  onlyNew = false;
+  paintList();
+});
+
 action("triage", async () => {
   await api("/api/triage", {});
   toast(t("🧠 Avaliando as vagas novas."));
   await app.refresh();
 });
 action("paste", async () => {
+  let links = 0; // links de vaga achados no texto (2 ou mais: adiciona todas)
   const r = await modal({
     title: t("Colar uma vaga"),
     wide: true,
     html: `<p class="muted">${t("Para vagas do LinkedIn, da Gupy, ou que chegaram por indicação, e-mail ou WhatsApp, mesmo sem link. A IA avalia na hora e você gera o pacote como qualquer outra vaga.")}</p>
-      <label class="field"><span>${t("Texto da vaga")}</span><small>${t("Cole tudo o que você recebeu: requisitos, como é a equipe, e-mail para enviar o currículo, prazo. Se a página da vaga abre sem login (Gupy, site da empresa), pode informar só o link. Do LinkedIn, cole o texto.")}</small><textarea name="text" rows="9" placeholder="${esc(t("ex.: A Empresa X está contratando Desenvolvedor Full Stack Pleno para o time de pagamentos. Requisitos: Node.js, React… Currículo para vagas@empresax.com.br até 20/11."))}"></textarea></label>
+      <label class="field"><span>${t("Texto da vaga")}</span><small>${t("Cole tudo o que você recebeu: requisitos, como é a equipe, e-mail para enviar o currículo, prazo. Se a página da vaga abre sem login (LinkedIn, Gupy, site da empresa), pode informar só o link. Recebeu um alerta de vagas por e-mail? Cole o e-mail inteiro: o agente acha os links e adiciona todas.")}</small><textarea name="text" rows="9" placeholder="${esc(t("ex.: A Empresa X está contratando Desenvolvedor Full Stack Pleno para o time de pagamentos. Requisitos: Node.js, React… Currículo para vagas@empresax.com.br até 20/11."))}"></textarea></label>
+      <div class="banner" data-links hidden></div>
       <label class="field"><span>${t("Link da vaga")} <small>${t("(se tiver)")}</small></span><input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
       <div class="grid2"><label class="field"><span>${t("Empresa")}</span><input name="company" autocomplete="off"></label><label class="field"><span>${t("Cargo")}</span><input name="title" autocomplete="off"></label></div>
       <label class="field"><span>${t("Local")} <small>${t("(opcional)")}</small></span><input name="location" placeholder="${esc(t("ex.: Remoto, Londrina (híbrido)"))}" autocomplete="off"></label>
@@ -1200,18 +1258,43 @@ action("paste", async () => {
     confirm: t("Adicionar e avaliar"),
     onOpen: (form) => {
       // Texto completo, ou só o link (o agente lê a página). Valida antes de fechar a janela, sem perder o que foi colado.
+      const submit = form.querySelector('button[type="submit"]');
+      const notice = form.querySelector("[data-links]");
       const check = () => {
         const text = form.elements.text.value.trim();
         const url = form.elements.url.value.trim();
         form.elements.text.setCustomValidity(
-          text && text.length < 80 ? t("O texto está curto demais: cole a descrição inteira.") : !text && !url ? t("Cole o texto completo da vaga ou informe o link.") : "",
+          links > 1 ? "" : text && text.length < 80 ? t("O texto está curto demais: cole a descrição inteira.") : !text && !url ? t("Cole o texto completo da vaga ou informe o link.") : "",
         );
       };
+      // Vários links de vaga no texto (e-mail de alerta, lista): o servidor acha os links; aqui só muda o botão.
+      let timer;
+      const lookForLinks = () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          const text = form.elements.text.value;
+          const found = /https?:\/\//i.test(text) ? (await api("/api/paste/links/preview", { text }).catch(() => ({ links: [] }))).links.length : 0;
+          links = found;
+          notice.hidden = found < 2;
+          notice.textContent = found > 1 ? t("🔗 Achei {n} links de vagas. Vou adicionar todas, uma por uma, e a IA avalia as que entrarem.", { n: found }) : "";
+          submit.textContent = found > 1 ? t("Adicionar as {n} vagas", { n: found }) : t("Adicionar e avaliar");
+          check();
+        }, 300);
+      };
       form.addEventListener("input", check);
+      form.elements.text.addEventListener("input", lookForLinks);
       check();
     },
   });
   if (!r) return;
+  if (links > 1) {
+    const res = await api("/api/paste/links", { text: r.text });
+    toast(t("🔗 Adicionando {n} vaga(s) pelos links. Acompanhe no canto da tela; as que não abrirem aparecem no log.", { n: res.links }));
+    stage = "decide";
+    store.set("ajf.stage", stage);
+    app.go("vagas");
+    return;
+  }
   const res = await api("/api/paste", r);
   const same = res.job.duplicateOf ? findJob(res.job.duplicateOf) : null;
   toast(

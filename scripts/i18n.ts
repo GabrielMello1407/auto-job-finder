@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { SOURCES } from "../src/jobs/sources/index.js";
 import { APPLY_CHANNELS, STATUS_LABELS } from "../src/jobs/status.js";
+import { SCHEDULER_LABELS } from "../src/scheduler.js";
 import { LINKEDIN_EXPORT_HELP } from "../src/onboarding/sources.js";
 import { PROVIDERS } from "../src/providers/index.js";
 
@@ -90,6 +91,7 @@ export function uiKeys(): Set<string> {
   for (const k of [
     ...Object.values(STATUS_LABELS),
     ...Object.values(APPLY_CHANNELS),
+    ...Object.values(SCHEDULER_LABELS),
     ...Object.values(SOURCES).map((s) => s.description),
     ...PROVIDERS.flatMap((p) => [p.label, p.setup]),
     ...PROVIDER_DETAILS,

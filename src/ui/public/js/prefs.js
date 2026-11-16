@@ -16,6 +16,42 @@ function section(title, text, inner) {
 const tags = (label, name, values, help = "", placeholder) =>
   `<div class="field"><span>${label}</span>${help ? `<small>${help}</small>` : ""}${tagsField(name, values, placeholder)}</div>`;
 
+/* Busca automática (src/routine.ts): ao abrir o app e/ou todo dia pelo agendador do sistema. */
+const TRIGGER = { abrir: t("ao abrir o app"), agenda: t("agendada"), manual: t("pelo terminal") };
+function routineStatus() {
+  const r = data.routine;
+  const sched = r.schedule
+    ? `<p class="muted">${t("✅ Agendada todo dia às {time} ({scheduler}).", { time: esc(r.schedule.time), scheduler: esc(t(r.scheduler ?? "")) })}</p>`
+    : "";
+  const runs = (r.runs ?? []).slice(0, 3).map((x) => {
+    const when = new Date(x.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+    return `<li>${esc(when)} · ${esc(TRIGGER[x.trigger] ?? x.trigger)} · ${
+      x.ok ? esc(t("{n} nova(s), {top} recomendada(s)", { n: x.added, top: x.recommended })) : `<span class="bad-text">${esc(t("falhou: {error}", { error: x.errors.join(" | ") }))}</span>`
+    }</li>`;
+  });
+  return `${sched}${runs.length ? `<div class="field"><span>${t("Últimas buscas automáticas")}</span><ul class="plain-list">${runs.join("")}</ul></div>` : ""}`;
+}
+function autoSearchSection(a) {
+  const scheduler = data.routine.scheduler;
+  return section(
+    t("⏰ Busca automática"),
+    t("A maior parte das candidaturas chega nos primeiros dias depois que a vaga sai. Com a busca automática, você vê as vagas no dia em que aparecem."),
+    `<label class="switch"><input type="checkbox" name="autoOnOpen"${a.onOpen ? " checked" : ""}><span>${t("Buscar ao abrir o app")}<small>${t("Quando você abre o app e a última busca automática foi há mais horas que o limite abaixo.")}</small></span></label>
+    <label class="field"><span>${t("Buscar de novo depois de (horas)")}</span><input type="number" name="autoOnOpenHours" min="1" max="168" value="${esc(a.onOpenHours)}" style="max-width:140px"></label>
+    <label class="switch"><input type="checkbox" name="autoDaily"${a.daily ? " checked" : ""}${scheduler ? "" : " disabled"}><span>${t("Buscar todo dia, mesmo com o app fechado")}<small>${
+      !scheduler
+        ? t("Este sistema não tem um agendador que o app saiba usar. Use a busca ao abrir o app.")
+        : scheduler === "crontab"
+          ? t("Usa o crontab deste computador. O computador precisa estar ligado no horário; se estiver desligado, a busca só roda no dia seguinte.")
+          : t("Usa o {scheduler} deste computador. O computador precisa estar ligado; se estiver desligado no horário, a busca roda quando ele ligar.", { scheduler: esc(t(scheduler)) })
+    }</small></span></label>
+    <label class="field"><span>${t("Horário")}</span><input type="time" name="autoTime" value="${esc(a.time)}" style="max-width:140px"></label>
+    <label class="switch"><input type="checkbox" name="autoTriage"${a.triage ? " checked" : ""}><span>${t("Avaliar as vagas novas com a IA")}<small>${t("A triagem roda logo depois da busca, e as vagas já chegam com nota.")}</small></span></label>
+    <label class="switch"><input type="checkbox" name="autoWeb"${a.web ? " checked" : ""}${S.webSearch ? "" : " disabled"}><span>${t("Incluir a busca na web com IA")}<small>${t("Acha mais vagas (LinkedIn, Indeed, páginas de carreira), mas é a parte mais lenta e a que mais gasta a IA.")}</small></span></label>
+    ${routineStatus()}`,
+  );
+}
+
 function paint() {
   const p = data.prefs;
   const view = $("#view");
@@ -44,6 +80,7 @@ function paint() {
       <label class="field"><span>${t("Dica para a busca na web")}</span><small>${t("Em uma ou duas frases: que vagas priorizar.")}</small><textarea name="webSearchHints" rows="3">${esc(p.webSearchHints)}</textarea></label>
       <label class="field"><span>${t("Ignorar vagas publicadas há mais de (dias)")}</span><input type="number" name="maxAgeDays" min="1" max="365" value="${esc(p.maxAgeDays)}"></label>`,
     )}
+    ${autoSearchSection(p.autoSearch)}
     ${section(
       t("🧹 Filtro pelo título"),
       t("Corta vagas sem gastar IA. Sem acento e em minúsculas funciona melhor."),
@@ -68,7 +105,13 @@ function paint() {
     ${section(
       t("🏢 Empresas"),
       "",
-      `${tags(t("Empresas que você não quer"), "excludedCompanies", p.excludedCompanies)}
+      `${tags(
+        t("Empresas que você segue"),
+        "followedCompanies",
+        (p.followedCompanies ?? []).map((f) => f.name),
+        t("As vagas delas sobem na lista e entram na busca na web. Dá para seguir direto pela vaga (☆ Seguir empresa): se o link for do Greenhouse, do Lever ou do Ashby, a página de carreira da empresa passa a ser monitorada na busca."),
+      )}
+      ${tags(t("Empresas que você não quer"), "excludedCompanies", p.excludedCompanies)}
       <div class="grid2">${tags("Greenhouse", "greenhouse", p.companyBoards.greenhouse, t("Empresas para monitorar (nome na URL do Greenhouse)."))}
       ${tags("Lever", "lever", p.companyBoards.lever, t("Nome na URL do Lever."))}</div>
       ${tags("Ashby", "ashby", p.companyBoards.ashby, t("Nome na URL do Ashby."))}`,

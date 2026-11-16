@@ -34,6 +34,10 @@ export interface Preferences {
   relocateAbroad: boolean;
   /** Países para onde aceita se mudar (vazio = qualquer um). Só vale com relocateAbroad. */
   relocationCountries: string[];
+  /** Busca automática (src/routine.ts): ao abrir o app e/ou todo dia num horário, pelo agendador do sistema. */
+  autoSearch: AutoSearch;
+  /** Empresas que a pessoa segue (src/jobs/follow.ts): sobem na lista e entram na busca na web. */
+  followedCompanies: FollowedCompany[];
   /** Empresas que a pessoa não quer (também lidas de excluded.md). */
   excludedCompanies: string[];
   /** Empresas com páginas Greenhouse/Lever/Ashby para monitorar. */
@@ -51,6 +55,25 @@ export interface Preferences {
    * Entram na ficha, nas respostas do formulário e na triagem (critérios eliminatórios). Vazio = não informado.
    */
   applicationFacts: ApplicationFacts;
+}
+
+export interface AutoSearch {
+  /** Busca sozinha quando o app abre, se a última busca automática tiver mais de `onOpenHours`. */
+  onOpen: boolean;
+  onOpenHours: number;
+  /** Busca todo dia no horário `time` (HH:MM), pelo agendador do sistema (Windows, macOS ou Linux). */
+  daily: boolean;
+  time: string;
+  /** Inclui a busca na web com IA (mais vagas, mas mais lenta e cara). */
+  web: boolean;
+  /** Avalia as vagas novas com a IA logo depois da busca. */
+  triage: boolean;
+}
+
+export interface FollowedCompany {
+  name: string;
+  /** Página de carreira achada no link de uma vaga (passa a ser monitorada). */
+  board?: { type: "greenhouse" | "lever" | "ashby"; id: string };
 }
 
 export interface ApplicationFacts {
@@ -91,6 +114,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   onsiteCities: [],
   relocateAbroad: false,
   relocationCountries: [],
+  autoSearch: { onOpen: false, onOpenHours: 12, daily: false, time: "08:00", web: false, triage: true },
+  followedCompanies: [],
   excludedCompanies: [],
   companyBoards: { greenhouse: [], lever: [], ashby: [] },
   defaultSources: ["remotive", "himalayas", "jobicy", "arbeitnow"],
@@ -112,7 +137,14 @@ export function loadPreferences(): Preferences {
     ...raw,
     companyBoards: { ...DEFAULT_PREFERENCES.companyBoards, ...raw.companyBoards },
     applicationFacts: { ...DEFAULT_PREFERENCES.applicationFacts, ...raw.applicationFacts },
+    autoSearch: { ...DEFAULT_PREFERENCES.autoSearch, ...raw.autoSearch },
+    followedCompanies: Array.isArray(raw.followedCompanies) ? raw.followedCompanies : [],
   };
+}
+
+/** Grava as preferências (a interface, o terminal e o cadastro usam o mesmo arquivo). */
+export function savePreferences(prefs: Preferences): void {
+  fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
 }
 
 export function loadProfileTruth(): string {
