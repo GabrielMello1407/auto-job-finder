@@ -4,12 +4,13 @@ import path from "node:path";
 import { z } from "zod";
 import { ensureDir, paths } from "../config.js";
 import { structured } from "../llm.js";
-import { loadBaseResume, loadRules, withoutDashesResume, withoutTranslatedTitles, type NeverClaimRule, type Rules } from "../profile.js";
+import { loadBaseResume, loadRules, type NeverClaimRule, type Rules } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import type { Resume } from "../schemas.js";
 import { lineDiff, type DiffLine } from "../util/diff.js";
 import { today } from "../util/text.js";
-import { buildBaseResume, SYSTEM, sourcesBlock } from "./build.js";
+import { SYSTEM, sourcesBlock } from "./build.js";
+import { buildBaseResumes } from "./resumeQuality.js";
 import { backupProfile } from "./backup.js";
 import type { SourceDoc } from "./sources.js";
 
@@ -188,18 +189,14 @@ export async function rebuildBaseResumes(opts: { backup?: boolean } = {}): Promi
   } catch {
     /* sem currículo-base anterior: monta do zero */
   }
-  console.log("Refazendo o currículo-base em português...");
-  const ptDraft = await buildBaseResume(truth, "pt-BR", undefined, previous);
-  console.log("Refazendo o currículo-base em inglês...");
-  const en = await buildBaseResume(truth, "en", ptDraft);
-  // Cargo em inglês só no currículo em inglês; nos dois, sem travessão como pontuação.
-  const pt = withoutDashesResume(withoutTranslatedTitles(ptDraft, en));
+  // Conferido e revisado como um recrutador leria (src/onboarding/resumeQuality.ts).
+  const { pt, en } = await buildBaseResumes(truth, previous);
   if (opts.backup !== false) {
     const backup = backupProfile();
     if (backup) console.log(`Os currículos-base anteriores estão em ${backup}.`);
   }
   fs.writeFileSync(paths.baseResume("pt-BR"), JSON.stringify(pt, null, 2) + "\n");
-  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(withoutDashesResume(en), null, 2) + "\n");
+  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(en, null, 2) + "\n");
   console.log("✅ Currículos-base atualizados.");
   try {
     await renderBaseResumes((m) => console.log(`   ${m}`));
