@@ -108,10 +108,10 @@ Fez um projeto novo, mudou de emprego, terminou um curso? Não precisa montar tu
 4. **✅ Aplicar e refazer os currículos:** o perfil atual vai para um backup, o `profile_truth.md` e o `rules.json` são atualizados e os currículos-base em português e inglês são refeitos, mantendo a redação do que não mudou. Leva alguns minutos.
 
 **O perfil guarda tudo; o currículo escolhe.** Conte todos os detalhes que quiser: eles ficam no perfil, para entrevistas e para pacotes de vagas que pedem aquilo. O currículo-base fica do jeito que um recrutador lê:
-- até 6 tópicos por cargo, cada um uma realização de até duas linhas;
+- de 4 a 6 tópicos no cargo principal (até 8 quando ele reúne projetos diferentes) e até 6 nos outros, cada um uma realização de até duas linhas;
 - os números que mostram impacto ou escala. Números pequenos (poucos clientes, um único usuário) e contadores de código (commits, linhas de código) ficam de fora;
 - nenhuma nota interna do perfil, como "autodeclarado", a data em que um número foi medido ou "a confirmar";
-- até 2 páginas.
+- até 2 páginas, usando o espaço: se sobra, entram mais projetos que reforçam os seus cargos-alvo.
 
 Depois de refeito, uma conferência automática aponta o que passou disso e a IA corrige esses pontos.
 

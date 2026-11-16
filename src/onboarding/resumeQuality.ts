@@ -13,8 +13,10 @@ import { buildBaseResume, reviseBaseResume } from "./build.js";
  * pontos (build.ts#reviseBaseResume). As regras completas estão em build.ts#RESUME_CURATION.
  */
 
+/** Tópicos por posição: só a principal (a que tem mais projetos) pode passar de MAX_BULLETS, até MAX_MAIN_BULLETS. */
 export const MAX_BULLETS = 6;
-const MAX_TOTAL_BULLETS = 20;
+export const MAX_MAIN_BULLETS = 8;
+const MAX_TOTAL_BULLETS = 22;
 const MAX_BULLET_CHARS = 300;
 const MAX_SUMMARY_CHARS = 750;
 const MAX_SKILL_GROUPS = 8;
@@ -35,9 +37,13 @@ const cut = (s: string, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s
 export function baseResumeIssues(r: Resume, pages?: number): string[] {
   const out: string[] = [];
   const total = r.experience.reduce((n, e) => n + e.bullets.length, 0);
-  for (const e of r.experience) {
+  // A posição com mais tópicos é a principal: ela pode ir até 8; as outras, até 6.
+  const main = r.experience.reduce((best, e, i) => (e.bullets.length > r.experience[best].bullets.length ? i : best), 0);
+  r.experience.forEach((e, i) => {
     const where = `${e.title} (${e.company})`;
-    if (e.bullets.length > MAX_BULLETS) out.push(`${where}: ${e.bullets.length} tópicos; o máximo é ${MAX_BULLETS}`);
+    const max = i === main ? MAX_MAIN_BULLETS : MAX_BULLETS;
+    if (e.bullets.length > max)
+      out.push(`${where}: ${e.bullets.length} tópicos; o máximo é ${max}${i === main ? " (posição principal)" : ` (só a posição principal passa de ${MAX_BULLETS})`}`);
     const prefixes = new Map<string, number>();
     for (const b of e.bullets) {
       if (b.length > MAX_BULLET_CHARS) out.push(`${where}: tópico longo demais (${b.length} caracteres; até cerca de 250): "${cut(b)}"`);
@@ -49,8 +55,8 @@ export function baseResumeIssues(r: Resume, pages?: number): string[] {
       if (prefix) prefixes.set(prefix, (prefixes.get(prefix) ?? 0) + 1);
     }
     for (const [prefix, n] of prefixes) if (n >= 3) out.push(`${where}: o prefixo "${prefix}:" se repete em ${n} tópicos`);
-  }
-  if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em até 18`);
+  });
+  if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em até 20`);
   if (r.summary.length > MAX_SUMMARY_CHARS) out.push(`resumo longo demais (${r.summary.length} caracteres; até cerca de 600)`);
   if (INTERNAL_NOTE.test(r.summary)) out.push(`nota interna do perfil no resumo`);
   if (r.skills.length > MAX_SKILL_GROUPS) out.push(`${r.skills.length} categorias de competências; use de 4 a 7`);

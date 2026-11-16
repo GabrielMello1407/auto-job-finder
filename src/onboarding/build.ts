@@ -135,7 +135,8 @@ As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação
  */
 export const RESUME_CURATION = `REGRAS DO CURRÍCULO-BASE (como um recrutador e um ATS leem):
 - O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até 2 páginas.
-- Tópicos por posição: a mais recente ou mais relevante para os cargos-alvo, 4 a 6; as outras, 2 a 4; posições antigas ou pouco relevantes, 1 a 2. Nunca mais de 6.
+- Tópicos por posição: a posição principal (a mais relevante para os cargos-alvo) tem de 4 a 6, e até 8 quando reúne projetos diferentes; as outras, de 2 a 4, nunca mais de 6; posições antigas ou pouco relevantes, 1 a 2.
+- Use o espaço: o limite é 2 páginas, não 1. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar a segunda página vazia. Se passa de 2 páginas, corte primeiro o que pesa menos.
 - Cada tópico é uma realização: começa com verbo de ação, ocupa no máximo 2 linhas (cerca de 250 caracteres) e diz o que foi feito, como (só as ferramentas que importam) e o resultado. Junte fatos relacionados num tópico só; não liste funcionalidades uma a uma.
 - Vários projetos na mesma posição: cite o nome do projeto dentro do tópico, sem repetir o mesmo prefixo ("Projeto X:") em vários tópicos seguidos. Os projetos menores podem ficar de fora.
 - Números: use os que mostram impacto ou escala que importa para os cargos-alvo (tempo economizado, melhoria percentual, volume processado, pessoas atendidas, economia ou receita relevante), no máximo 1 ou 2 por tópico. Deixe de fora números que diminuem o trabalho (poucos clientes, receita pequena, um único usuário, contagens de cadastros) e contadores internos de trabalho (commits, pull requests, linhas de código, quantidade de rotas, arquivos, modelos ou migrations), a não ser que o cargo-alvo peça exatamente isso.
