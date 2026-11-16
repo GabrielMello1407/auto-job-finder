@@ -42,7 +42,7 @@
    - o passo a passo para se candidatar pelo canal certo;
    - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), digitadas ou lidas de um print do formulário, que você ajusta conversando.
 4. **Ajuda a pedir indicação:** buscas no LinkedIn por pessoas da empresa (você abre; o agente nunca entra no LinkedIn) e mensagens curtas e honestas.
-5. **Acompanha as candidaturas:** lembra de até dois follow-ups, prepara um guia de entrevista, registra até onde cada recusa chegou e mostra numa página de **Resultados** o que traz mais resposta (canal, prazo, nota da triagem). As ideias por trás dessas funções vêm de [pesquisas sobre contratação](docs/como-funciona.md#pesquisas-por-trás-das-funções).
+5. **Acompanha as candidaturas:** lembra de até dois follow-ups, prepara um guia de entrevista, registra até onde cada recusa chegou e mostra numa página de **Resultados** o que traz mais resposta (canal, prazo, nota da triagem e qual versão do currículo). As ideias por trás dessas funções vêm de [pesquisas sobre contratação](docs/como-funciona.md#pesquisas-por-trás-das-funções).
 6. **Cuida do seu LinkedIn:** monta um plano para atrair recrutadores e confere o seu perfil de hoje, mostrando o que já está certo, o que falta e o que corrigir.
 7. **Acompanha a sua carreira:** conte uma novidade (projeto, emprego, curso) e a IA propõe as mudanças no perfil. Você confere o antes e o depois, e os currículos são refeitos. Também aponta os resultados do currículo sem número, para você completar.
 
@@ -88,7 +88,7 @@ Na primeira vez, ele abre no **cadastro do perfil**: arraste o seu currículo e 
 
 1. **🔎 Buscar vagas** ou **🚀 Piloto automático**: busca, avalia e gera os pacotes das melhores. Recebeu uma vaga de alguém? **➕ Colar vaga**, mesmo sem link.
 2. Em **Para decidir**, gere o pacote das vagas que valem a pena.
-3. Em **Prontas**, confira o currículo, candidate-se e clique em **✅ Já me candidatei**.
+3. Em **Prontas**, confira o currículo, candidate-se e clique em **✅ Já me candidatei**. Com várias prontas, o **📨 Modo candidatura** passa por elas uma a uma: link, ficha, mensagem curta e "enviei" numa tela só.
 4. Em **Em andamento**, mande o follow-up e registre entrevista, oferta ou recusa.
 5. Quando a sua carreira mudar, use **Perfil → ➕ Contar uma novidade**.
 

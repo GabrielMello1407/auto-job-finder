@@ -17,8 +17,10 @@ import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
 import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs, markNotDuplicate } from "./jobs/store.js";
+import { applyKit, applyQueue } from "./jobs/applyQueue.js";
+import { currentFunnel } from "./jobs/resumeStats.js";
 import { changeStatus, markApplied, recordFollowUp } from "./jobs/status.js";
-import { defaultStage, followUpDue, funnel, funnelText, isNoReply, isRejectionStage, REJECTION_STAGES } from "./jobs/funnel.js";
+import { defaultStage, followUpDue, funnelText, isNoReply, isRejectionStage, REJECTION_STAGES } from "./jobs/funnel.js";
 import { referralLinks, referralMessages, REFERRAL_WAIT_DAYS, setReferral } from "./jobs/referral.js";
 import { analyzeNumbers, bulletsWithoutNumbers, numbersNews, withHints } from "./onboarding/numbers.js";
 import { track } from "./tracker.js";
@@ -227,6 +229,90 @@ function emailSection(j: Job, heading: string): string | null {
   if (start < 0) return null;
   const next = md.indexOf("\n## ", start + 3);
   return md.slice(start, next < 0 ? undefined : next).trim();
+}
+
+/**
+ * Modo candidatura: os pacotes prontos, um de cada vez, do mais prioritário ao menos (src/jobs/applyQueue.ts).
+ * Mostra o que o envio pede e abre o que a pessoa escolher; ela envia e marca. Também usado pelo `ajf candidatar`.
+ */
+export async function applyModeFlow(opts: { referral?: boolean } = {}) {
+  const prefs = loadPreferences();
+  const referralStep = opts.referral ?? prefs.applyMode.referralStep;
+  const queue = applyQueue(loadJobs(), Date.now(), prefs.followedCompanies);
+  if (!queue.length) return console.log("Nenhum pacote pronto para enviar. Gere pacotes em 'Vagas recomendadas' (ou com 'ajf tailor').");
+  if (!process.stdin.isTTY) {
+    console.log(`📨 ${queue.length} pacote(s) pronto(s), na ordem de envio:`);
+    queue.forEach((j, i) => console.log(`  ${String(i + 1).padStart(2)}. ${j.company} — ${j.title} (ID ${j.id})`));
+    return;
+  }
+  console.log(`\n📨 Modo candidatura: ${queue.length} pacote(s) pronto(s), do mais prioritário ao menos. Você envia; aqui você abre o que precisa e marca o envio.`);
+  let sent = 0;
+  let skipped = 0;
+  for (const [i, first] of queue.entries()) {
+    let job = findJob(loadJobs(), first.id);
+    if (job.status !== "tailored") continue; // mudou enquanto a fila andava
+    const kit = applyKit(job);
+    console.log(`\n━━━ ${i + 1}/${queue.length} · ${job.company} — ${job.title}${job.rating != null ? ` (nota ${job.rating})` : ""}`);
+    if (job.openCheck?.verdict === "encerrada") console.log(`🔒 Na última conferência a vaga parecia encerrada: ${job.openCheck.reason}. Abra o link para ter certeza.`);
+    console.log(`🔗 ${kit.link}`);
+    if (kit.howTo) console.log(`\nComo se candidatar:\n${kit.howTo}`);
+    if (kit.resume) console.log(`\n📄 Currículo: ${kit.resume}${kit.cover ? `\n✉️ Carta: ${kit.cover}` : ""}`);
+    if (kit.note) console.log(`\n💬 Mensagem curta (campo "mensagem" ou "carta" do formulário):\n${kit.note}`);
+    console.log(`\n📝 ${kit.answers ? `${kit.answers} pergunta(s) do formulário já respondida(s) (perguntas_e_respostas.md na pasta).` : "Nenhuma pergunta do formulário respondida ainda."}`);
+    if (referralStep)
+      console.log(
+        job.referral?.status
+          ? `🤝 Indicação: ${job.referral.status}${job.referral.at ? ` em ${new Date(job.referral.at).toLocaleDateString("pt-BR")}` : ""}.`
+          : "🤝 Indicação ainda não pedida. Pedir antes de enviar é o caminho que mais vira contratação.",
+      );
+    let next: "sent" | "skip" | "discard" | "exit" | null = null;
+    while (!next) {
+      const action = await select({
+        message: `${job.company}: o que fazer?`,
+        pageSize: 12,
+        choices: [
+          { name: "🔗 Abrir a vaga", value: "open" },
+          ...(kit.resume ? [{ name: "📄 Abrir o currículo (PDF)", value: "pdf" }] : []),
+          { name: "✉️ Abrir o e-mail de candidatura no programa de e-mail (com o currículo anexado)", value: "draft" },
+          { name: "📋 Ver a ficha (campos do formulário para copiar)", value: "sheet" },
+          { name: "📝 Responder uma pergunta do formulário", value: "answer" },
+          ...(referralStep ? [{ name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" }] : []),
+          { name: "✅ Enviei: marcar e ir para a próxima", value: "sent" },
+          { name: "⏭ Pular (fica em Prontas)", value: "skip" },
+          { name: "🗑 Descartar esta vaga", value: "discard" },
+          { name: "⏹ Sair do modo candidatura", value: "exit" },
+        ],
+      });
+      if (action === "open") openExternal(kit.link);
+      if (action === "pdf" && kit.resume) openExternal(kit.resume);
+      if (action === "draft") {
+        const file = writeApplicationDraft(job);
+        if (file) {
+          openExternal(file);
+          console.log(`✉️ Abrindo ${file}. Confira e clique em Enviar.`);
+        } else console.log("Este pacote não tem o e-mail de candidatura.");
+      }
+      if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
+      if (action === "answer") await answerFlow(job);
+      if (action === "referral") await referralFlow(job);
+      if (action === "sent") {
+        job = await markApplied(job.id);
+        if (job.status === "applied") next = "sent";
+      }
+      if (action === "discard") {
+        changeStatus(job, "discarded");
+        console.log("Descartada.");
+        next = "discard";
+      }
+      if (action === "skip" || action === "exit") next = action;
+      job = findJob(loadJobs(), job.id);
+    }
+    if (next === "sent") sent++;
+    if (next === "skip") skipped++;
+    if (next === "exit") break;
+  }
+  console.log(`\n📨 Modo candidatura: ${sent} enviada(s), ${skipped} pulada(s).${sent ? " O lembrete de follow-up aparece em 7 dias." : ""}`);
+  refresh();
 }
 
 async function makePackages(jobs: Job[]) {
@@ -678,6 +764,7 @@ export async function mainMenu() {
         { name: "🤖 Piloto automático (buscar → triar → gerar pacotes)", value: "auto" },
         { name: `⭐ Vagas recomendadas (${count("shortlisted")} + ${count("triaged")} para decidir)`, value: "recommended" },
         { name: `📦 Meus pacotes (${count("tailored")} prontos, ${count("low_fit")} baixa aderência)`, value: "packages" },
+        { name: `📨 Modo candidatura: enviar os prontos um por um (${count("tailored")})`, value: "applymode" },
         { name: "✅ Já me candidatei a uma vaga (marcar como enviada)", value: "sent" },
         { name: `📨 Candidaturas em andamento (${count("applied", "interview", "offer")})${due ? ` — ⏰ ${due} follow-up` : ""}`, value: "active" },
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
@@ -697,6 +784,7 @@ export async function mainMenu() {
       if (choice === "auto") await autopilotFlow();
       if (choice === "recommended") await recommendedFlow();
       if (choice === "packages") await packagesFlow();
+      if (choice === "applymode") await applyModeFlow();
       if (choice === "sent") {
         await markApplied();
         refresh();
@@ -710,7 +798,7 @@ export async function mainMenu() {
         console.log(closedSummary(await checkOpenJobs()));
         refresh();
       }
-      if (choice === "results") console.log(`\n${funnelText(funnel(loadJobs()))}\n`);
+      if (choice === "results") console.log(`\n${funnelText(currentFunnel())}\n`);
       if (choice === "dashboard") openExternal(writeDashboard());
       if (choice === "linkedin") await linkedinFlow();
       if (choice === "init") await profileFlow();

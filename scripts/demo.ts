@@ -1299,6 +1299,21 @@ async function main() {
     if (j.duplicateOf) job.duplicateOf = j.duplicateOf;
     if (j.reopenedFrom) job.reopenedFrom = j.reopenedFrom;
     if (j.closed) job.openCheck = { at: ago(0, 1), verdict: "encerrada", reason: j.closed };
+    // Retrato do currículo de cada candidatura (src/jobs/resumeStats.ts), para os Resultados compararem as
+    // versões: as mais recentes saíram da versão nova do currículo-base, com o cargo da vaga no título.
+    if (j.appliedDays != null) {
+      const answered = j.status === "interview" || j.status === "offer" || (j.outcome != null && j.outcome.stage !== "sem_resposta");
+      const newer = j.appliedDays <= 21;
+      job.resumeStats = {
+        at: ago(j.appliedDays + 1, 2),
+        base: newer ? "d3m0b002" : "d3m0b001",
+        language: j.triage?.lang ?? "pt-BR",
+        titleMatch: newer || answered,
+        topKeywords: { found: answered ? 6 : newer ? 5 : 2, total: 8 },
+        measurable: { withNumber: newer ? 5 : 2, total: 8 },
+        cover: j.triage?.lang === "en",
+      };
+    }
 
     if (j.rating != null) {
       const dir = path.join(DEMO, "output", FOLDER[j.status], `${ago(j.days).slice(0, 10)}-${slug(j.company, 25)}-${slug(j.title, 35)}`);

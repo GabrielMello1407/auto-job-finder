@@ -42,7 +42,7 @@
    - step-by-step instructions to apply through the right channel;
    - answers to application-form questions ("Why do you want to work here?"), typed or read from a screenshot of the form, which you refine in a chat.
 4. **Helps you ask for a referral:** LinkedIn searches for people at the company (you open them; the agent never goes into LinkedIn) and short, honest messages.
-5. **Tracks your applications:** reminds you of up to two follow-ups, prepares an interview guide, records how far each rejection went and shows on a **Results** page what gets more replies (channel, timing, triage score). The ideas behind these features come from [research on hiring](docs/how-it-works.md#research-behind-the-features).
+5. **Tracks your applications:** reminds you of up to two follow-ups, prepares an interview guide, records how far each rejection went and shows on a **Results** page what gets more replies (channel, timing, triage score, and which version of your resume). The ideas behind these features come from [research on hiring](docs/how-it-works.md#research-behind-the-features).
 6. **Looks after your LinkedIn:** writes a plan to attract recruiters and reviews your current profile, showing what is right, what is missing and what to fix.
 7. **Keeps up with your career:** tell it about something new (a project, a job, a course) and the AI proposes the profile changes. You review the before and after, and your resumes are rebuilt. It also points out the results on your resume that lack a number, for you to fill in.
 
@@ -88,7 +88,7 @@ The first time, it opens the **profile setup**: drop in your resume and answer w
 
 1. **🔎 Buscar vagas** (search jobs) or **🚀 Piloto automático** (autopilot): searches, scores and builds packages for the best jobs. Got a job from someone? **➕ Colar vaga** (paste a job), even without a link.
 2. In **Para decidir** (to decide), build the package for the jobs worth it.
-3. In **Prontas** (ready), check the resume, apply and click **✅ Já me candidatei** (I applied).
+3. In **Prontas** (ready), check the resume, apply and click **✅ Já me candidatei** (I applied). With several ready, **📨 Modo candidatura** (apply mode) goes through them one by one: link, form sheet, short message and "sent" on one screen.
 4. In **Em andamento** (in progress), send the follow-up and record interviews, offers or rejections.
 5. When your career changes, use **Perfil → ➕ Contar uma novidade** (Profile → tell something new).
 

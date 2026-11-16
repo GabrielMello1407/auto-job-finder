@@ -109,6 +109,10 @@ export function preferenceRoutes(): Route[] {
         const added = names.filter((n) => !kept.some((f) => sameCompany(f.name, n))).map((name) => ({ name }));
         Object.assign(prefs, next, { followedCompanies: [...kept, ...added] });
 
+        // Modo candidatura e resultados.
+        prefs.applyMode = { referralStep: Boolean(b.applyReferralStep) };
+        prefs.results = { compareResumes: Boolean(b.compareResumes) };
+
         // Google for Jobs: termos por rodada (cota da SerpApi) e a chave, que só vai para o .env.
         prefs.googleJobs = { maxQueries: Math.round(clamp(b.googleJobsMaxQueries, 1, 10, old.googleJobs.maxQueries)) };
         const newKey = str(b.serpapiKey, 200);

@@ -227,6 +227,13 @@ const COMMANDS = [
   { ico: "🔎", text: t("Buscar vagas novas"), run: () => ACTIONS.search() },
   { ico: "🚀", text: t("Piloto automático"), sub: t("buscar, avaliar e gerar pacotes"), run: () => ACTIONS.auto() },
   { ico: "➕", text: t("Colar uma vaga"), run: () => ACTIONS.paste() },
+  {
+    ico: "📨",
+    text: t("Modo candidatura"),
+    sub: t("enviar os pacotes prontos, um de cada vez"),
+    when: () => S.jobs.some((j) => j.status === "tailored"),
+    run: () => ACTIONS["apply-mode"](),
+  },
   { ico: "🧠", text: t("Avaliar vagas novas"), when: () => S.jobs.some((j) => j.status === "new"), run: () => ACTIONS.triage() },
   {
     ico: "🔒",

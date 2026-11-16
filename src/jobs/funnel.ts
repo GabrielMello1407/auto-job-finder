@@ -132,9 +132,51 @@ function scoreGroup(job: Job): [string, string] {
   return s == null ? ["?", "sem triagem"] : s >= 85 ? ["85+", "85 ou mais"] : s >= 70 ? ["70-84", "70 a 84"] : ["<70", "abaixo de 70"];
 }
 
+/* Versões do currículo (Job.resumeStats, src/jobs/resumeStats.ts). Sem pacote, o grupo é "?". */
+const NO_PACKAGE: [string, string] = ["?", "sem pacote"];
+
+export function resumeTitleGroup(job: Job): [string, string] {
+  const s = job.resumeStats;
+  return !s ? NO_PACKAGE : s.titleMatch ? ["sim", "o título mostra o cargo da vaga"] : ["nao", "o título não mostra o cargo da vaga"];
+}
+
+/** Quantas das palavras-chave da vaga que o currículo comprova já estão no topo. */
+export function resumeKeywordGroup(job: Job): [string, string] {
+  const s = job.resumeStats;
+  if (!s || !s.topKeywords.total) return NO_PACKAGE;
+  const r = s.topKeywords.found / s.topKeywords.total;
+  return r >= 0.75 ? ["muitas", "3/4 ou mais no topo"] : r >= 0.4 ? ["parte", "parte no topo"] : ["poucas", "poucas no topo"];
+}
+
+export function resumeNumbersGroup(job: Job): [string, string] {
+  const s = job.resumeStats;
+  if (!s || !s.measurable.total) return NO_PACKAGE;
+  return s.measurable.withNumber / s.measurable.total >= 0.5 ? ["metade+", "metade ou mais dos tópicos com número"] : ["menos", "menos da metade dos tópicos com número"];
+}
+
+/** Versão do currículo-base: o rótulo é a data do primeiro pacote com ela (preenchido em `funnel`). */
+export function resumeBaseGroup(job: Job): [string, string] {
+  const s = job.resumeStats;
+  return !s ? NO_PACKAGE : s.base ? [s.base, s.at] : ["antiga", "antes do registro de versões"];
+}
+
+const resumeLanguageGroup = (job: Job): [string, string] =>
+  !job.resumeStats ? NO_PACKAGE : job.resumeStats.language === "en" ? ["en", "inglês"] : ["pt-BR", "português"];
+const resumeCoverGroup = (job: Job): [string, string] => (!job.resumeStats ? NO_PACKAGE : job.resumeStats.cover ? ["sim", "com carta"] : ["nao", "sem carta"]);
+
+export interface ResumeGroups {
+  title: Group[];
+  keywords: Group[];
+  numbers: Group[];
+  /** Por versão do currículo-base: `label` é a data (ISO) do primeiro pacote com aquela versão. */
+  base: Group[];
+  language: Group[];
+  cover: Group[];
+}
+
 /** Uma conclusão tirada dos números, com as variáveis para o texto (a interface traduz). */
 export interface Insight {
-  code: "missing_outcome" | "missing_channel" | "best_channel" | "early_better" | "screening" | "no_interviews" | "small_sample";
+  code: "missing_outcome" | "missing_channel" | "best_channel" | "early_better" | "screening" | "no_interviews" | "small_sample" | "resume_title" | "resume_version";
   vars: Record<string, string | number>;
 }
 
@@ -151,12 +193,15 @@ export interface Funnel {
   missingChannel: string[];
   followUpsDue: string[];
   insights: Insight[];
+  /** Comparação das versões do currículo (só com `resumes`, a opção dos Resultados). */
+  byResume?: ResumeGroups;
 }
 
 /** Grupo com base suficiente para comparar. */
 const MIN = 3;
+const decidedIn = (g: Group) => g.sent - g.pending;
 
-export function funnel(all: Job[], now = Date.now(), noReplyDays = settings.noReplyDays): Funnel {
+export function funnel(all: Job[], now = Date.now(), noReplyDays = settings.noReplyDays, opts: { resumes?: boolean } = {}): Funnel {
   const sent = all.filter((j) => SENT_STATUSES.includes(j.status) && j.appliedAt);
   const g = (keyOf: (j: Job) => [string, string], order?: string[]) => groupBy(sent, keyOf, now, noReplyDays, order);
   const totals = group("all", "todas", sent, now, noReplyDays);
@@ -204,8 +249,38 @@ export function funnel(all: Job[], now = Date.now(), noReplyDays = settings.noRe
 
   if (decided >= 15 && totals.interviewed === 0) insights.push({ code: "no_interviews", vars: { n: decided } });
 
-  return { totals, byChannel, bySource, byLag, byScore, stages, medianDaysToReply, missingOutcome, missingChannel, followUpsDue, insights };
+  let byResume: ResumeGroups | undefined;
+  if (opts.resumes) {
+    // Versões do currículo-base em ordem de data; o rótulo vira a data do primeiro pacote de cada uma.
+    const firstUse = new Map<string, string>();
+    for (const j of sent) {
+      const [key, at] = resumeBaseGroup(j);
+      if (j.resumeStats?.base && (!firstUse.has(key) || at < firstUse.get(key)!)) firstUse.set(key, at);
+    }
+    const versions = [...firstUse].sort((a, b) => a[1].localeCompare(b[1])).map(([k]) => k);
+    const base = g(resumeBaseGroup, [...versions, "antiga", "?"]).map((x) => (firstUse.has(x.key) ? { ...x, label: firstUse.get(x.key)! } : x));
+    byResume = {
+      title: g(resumeTitleGroup, ["sim", "nao", "?"]),
+      keywords: g(resumeKeywordGroup, ["muitas", "parte", "poucas", "?"]),
+      numbers: g(resumeNumbersGroup, ["metade+", "menos", "?"]),
+      base,
+      language: g(resumeLanguageGroup, ["pt-BR", "en", "?"]),
+      cover: g(resumeCoverGroup, ["sim", "nao", "?"]),
+    };
+    const yes = byResume.title.find((x) => x.key === "sim");
+    const no = byResume.title.find((x) => x.key === "nao");
+    if (yes && no && decidedIn(yes) >= MIN && decidedIn(no) >= MIN && yes.replyRate != null && no.replyRate != null && Math.abs(yes.replyRate - no.replyRate) >= 15)
+      insights.push({ code: "resume_title", vars: { yes: yes.replyRate, no: no.replyRate } });
+    const known = base.filter((x) => firstUse.has(x.key) && decidedIn(x) >= MIN && x.replyRate != null).sort((a, b) => b.replyRate! - a.replyRate!);
+    if (known.length >= 2 && known[0].replyRate! - known.at(-1)!.replyRate! >= 15)
+      insights.push({ code: "resume_version", vars: { best: known[0].label, bestRate: known[0].replyRate!, worst: known.at(-1)!.label, worstRate: known.at(-1)!.replyRate! } });
+  }
+
+  return { totals, byChannel, bySource, byLag, byScore, stages, medianDaysToReply, missingOutcome, missingChannel, followUpsDue, insights, ...(byResume ? { byResume } : {}) };
 }
+
+/** Data de uma versão do currículo-base para o terminal ("versão de 03/11/2026"). */
+const versionLabel = (iso: string) => `versão de ${new Date(iso).toLocaleDateString("pt-BR")}`;
 
 /** Texto de cada conclusão para o terminal e o painel (a interface usa as chaves do dicionário). */
 export function insightText(i: Insight): string {
@@ -225,6 +300,10 @@ export function insightText(i: Insight): string {
       return `${v.n} de ${v.total} recusas vieram na triagem, antes de qualquer conversa. Confira os critérios eliminatórios e o topo do currículo (cargo e palavras-chave da vaga).`;
     case "no_interviews":
       return `${v.n} candidaturas com resultado e nenhuma entrevista ainda. Tente indicação e vagas mais recentes, e confira se a senioridade das vagas bate com a sua.`;
+    case "resume_title":
+      return `Com o cargo da vaga no título do currículo: ${v.yes}% de resposta. Sem: ${v.no}%.`;
+    case "resume_version":
+      return `A ${versionLabel(String(v.best))} do currículo teve ${v.bestRate}% de resposta; a ${versionLabel(String(v.worst))}, ${v.worstRate}%.`;
   }
 }
 
@@ -250,9 +329,28 @@ export function funnelText(f: Funnel): string {
   }\n   As % contam só as que já têm resultado; as que estão aguardando ficam de fora.`;
   const stages = f.stages.length ? `Onde as recusas aconteceram:\n${f.stages.map((s) => `  ${String(s.count).padStart(3)}  ${s.label}`).join("\n")}` : "";
   const ins = f.insights.length ? `O que os números dizem:\n${f.insights.map((i) => `  • ${insightText(i)}`).join("\n")}` : "";
-  return [head, ins, stages, table("Por canal", f.byChannel), table("Por fonte", f.bySource), table("Dias entre a publicação e o envio", f.byLag), table("Nota da triagem", f.byScore)]
+  const r = f.byResume;
+  const resume = r
+    ? [
+        table("Currículo: título", comparable(r.title)),
+        table("Currículo: palavras-chave da vaga no topo", comparable(r.keywords)),
+        table("Currículo: resultados com número", comparable(r.numbers)),
+        table(
+          "Currículo: versão do currículo-base",
+          comparable(r.base).map((x) => (x.key === "antiga" || x.key === "?" ? x : { ...x, label: versionLabel(x.label) })),
+        ),
+        table("Currículo: idioma", comparable(r.language)),
+        table("Currículo: carta de apresentação", comparable(r.cover)),
+      ]
+    : [];
+  return [head, ins, stages, table("Por canal", f.byChannel), table("Por fonte", f.bySource), table("Dias entre a publicação e o envio", f.byLag), table("Nota da triagem", f.byScore), ...resume]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** Um corte só compara alguma coisa com pelo menos dois grupos com pacote. */
+export function comparable(groups: Group[]): Group[] {
+  return groups.filter((x) => x.key !== "?").length >= 2 ? groups : [];
 }
 
 /* ------------------------------------------------------------- e-mail de recusa */
