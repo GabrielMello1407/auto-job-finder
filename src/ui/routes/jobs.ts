@@ -12,7 +12,9 @@ import { activeProviderId, detectProviders, getProvider, normalizeProviderId, pr
 import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
 import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, recordFollowUp, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
-import { followUpDue, funnel, isNoReply, isRejectionStage, readRejectionEmail } from "../../jobs/funnel.js";
+import { followUpDue, isNoReply, isRejectionStage, readRejectionEmail } from "../../jobs/funnel.js";
+import { applyKit, applyQueue } from "../../jobs/applyQueue.js";
+import { currentFunnel } from "../../jobs/resumeStats.js";
 import { abroadStatus } from "../../jobs/abroad.js";
 import { ageDays, ghostSignals, priorityOf } from "../../jobs/priority.js";
 import { referralLinks, referralMessages, referralOverdue, setReferral } from "../../jobs/referral.js";
@@ -144,6 +146,8 @@ function jobDetail(j: Job) {
   // E-mail de candidatura do pacote: o .eml com anexo e o link do Gmail (destinatário, assunto, texto).
   const draft = dir ? applicationDraft(j) : null;
   const emails = parseEmails(read("emails.md"));
+  // Modo candidatura: como se candidatar (LEIA-ME) e a mensagem curta (emails.md, item 6).
+  const kit = dir ? applyKit(j) : null;
   let sheet = null;
   try {
     sheet = applicationSheet(j);
@@ -160,6 +164,8 @@ function jobDetail(j: Job) {
     files,
     sheet,
     apply: draft ? { to: draft.to, attachments: draft.attachments.map((f) => path.basename(f)), gmail: gmailComposeUrl(draft) } : null,
+    applyHow: kit?.howTo ?? null,
+    applyNote: kit?.note ?? null,
     docs: {
       readme: read("LEIA-ME.md"),
       emails: emails && {
@@ -642,10 +648,20 @@ export function jobRoutes(app: App): Route[] {
     ],
     [
       "GET",
+      /^\/api\/apply-queue$/,
+      () => {
+        // Modo candidatura: a fila dos pacotes prontos (a mesma do `ajf candidatar`).
+        const prefs = loadPreferences();
+        return { ids: applyQueue(loadJobs(), Date.now(), prefs.followedCompanies).map((j) => j.id), referralStep: prefs.applyMode.referralStep };
+      },
+    ],
+    [
+      "GET",
       /^\/api\/funnel$/,
       () => {
+        // Com a opção ligada, os pacotes enviados antes do registro ganham aqui o retrato do currículo.
+        const f = currentFunnel();
         const jobs = loadJobs();
-        const f = funnel(jobs);
         // Nome das vagas que faltam completar, para a página listar com o botão de registrar.
         const brief = (ids: string[]) =>
           ids.map((id) => jobs.find((j) => j.id === id)!).map((j) => ({ id: j.id, company: j.company, title: j.title, status: j.status, appliedAt: j.appliedAt, hasPackage: Boolean(j.outputDir) }));

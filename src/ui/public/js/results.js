@@ -1,5 +1,6 @@
 // Resultados: o funil das candidaturas e o que funciona melhor (canal, fonte, prazo, nota). Dados de src/jobs/funnel.ts.
 import { $, api, btn, esc, S, t } from "./core.js";
+import { dateText } from "./i18n.js";
 import { STAGE_TEXT } from "./jobs.js";
 
 let data = null; // GET /api/funnel
@@ -41,21 +42,54 @@ function insightText(i) {
       return t("{n} de {total} recusas vieram na triagem, antes de qualquer conversa. Confira os critérios eliminatórios e o topo do currículo (cargo e palavras-chave da vaga).", v);
     case "no_interviews":
       return t("{n} candidaturas com resultado e nenhuma entrevista ainda. Tente indicação e vagas mais recentes, e confira se a senioridade das vagas bate com a sua.", v);
+    case "resume_title":
+      return t("Com o cargo da vaga no título do currículo: {yes}% de resposta. Sem: {no}%.", v);
+    case "resume_version":
+      return t("A {best} do currículo teve {bestRate}% de resposta; a {worst}, {worstRate}%.", { ...v, best: versionText(v.best), worst: versionText(v.worst) });
     default:
       return "";
   }
 }
 
-function table(title, groups, label) {
+function table(title, groups, label, intro = "") {
   if (!groups?.length) return "";
-  return `<section class="panel"><h3>${title}</h3><div class="table-wrap"><table class="data-table cols"><colgroup><col class="c-label"><col class="c-sent"><col><col></colgroup>
+  return `<section class="panel"><h3>${title}</h3>${intro ? `<p class="muted">${intro}</p>` : ""}<div class="table-wrap"><table class="data-table cols"><colgroup><col class="c-label"><col class="c-sent"><col><col></colgroup>
     <thead><tr><th></th><th>${t("Enviadas")}</th><th>${t("Resposta")}</th><th>${t("Entrevista")}</th></tr></thead>
     <tbody>${groups
       .map((g) => {
         const few = g.sent - g.pending < MIN;
-        return `<tr${few ? ' class="few"' : ""}><th scope="row">${esc(label(g.key))}${few ? ` <small class="faint">${t("(poucas)")}</small>` : ""}</th><td>${g.sent}</td><td>${bar(g.replyRate)}</td><td>${bar(g.interviewRate)}</td></tr>`;
+        return `<tr${few ? ' class="few"' : ""}><th scope="row">${esc(label(g.key, g))}${few ? ` <small class="faint">${t("(poucas)")}</small>` : ""}</th><td>${g.sent}</td><td>${bar(g.replyRate)}</td><td>${bar(g.interviewRate)}</td></tr>`;
       })
       .join("")}</tbody></table></div></section>`;
+}
+
+/* Versões do currículo (src/jobs/resumeStats.ts): só os cortes com pelo menos dois grupos com pacote. */
+const NO_PKG = t("sem pacote");
+const R_TITLE = { sim: t("o título mostra o cargo da vaga"), nao: t("o título não mostra o cargo da vaga") };
+const R_KEYWORDS = { muitas: t("3/4 ou mais no topo"), parte: t("parte no topo"), poucas: t("poucas no topo") };
+const R_NUMBERS = { "metade+": t("metade ou mais dos tópicos com número"), menos: t("menos da metade dos tópicos com número") };
+const R_LANG = { "pt-BR": t("Português"), en: t("Inglês") };
+const R_COVER = { sim: t("com carta"), nao: t("sem carta") };
+const versionText = (iso) => t("versão de {date}", { date: dateText(iso) });
+const comparable = (groups) => (groups?.filter((g) => g.key !== "?").length >= 2 ? groups : []);
+
+function resumeTables(r) {
+  if (!r) return "";
+  const of = (map) => (k) => (k === "?" ? NO_PKG : (map[k] ?? k));
+  const html = [
+    table(t("Currículo: título"), comparable(r.title), of(R_TITLE), t("Se o título do currículo (logo abaixo do nome) mostra o cargo da vaga.")),
+    table(t("Currículo: palavras-chave da vaga no topo"), comparable(r.keywords), of(R_KEYWORDS), t("Das palavras-chave da vaga que o currículo comprova, quantas já aparecem no título, no resumo ou no cargo atual.")),
+    table(t("Currículo: resultados com número"), comparable(r.numbers), of(R_NUMBERS)),
+    table(
+      t("Currículo: versão do currículo-base"),
+      comparable(r.base),
+      (k, g) => (k === "?" ? NO_PKG : k === "antiga" ? t("antes do registro de versões") : versionText(g.label)),
+      t("Uma versão nova começa quando você atualiza o perfil ou edita o currículo-base."),
+    ),
+    table(t("Currículo: idioma"), comparable(r.language), of(R_LANG)),
+    table(t("Currículo: carta de apresentação"), comparable(r.cover), of(R_COVER)),
+  ].join("");
+  return html ? `<h2 class="section-title">${t("Qual currículo dá resposta")}</h2>${html}` : "";
 }
 const bar = (rate) => `<span class="rate"><span class="rate-bar" style="--p:${rate ?? 0}%"></span><b>${pct(rate)}</b></span>`;
 
@@ -112,5 +146,6 @@ function paint() {
     ${table(t("Dias entre a publicação e o envio"), data.byLag, (k) => LAG[k] ?? k)}
     ${table(t("Por nota da triagem"), data.byScore, (k) => SCORE[k] ?? k)}
     ${table(t("Por fonte"), data.bySource, (k) => SOURCE[k] ?? k)}
+    ${resumeTables(data.byResume)}
   </div>`;
 }

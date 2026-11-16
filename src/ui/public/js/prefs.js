@@ -156,6 +156,12 @@ function paint() {
       <label class="field"><span>${t("Autorização de trabalho / visto")}</span><input name="workAuthorization" value="${esc(p.applicationFacts.workAuthorization)}" placeholder="${esc(t("ex.: brasileiro; sem visto para os EUA, só como PJ remoto"))}" autocomplete="off"></label>`,
     )}
     ${section(
+      t("📨 Candidatura e resultados"),
+      "",
+      `<label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
+      <label class="switch"><input type="checkbox" name="compareResumes"${p.results?.compareResumes !== false ? " checked" : ""}><span>${t("Comparar as versões do currículo nos Resultados")}<small>${t("Mostra a taxa de resposta pelo topo do currículo (cargo no título, palavras-chave, números) e pela versão do currículo-base. Só aparece quando há dados para comparar.")}</small></span></label>`,
+    )}
+    ${section(
       t("⭐ Notas mínimas"),
       "",
       `<div class="field"><span>${t("Triagem mínima para o piloto automático gerar pacote")}</span>

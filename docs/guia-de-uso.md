@@ -234,6 +234,20 @@ Em **Prontas**:
 
 **O agente nunca envia nada sozinho.** Ele prepara; você revisa e envia.
 
+#### Modo candidatura
+
+Vários pacotes prontos? Em **Prontas**, clique em **📨 Modo candidatura** (também na paleta de comandos, Ctrl+K). Os pacotes abrem um de cada vez, do mais prioritário ao menos, cada um com a aba **Candidatura** e os passos em ordem:
+1. **Abra a vaga**, com como se candidatar pelo canal que a vaga pede (plataforma, site, e-mail, LinkedIn) e as instruções da própria vaga.
+2. **Envie o currículo**: o PDF, a carta quando houver, a pasta e, quando a vaga pede por e-mail, o e-mail com o currículo anexado.
+3. **Preencha o formulário**: abre a [Ficha](#ficha-de-candidatura).
+4. **Mensagem curta**, com o botão de copiar, para o campo "mensagem" ou "carta de apresentação".
+5. **Perguntas do formulário**: abre a aba [Perguntas](#perguntas-do-formulário).
+6. **Indicação (opcional)**: [pedir indicação](#pedir-indicação) antes de enviar. Dá para tirar este passo em [Preferências](#7-preferências-de-busca) → **📨 Candidatura e resultados**.
+
+As outras abas (Resumo, Ficha, Perguntas...) continuam lá. Embaixo, escolha **Por onde você se candidatou?** (já vem marcado o canal que a vaga pede), escreva uma observação se quiser e clique em **✅ Enviei, próxima**: a vaga vai para "Em andamento" e a próxima abre. **⏭ Pular** deixa a vaga em Prontas; **Descartar** encerra. No fim aparece quantas você enviou e pulou. Esc sai do modo candidatura.
+
+No terminal: `ajf candidatar` (ou **📨 Modo candidatura** no `ajf menu`) mostra os mesmos passos de cada vaga e abre o que você escolher (link da vaga, PDF, e-mail, ficha, uma pergunta, a indicação).
+
 #### Pedir indicação
 
 Indicação é o caminho que mais vira contratação (veja [as pesquisas](como-funciona.md#pesquisas-por-trás-das-funções)). Nas vagas que valem a pena, antes de se candidatar, clique em **🤝 Pedir indicação** (na vaga ou nos detalhes):
@@ -278,6 +292,14 @@ A página **📊 Resultados** mostra o que acontece com as suas candidaturas e o
 - **O que os números dizem**: conclusões como qual canal responde mais, se candidatar cedo traz mais respostas e se a maior parte das recusas vem na triagem (aí confira os critérios eliminatórios e o topo do currículo). Com menos de umas 10 candidaturas com resultado, ela avisa que as comparações ainda não são confiáveis.
 - O que falta para os números ficarem certos: **📝 Recusas sem a etapa**, **📨 Candidaturas sem o canal** e **⏰ Follow-ups para mandar**, cada um com o seu botão.
 - **Onde as recusas aconteceram** e as tabelas **Por canal**, **Dias entre a publicação e o envio**, **Por nota da triagem** e **Por fonte**. Grupo com menos de 3 resultados aparece marcado "(poucas)".
+- **Qual currículo dá resposta**: a taxa de resposta pelo jeito que o topo do currículo estava em cada pacote, a parte que o recrutador lê primeiro:
+  - **Currículo: título**: se o título mostrava o cargo da vaga;
+  - **Currículo: palavras-chave da vaga no topo**: quantas das palavras-chave da vaga que o currículo comprova já estavam no título, no resumo ou no cargo atual;
+  - **Currículo: resultados com número**: quantos tópicos de experiência tinham número;
+  - **Currículo: versão do currículo-base**: uma versão nova começa a cada atualização do perfil ou edição do currículo-base, para você ver se a mudança ajudou;
+  - **Currículo: idioma** e **Currículo: carta de apresentação**.
+
+  Uma tabela só aparece quando há pelo menos dois grupos para comparar. Pacotes feitos antes desta versão ganham o topo do currículo pela pasta; a versão do currículo-base deles aparece como "antes do registro de versões". **O que os números dizem** também avisa quando o título ou uma versão faz uma diferença clara. Dá para desligar esta comparação em [Preferências](#7-preferências-de-busca) → **📨 Candidatura e resultados**.
 
 No terminal: `ajf resultados`. O mesmo resumo está no `output/painel.html`.
 
@@ -360,6 +382,7 @@ O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não mud
 | **Onde** | De onde você pode trabalhar (em vagas remotas restritas a um país), cidades para presencial/híbrido e se você se mudaria para fora com visto patrocinado (veja [abaixo](#vagas-no-exterior-e-visto)) |
 | **Empresas** | Empresas que você segue (veja [Seguir empresa](#seguir-empresa)), empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
 | **Respostas fixas dos formulários** | O que os formulários sempre perguntam e não está no currículo (veja [abaixo](#respostas-fixas-dos-formulários)) |
+| **Candidatura e resultados** | Se o [modo candidatura](#modo-candidatura) mostra o passo de indicação e se os [Resultados](#resultados) comparam as versões do currículo (os dois ligados por padrão) |
 | **Notas mínimas** | Triagem mínima para o piloto automático gerar pacote e nota mínima para "pronto para enviar" |
 
 Fontes de vagas:
@@ -505,6 +528,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf render <pasta ou id>` | PDF de novo depois de editar `resume.json` |
 | `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter. `--imagem` lê a pergunta (e o limite) de um print; sem opções, também dá para arrastar o arquivo do print no terminal em vez de digitar. Em pergunta sobre a empresa, oferece pesquisar a missão e os valores antes; `--pesquisar` pesquisa sem perguntar |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
+| `ajf candidatar [--sem-indicacao]` | Modo candidatura: os pacotes prontos um de cada vez, do mais prioritário ao menos, com o link, como se candidatar, a mensagem curta, a ficha e o "Enviei" com o canal. `--sem-indicacao` esconde o passo de indicação |
 | `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |
 | `ajf enviei [empresa ou cargo] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marca que você se candidatou e por onde (acha a vaga pelo nome; sem `--via`, pergunta) |

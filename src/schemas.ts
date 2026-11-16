@@ -127,6 +127,28 @@ export interface Job {
   followUps?: string[];
   /** Pedido de indicação para esta vaga (src/jobs/referral.ts). */
   referral?: JobReferral;
+  /** Retrato do currículo do pacote, para comparar versões nos resultados (src/jobs/resumeStats.ts). */
+  resumeStats?: ResumeStats;
+}
+
+/**
+ * O que dá para medir no currículo de um pacote, sem IA: de qual versão do currículo-base ele saiu e como
+ * está o topo (o que o recrutador lê primeiro). Os resultados comparam a taxa de resposta por esses grupos.
+ */
+export interface ResumeStats {
+  /** Quando o currículo do pacote foi feito (ou gerado de novo depois de editado). */
+  at: string;
+  /** Versão do currículo-base usado (hash curto do conteúdo). Ausente em pacotes de antes do registro. */
+  base?: string;
+  language: string;
+  /** O título do currículo mostra o cargo da vaga. */
+  titleMatch: boolean;
+  /** Palavras-chave da vaga que o currículo comprova e que já estão no topo. */
+  topKeywords: { found: number; total: number };
+  /** Tópicos de experiência com número. */
+  measurable: { withNumber: number; total: number };
+  /** Foi com carta de apresentação. */
+  cover: boolean;
 }
 
 export type ApplyVia = "plataforma" | "email" | "linkedin" | "site" | "whatsapp" | "indicacao" | "outro";

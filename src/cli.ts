@@ -5,7 +5,7 @@ import { Command, Option } from "commander";
 import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
-import { answerFlow, askRejection, mainMenu, numbersFlow } from "./menu.js";
+import { answerFlow, applyModeFlow, askRejection, mainMenu, numbersFlow } from "./menu.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, chooseSearchProvider, printProviders } from "./onboarding/provider.js";
@@ -24,7 +24,8 @@ import { input, select } from "@inquirer/prompts";
 import { researchJob, researchLines, withoutResearch } from "./jobs/research.js";
 import { findJob, loadJobs } from "./jobs/store.js";
 import { APPLY_CHANNELS, changeStatus, isStatus, markApplied, pickJob, recordFollowUp, STATUS_LABELS } from "./jobs/status.js";
-import { followUpDue, funnel, funnelText, REJECTION_STAGES } from "./jobs/funnel.js";
+import { followUpDue, funnelText, REJECTION_STAGES } from "./jobs/funnel.js";
+import { currentFunnel } from "./jobs/resumeStats.js";
 import { referralLinks, referralMessages, setReferral } from "./jobs/referral.js";
 import { track } from "./tracker.js";
 import { triageJobs } from "./jobs/triage.js";
@@ -453,7 +454,15 @@ program
 program
   .command("resultados")
   .description("o funil das suas candidaturas: taxa de resposta e de entrevista por canal, fonte, prazo e nota, e onde as recusas acontecem")
-  .action(() => console.log(funnelText(funnel(loadJobs()))));
+  .action(() => console.log(funnelText(currentFunnel())));
+
+program
+  .command("candidatar")
+  .description("modo candidatura: os pacotes prontos, um de cada vez, com o link, como se candidatar, a mensagem curta, a ficha e o 'Enviei'")
+  .option("--sem-indicacao", "não mostra o passo de pedir indicação")
+  .action(async (o) => {
+    await applyModeFlow({ referral: o.semIndicacao ? false : undefined });
+  });
 
 program
   .command("followup")

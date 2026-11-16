@@ -234,6 +234,20 @@ In **Ready**:
 
 **The agent never sends anything on its own.** It prepares; you review and send.
 
+#### Apply mode
+
+Several packages ready? In **Ready**, click **📨 Apply mode** (also in the command palette, Ctrl+K). The packages open one at a time, highest priority first, each with an **Apply** tab that has the steps in order:
+1. **Open the job**, with how to apply through the channel the job asks for (platform, site, e-mail, LinkedIn) and the job's own instructions.
+2. **Send the resume**: the PDF, the cover letter when there is one, the folder and, when the job asks for e-mail, the e-mail with the resume attached.
+3. **Fill in the form**: opens the [Form sheet](#application-sheet).
+4. **Short message**, with a copy button, for the "message" or "cover letter" field.
+5. **Form questions**: opens the [Questions](#application-form-questions) tab.
+6. **Referral (optional)**: [ask for a referral](#ask-for-a-referral) before applying. You can turn this step off in [Preferences](#7-search-preferences) → **📨 Applying and results**.
+
+The other tabs (Summary, Form sheet, Questions...) stay available. At the bottom, pick **Where did you apply?** (already set to the channel the job asks for), add a note if you want, and click **✅ Sent, next**: the job goes to "In progress" and the next one opens. **⏭ Skip** leaves it in Ready; **Discard** closes it. At the end you see how many you sent and skipped. Esc leaves apply mode.
+
+In the terminal: `ajf candidatar` (or **📨 Apply mode** in `ajf menu`) shows the same steps for each job and opens what you choose (job link, PDF, e-mail, form sheet, a question, a referral).
+
 #### Ask for a referral
 
 A referral is the path that most often turns into a hire (see [the research](how-it-works.md#research-behind-the-features)). For jobs worth it, before applying, click **🤝 Ask for a referral** (on the job or in its details):
@@ -278,6 +292,14 @@ The **📊 Results** page shows what happens to your applications and what works
 - **What the numbers say**: conclusions such as which channel replies more, whether applying early gets more replies, and whether most rejections come at screening (then check the dealbreakers and the top of the resume). With fewer than about 10 results, it tells you the comparisons are not reliable yet.
 - What is missing for the numbers to be right: **📝 Rejections without a stage**, **📨 Applications without a channel** and **⏰ Follow-ups to send**, each with its button.
 - **Where the rejections happened**, and the tables **By channel**, **Days between posting and applying**, **By triage score** and **By source**. A group with fewer than 3 results is marked "(few)".
+- **Which resume gets replies**: the reply rate by how the top of the resume looked in each package, the part a recruiter reads first:
+  - **Resume: headline**: whether the headline showed the job title;
+  - **Resume: job keywords at the top**: how many of the job keywords the resume backs up were already in the headline, the summary or the current role;
+  - **Resume: results with a number**: how many experience bullets had a number;
+  - **Resume: base resume version**: a new version starts each time you update your profile or edit the base resume, so you can see whether a change helped;
+  - **Resume: language** and **Resume: cover letter**.
+
+  A table only shows up when there are at least two groups to compare. Packages made before this version get the top of the resume from their folder; their base resume version shows as "before versions were recorded". **What the numbers say** also points out when the headline or a version makes a clear difference. You can turn this comparison off in [Preferences](#7-search-preferences) → **📨 Applying and results**.
 
 In the terminal: `ajf resultados`. The same summary is in `output/painel.html`.
 
@@ -360,6 +382,7 @@ What changes: the menus, buttons, dialogs, messages and the names of tasks. What
 | **📍 Where** | Where you can work from (for remote jobs restricted by country), cities for on-site/hybrid, and whether you would move abroad with a sponsored visa (see [below](#jobs-abroad-and-visas)) |
 | **🏢 Companies** | Companies you follow (see [Follow a company](#follow-a-company)), companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
 | **📝 Standard form answers** | What forms always ask and is not in the resume (see [below](#standard-form-answers)) |
+| **📨 Applying and results** | Whether [apply mode](#apply-mode) shows the referral step, and whether [Results](#results) compares resume versions (both on by default) |
 | **⭐ Minimum scores** | Minimum triage for the autopilot to build a package and minimum rating for "ready to send" |
 
 Job sources:
@@ -505,6 +528,7 @@ Everything in the interface also exists in the terminal. The terminal (commands,
 | `ajf render <folder or id>` | Rebuilds the PDF after editing `resume.json` |
 | `ajf responder [company, title or id] [-p "question"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Answers an application-form question and lets you refine it until you press Enter. `--imagem` reads the question (and its limit) from a screenshot; without options, you can also drop the screenshot file in the terminal instead of typing. For a question about the company, it offers to research its mission and values first; `--pesquisar` does it without asking |
 | `ajf linkedin [--current profile.pdf]` · `ajf linkedin --conferir --current profile.pdf` | LinkedIn plan, or a review of your current LinkedIn (exported PDF or text in `.md`/`.txt`) |
+| `ajf candidatar [--sem-indicacao]` | Apply mode: the ready packages one at a time, highest priority first, with the link, how to apply, the short message, the form sheet and "Sent" with the channel. `--sem-indicacao` hides the referral step |
 | `ajf ficha [company, title or id]` | Shows the application-form fields (details, summary in 3 sizes, each experience), ready to copy |
 | `ajf rascunho [company, title or id] [--nao-abrir]` | Opens the application e-mail in your mail program, with the resume attached. You send it |
 | `ajf enviei [company or title] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marks that you applied and where (finds the job by name; without `--via`, it asks) |

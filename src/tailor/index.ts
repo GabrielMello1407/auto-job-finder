@@ -10,6 +10,7 @@ import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnaly
 import { track } from "../tracker.js";
 import { checkJobOpen, checkUrl, OPEN_ICON, recordOpenCheck } from "../jobs/open.js";
 import { withoutResearch } from "../jobs/research.js";
+import { baseVersion, resumeStats, statsFromPackage } from "../jobs/resumeStats.js";
 import { cleanJobText, isWebSummary } from "../jobs/page.js";
 import { slugify, today, withoutDashes } from "../util/text.js";
 import { writeAnswersFile } from "../writers/answers.js";
@@ -386,8 +387,10 @@ ${mp.notes.map((n) => `> ${n}`).join("\n")}
     resume: path.join(dir, pdfName),
     coverLetter: wantCover ? path.join(dir, attachments[1]) : undefined,
   };
+  // Retrato do currículo (versão do currículo-base e o topo), para os resultados compararem versões.
+  const stats = resumeStats(final, analysis, { cover: wantCover, base: baseVersion(base) });
   // updateJob move a pasta para a subpasta do status (output/1-prontas-para-enviar ou 3-baixa-aderencia).
-  const updated = updateJob(job.id, { status, outputDir: dir, rating, atsScore: ats.score, files });
+  const updated = updateJob(job.id, { status, outputDir: dir, rating, atsScore: ats.score, files, resumeStats: stats });
   writeAnswersFile(updated); // respostas do formulário feitas antes do pacote
   track(updated, status, ready ? "revisar e enviar" : "baixa aderência — não recomendado");
   return { dir: updated.outputDir ?? dir, rating, ready, ats: ats.score, pages, violations: guards.violations };
@@ -461,6 +464,10 @@ export async function rerender(dir: string) {
   const draft = draftFromDir(dir, pdfs);
   if (draft) writeDraft(dir, draft);
   fs.writeFileSync(path.join(dir, SHEET_FILE), sheetMarkdown(sheetFromResume(resume, "pacote"), `Ficha de candidatura: ${meta.company}`));
+  // O currículo editado muda o retrato do topo; a versão do currículo-base continua a mesma.
+  const owner = loadJobs().find((j) => j.outputDir && path.resolve(j.outputDir) === path.resolve(dir));
+  const stats = owner && statsFromPackage(dir, owner.resumeStats?.base);
+  if (owner && stats) updateJob(owner.id, { resumeStats: stats });
   const guards = runGuards(resume, loadBaseResume(resume.language), sourcesText());
   return { pages, guards };
 }

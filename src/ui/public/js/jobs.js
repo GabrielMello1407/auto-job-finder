@@ -367,7 +367,14 @@ function paintList() {
     if (jobs.length > 1 && !filterText)
       html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn("tailor-many", t("📦 Gerar vários pacotes de uma vez"), null, "small ghost")}</div>`;
   }
-  if (st.id === "ready" && jobs.length && !filterText) html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}</div>`;
+  if (st.id === "ready" && jobs.length && !filterText)
+    html += `<div class="btn-row" style="justify-content:flex-end;margin-bottom:2px">${checkAllButton()}${btn(
+      "apply-mode",
+      t("📨 Modo candidatura"),
+      null,
+      "primary small",
+      t("Os pacotes prontos, um de cada vez: tudo o que o envio pede numa tela só"),
+    )}</div>`;
   if (st.id === "active" && !filterText) {
     const due = jobs.filter((j) => j.followUpDue).length;
     const quiet = jobs.filter((j) => j.noReply).length;
@@ -416,9 +423,14 @@ export function jobsKeydown(e) {
 
 /* -------------------------------------------------------------------- gaveta */
 
-const drawer = { id: null, tab: "resumo", data: null };
-export const drawerOpen = () => Boolean(drawer.id);
+/*
+ * queue: o modo candidatura (src/jobs/applyQueue.ts). Os pacotes prontos, um de cada vez, na gaveta: a aba
+ * Candidatura com os passos e, embaixo, "Enviei, próxima" com o canal. A pessoa envia; aqui só marca.
+ */
+const drawer = { id: null, tab: "resumo", data: null, queue: null };
+export const drawerOpen = () => Boolean(drawer.id || drawer.queue);
 const DRAWER_TABS = [
+  ["candidatura", t("Candidatura"), () => Boolean(drawer.queue)],
   ["resumo", t("Resumo"), () => true],
   ["pacote", t("Pacote"), (d) => Boolean(d.pkg)],
   ["emails", t("E-mails e mensagens"), (d) => Boolean(d.docs?.emails)],
@@ -429,6 +441,8 @@ const DRAWER_TABS = [
 ];
 
 export async function openDrawer(id, tab = "resumo") {
+  // Abrir outra vaga (pela busca, pela paleta) encerra o modo candidatura.
+  if (drawer.queue && drawer.queue.ids[drawer.queue.index] !== id) endQueue();
   drawer.id = id;
   drawer.tab = tab;
   drawer.data = null;
@@ -451,9 +465,17 @@ export async function reloadDrawer() {
 }
 
 export function closeDrawer() {
+  endQueue();
   drawer.id = null;
   drawer.data = null;
   $("#drawer-root").innerHTML = "";
+}
+
+/** Sai do modo candidatura, com o resumo do que foi feito (se a fila não terminou com a tela de fim). */
+function endQueue() {
+  const q = drawer.queue;
+  drawer.queue = null;
+  if (q && !q.done && (q.sent || q.skipped)) toast(t("Modo candidatura: {sent} enviada(s), {skipped} pulada(s).", q));
 }
 
 export function paintDrawer() {
@@ -467,20 +489,28 @@ export function paintDrawer() {
   const kept = Object.fromEntries($$(".drawer [data-keep]").map((el) => [el.dataset.keep, el.value]));
   const focused = document.activeElement?.dataset?.keep;
   const st = stageOf(d.status);
+  const q = drawer.queue;
+  // No modo candidatura, as ações ficam na barra de baixo (Enviei, Pular, Descartar).
+  const progress = q
+    ? `<div class="apply-progress"><span>${t("📨 Modo candidatura · {n} de {total}", { n: q.index + 1, total: q.ids.length })}</span><span class="rate-bar" style="--p:${Math.round((q.index / q.ids.length) * 100)}%"></span></div>`
+    : "";
   $(".drawer").innerHTML = `
   <div class="drawer-head">
+    ${progress}
     <div class="drawer-top">
       ${mono(d.company, "lg")}
       <div>${meta(job)}<h2 id="drawer-title">${esc(d.title)}</h2>
         <div class="status-line"><span class="chip">${esc(st?.label ?? t(d.statusLabel))}</span>${d.url ? link(d.url, t("🔗 Vaga original"), "small ghost") : ""}</div></div>
-      ${btn("close-drawer", "✕", null, "ghost icon", t("Fechar (Esc)"))}
+      ${btn("close-drawer", "✕", null, "ghost icon", q ? t("Sair do modo candidatura (Esc)") : t("Fechar (Esc)"))}
     </div>
-    <div class="job-actions">${actionsFor(job)}${jobTask(job.id) ? "" : drawerExtras(job)}</div>
+    ${q ? "" : `<div class="job-actions">${actionsFor(job)}${jobTask(job.id) ? "" : drawerExtras(job)}</div>`}
     <nav class="tabs" role="tablist">${tabs
       .map(([id, label]) => `<button type="button" class="tab" role="tab" data-act="dtab" data-id="${id}" data-nolock aria-selected="${id === drawer.tab}">${label}</button>`)
       .join("")}</nav>
   </div>
-  <div class="drawer-body">${drawerBody(d, job)}</div>`;
+  <div class="drawer-body">${drawerBody(d, job)}</div>
+  ${q ? applyBar(job) : ""}`;
+  $(".drawer").classList.toggle("applying", Boolean(q));
   for (const el of $$(".drawer [data-keep]")) {
     if (kept[el.dataset.keep]) el.value = kept[el.dataset.keep];
     if (el.dataset.keep === focused) el.focus();
@@ -631,7 +661,61 @@ async function writingButton(el, run) {
   }
 }
 
+/* Modo candidatura: os passos do envio de uma vaga, numa aba só. */
+function applyTab(d, j) {
+  const steps = [];
+  const step = (title, body) => steps.push(`<li class="apply-step"><span class="apply-n">${steps.length + 1}</span><div><h3>${title}</h3>${body}</div></li>`);
+  step(
+    t("Abra a vaga"),
+    `${isClosed(j) ? `<p class="bad-text">${t("🔒 Na última conferência a vaga parecia encerrada: {reason}. Abra o link para ter certeza.", { reason: esc(j.openCheck.reason) })}</p>` : ""}
+    <div class="btn-row">${link(d.url, t("🔗 Abrir a vaga"), "primary small")}</div>
+    ${d.applyHow ? `<div class="md apply-how">${md(d.applyHow)}</div>` : ""}`,
+  );
+  // E-mail com o currículo anexado só quando a vaga pede a candidatura por e-mail.
+  const byEmail = j.applyGuess === "email" && d.apply;
+  step(
+    t("Envie o currículo"),
+    `<div class="btn-row">${link(j.pkg?.resume, t("📄 Currículo"), "small")}${j.pkg?.cover ? link(j.pkg.cover, t("✉️ Carta"), "small") : ""}${btn("folder", t("📁 Abrir pasta"), d.id, "small ghost")}</div>
+    ${byEmail ? `<div class="btn-row" style="margin-top:8px">${btn("email-draft", t("✉️ Abrir no programa de e-mail, com o currículo anexado"), d.id, "small")}${link(d.apply.gmail, t("Abrir no Gmail"), "small ghost")}</div>` : ""}`,
+  );
+  step(
+    t("Preencha o formulário"),
+    `<p class="muted">${t("Os campos que o formulário pede (dados, resumo, cada experiência), prontos para copiar.")}</p><div class="btn-row">${btn("dtab", t("📋 Abrir a ficha"), "ficha", "small")}</div>`,
+  );
+  if (d.applyNote)
+    step(
+      t("Mensagem curta"),
+      `<p class="muted">${t("Para o campo “mensagem” ou “carta de apresentação” do formulário.")}</p><div class="message">${esc(d.applyNote)}</div><div class="btn-row">${btn("copy-note", t("📋 Copiar mensagem"), null, "small")}</div>`,
+    );
+  step(
+    t("Perguntas do formulário"),
+    `<p class="muted">${d.answers?.length ? esc(t("{n} pergunta(s) já respondida(s).", { n: d.answers.length })) : t("O formulário pergunta “por que você quer trabalhar aqui?” ou algo parecido? A IA responde com o seu perfil.")}</p>
+    <div class="btn-row">${btn("dtab", d.answers?.length ? t("💬 Ver e responder perguntas") : t("💬 Responder uma pergunta"), "perguntas", "small")}</div>`,
+  );
+  if (drawer.queue?.referralStep)
+    step(
+      t("Indicação (opcional)"),
+      `<p class="muted">${j.referral?.status ? referralChip(j) || t("Ninguém respondeu") : t("Indicação é o caminho que mais vira contratação. Se você conhece alguém lá, peça antes de enviar.")}</p><div class="btn-row">${referralButton(j)}</div>`,
+    );
+  return `<ol class="apply-steps">${steps.join("")}</ol>`;
+}
+
+/** Barra de baixo do modo candidatura: o canal (já marcado pelo que a vaga pede) e os botões. */
+function applyBar(j) {
+  const channels = Object.entries(S.applyChannels ?? {});
+  return `<div class="apply-bar">
+    <div class="apply-fields">
+      <label class="field"><span>${t("Por onde você se candidatou?")}</span><select id="apply-via" data-keep="apply-via">${channels
+        .map(([v, label]) => `<option value="${esc(v)}"${v === j.applyGuess ? " selected" : ""}>${esc(t(label))}</option>`)
+        .join("")}</select></label>
+      <label class="field"><span>${t("Observação")} <small>${t("(opcional)")}</small></span><input id="apply-note" data-keep="apply-note" autocomplete="off" placeholder="${esc(t("ex.: indicação do Fulano, código da vaga 123"))}"></label>
+    </div>
+    <div class="btn-row">${btn("apply-sent", t("✅ Enviei, próxima"), j.id, "primary")}${btn("apply-skip", t("⏭ Pular"), j.id)}${btn("apply-discard", t("Descartar"), j.id, "ghost danger")}</div>
+  </div>`;
+}
+
 function drawerBody(d, job) {
+  if (drawer.tab === "candidatura") return applyTab(d, job);
   if (drawer.tab === "perguntas") return answersTab(d);
   if (drawer.tab === "pacote") {
     const reports = [
@@ -855,6 +939,59 @@ action("rerender", async (id) => {
 });
 action("applied", (id) => markApplied(id));
 action("discard", (id) => setStatus(id, "discarded"));
+
+/* ------------------------------------------------------------ modo candidatura */
+
+/** Começa a fila dos pacotes prontos (a mesma ordem do `ajf candidatar`). */
+export async function startApplyMode() {
+  const r = await api("/api/apply-queue");
+  if (!r.ids.length) return toast(t("Nenhum pacote pronto para enviar. Gere pacotes em “Para decidir”."));
+  drawer.queue = { ids: r.ids, index: 0, sent: 0, skipped: 0, referralStep: r.referralStep, done: false };
+  await openDrawer(r.ids[0], "candidatura");
+}
+
+/** Próxima vaga da fila; pula as que mudaram de etapa enquanto isso. No fim, o resumo. */
+async function applyNext() {
+  const q = drawer.queue;
+  if (!q) return;
+  q.index++;
+  while (q.index < q.ids.length && findJob(q.ids[q.index])?.status !== "tailored") q.index++;
+  if (q.index < q.ids.length) return openDrawer(q.ids[q.index], "candidatura");
+  q.done = true;
+  drawer.id = null;
+  drawer.data = null;
+  $(".drawer").innerHTML = `<div class="drawer-body"><div class="empty"><div class="big">🎉</div>
+    <p>${esc(t("Fila concluída: {sent} enviada(s), {skipped} pulada(s).", q))}</p>
+    ${q.sent ? `<p class="faint">${t("O lembrete de follow-up aparece daqui a 7 dias, em “Em andamento”.")}</p>` : ""}
+    <div class="btn-row" style="justify-content:center;margin-top:12px">${btn("go:resultados", t("📊 Ver resultados"), null, "small")}${btn("close-drawer", t("Fechar"), null, "primary small")}</div></div></div>`;
+}
+
+action("apply-mode", () => startApplyMode());
+action("apply-sent", async (id) => {
+  if (!drawer.queue) return;
+  const via = $("#apply-via")?.value || undefined;
+  const note = $("#apply-note")?.value.trim() ?? "";
+  const j = findJob(id);
+  await setStatus(id, "applied", note, { quiet: true, via });
+  toast(t("✅ {company} marcada como enviada.", { company: j?.company ?? "" }));
+  if (!drawer.queue) return;
+  drawer.queue.sent++;
+  await applyNext();
+});
+action("apply-skip", async () => {
+  if (!drawer.queue) return;
+  drawer.queue.skipped++;
+  await applyNext();
+});
+action("apply-discard", async (id) => {
+  if (!drawer.queue) return;
+  await setStatus(id, "discarded", "", { quiet: true });
+  toast(t("Descartada."));
+  await applyNext();
+});
+action("copy-note", async () => {
+  if (drawer.data?.applyNote) await copy(drawer.data.applyNote);
+});
 action("status", (id, value) => setStatus(id, value));
 
 /* --------------------------------------------- resultado, follow-up, canal e indicação */

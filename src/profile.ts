@@ -57,6 +57,10 @@ export interface Preferences {
    * Entram na ficha, nas respostas do formulário e na triagem (critérios eliminatórios). Vazio = não informado.
    */
   applicationFacts: ApplicationFacts;
+  /** Modo candidatura (src/jobs/applyQueue.ts): a fila guiada dos pacotes prontos. */
+  applyMode: { referralStep: boolean };
+  /** Resultados (src/jobs/funnel.ts): comparar as versões do currículo (src/jobs/resumeStats.ts). */
+  results: { compareResumes: boolean };
 }
 
 export interface AutoSearch {
@@ -126,6 +130,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   maxAgeDays: 30,
   webSearchHints: "",
   applicationFacts: { salaryExpectation: "", availability: "", noticePeriod: "", relocation: "", workAuthorization: "" },
+  applyMode: { referralStep: true },
+  results: { compareResumes: true },
 };
 
 function requireProfile() {
@@ -143,6 +149,8 @@ export function loadPreferences(): Preferences {
     autoSearch: { ...DEFAULT_PREFERENCES.autoSearch, ...raw.autoSearch },
     followedCompanies: Array.isArray(raw.followedCompanies) ? raw.followedCompanies : [],
     googleJobs: { ...DEFAULT_PREFERENCES.googleJobs, ...raw.googleJobs },
+    applyMode: { ...DEFAULT_PREFERENCES.applyMode, ...raw.applyMode },
+    results: { ...DEFAULT_PREFERENCES.results, ...raw.results },
   };
 }
 
