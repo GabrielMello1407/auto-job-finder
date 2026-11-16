@@ -2,12 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkbox, confirm, editor, input, select } from "@inquirer/prompts";
 import { ensureDir, hasProfile, paths } from "../config.js";
-import { DEFAULT_PREFERENCES, loadPreferences, withoutDashesResume, withoutTranslatedTitles, type Preferences } from "../profile.js";
+import { DEFAULT_PREFERENCES, loadPreferences, type Preferences } from "../profile.js";
 import { renderBaseResumes } from "../render/base.js";
 import { slugify } from "../util/text.js";
 import type { DiffLine } from "../util/diff.js";
 import { backupProfile } from "./backup.js";
-import { buildBaseResume, buildProfile, readIntake, type Intake, type PreferenceAnswers } from "./build.js";
+import { buildProfile, readIntake, type Intake, type PreferenceAnswers } from "./build.js";
+import { buildBaseResumes } from "./resumeQuality.js";
 import { chooseProvider } from "./provider.js";
 import { LINKEDIN_EXPORT_HELP, readSource, type SourceDoc } from "./sources.js";
 import { applyProposal, discardProposal, loadProposal, proposalDiff, proposalOutdated, proposeProfileUpdate, type ProfileUpdateProposal } from "./update.js";
@@ -231,12 +232,8 @@ export async function buildAndSaveProfile(p: {
 
   console.log("\n🛠  Montando seu perfil (pode levar alguns minutos)...");
   const built = await buildProfile({ sources, answers, prefs: prefsAnswers, intake });
-  console.log("   currículo-base em português...");
-  const ptDraft = await buildBaseResume(built.profileTruth, "pt-BR");
-  console.log("   currículo-base em inglês...");
-  const en = await buildBaseResume(built.profileTruth, "en", ptDraft);
-  // Cargo em inglês só no currículo em inglês; nos dois, sem travessão como pontuação.
-  const pt = withoutDashesResume(withoutTranslatedTitles(ptDraft, en));
+  // Conferido e revisado como um recrutador leria (src/onboarding/resumeQuality.ts).
+  const { pt, en } = await buildBaseResumes(built.profileTruth, undefined, (m) => console.log(`   ${m}`));
 
   const backup = backupProfile();
   ensureDir(paths.profileDir);
@@ -265,7 +262,7 @@ export async function buildAndSaveProfile(p: {
 
   fs.writeFileSync(paths.profileTruth, built.profileTruth.trim() + "\n");
   fs.writeFileSync(paths.baseResume("pt-BR"), JSON.stringify(pt, null, 2) + "\n");
-  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(withoutDashesResume(en), null, 2) + "\n");
+  fs.writeFileSync(paths.baseResume("en"), JSON.stringify(en, null, 2) + "\n");
   fs.writeFileSync(paths.preferences, JSON.stringify(prefs, null, 2) + "\n");
   fs.writeFileSync(paths.rules, JSON.stringify({ neverClaim: built.neverClaim }, null, 2) + "\n");
   if (!fs.existsSync(paths.excluded))

@@ -55,9 +55,15 @@ h1 { font-size: 22pt; margin: 0 0 3pt; letter-spacing: -0.2pt; }
 h2 { font-size: 10.6pt; font-weight: 700; margin: 9pt 0 5pt; padding-bottom: 2pt; border-bottom: 1.3pt solid #111; letter-spacing: 0.1pt; }
 p { margin: 0 0 3pt; text-align: justify; }
 ul { margin: 2pt 0 5pt; padding-left: 13pt; }
-li { margin: 0 0 2.2pt; text-align: justify; }
-.skills p { text-align: left; margin-bottom: 2pt; }
-.job { break-inside: avoid-page; margin-bottom: 4pt; }
+li { margin: 0 0 2.2pt; text-align: justify; break-inside: avoid-page; }
+.skills p { text-align: left; margin-bottom: 2pt; break-inside: avoid-page; }
+/* Quebra de página: um cargo pode continuar na página seguinte, mas o título da seção e o cabeçalho do cargo
+   nunca ficam sozinhos no fim da página (vão junto com os primeiros tópicos, no bloco .keep). */
+.keep { break-inside: avoid-page; }
+.job { margin-bottom: 4pt; }
+.job ul.lead { margin-bottom: 0; }
+.job ul.rest { margin-top: 0; }
+.job .keep:last-child ul.lead { margin-bottom: 5pt; }
 .job-title { font-weight: 700; font-size: 10pt; margin: 6pt 0 1pt; }
 .job-meta { font-size: 8.8pt; color: #222; margin: 0 0 2pt; }
 .edu-title { font-weight: 700; margin: 4pt 0 1pt; }
@@ -82,48 +88,47 @@ export function resumeHtml(resume: Resume, paper: "A4" | "Letter"): string {
   // Data desconhecida fica de fora: nada de "– Atual" solto ou de um traço sozinho.
   const period = (start: string, end: string) => [start, end].map((d) => d?.trim()).filter(Boolean).join(" - ");
 
-  const skills = r.skills
-    .map((g) => `<p><strong>${esc(g.category)}:</strong> ${esc(g.items.join(", "))}</p>`)
-    .join("\n");
+  // O título da seção vai junto com o começo do conteúdo (nunca sozinho no fim da página).
+  const keep = (html: string) => `<div class="keep">${html}</div>`;
+  const list = (items: string[], cls = "") => (items.length ? `<ul${cls ? ` class="${cls}"` : ""}>${items.join("")}</ul>` : "");
 
+  const skillLines = r.skills.map((g) => `<p><strong>${esc(g.category)}:</strong> ${esc(g.items.join(", "))}</p>`);
+  const skills = `${keep(`<h2>${L.skills}</h2><div class="skills">${skillLines.slice(0, 2).join("\n")}</div>`)}<div class="skills">${skillLines.slice(2).join("\n")}</div>`;
+
+  // Cada cargo: título, empresa e os 2 primeiros tópicos juntos; o resto pode ir para a página seguinte.
   const experience = r.experience
-    .map((e) => {
+    .map((e, i) => {
       const meta = [e.company, e.location, e.mode, period(e.start, e.end)].filter(Boolean).map(esc).join(" | ");
+      const items = e.bullets.map((b) => `<li>${esc(b)}</li>`);
       return `<div class="job">
-  <div class="job-title">${esc(e.title)}</div>
+  ${keep(`${i === 0 ? `<h2>${L.experience}</h2>` : ""}<div class="job-title">${esc(e.title)}</div>
   <div class="job-meta">${meta}</div>
-  <ul>${e.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
+  ${list(items.slice(0, 2), "lead")}`)}
+  ${list(items.slice(2), "rest")}
 </div>`;
     })
     .join("\n");
 
-  const projects = r.projects.length
-    ? `<h2>${L.projects}</h2>
-<ul>${r.projects
-        .map(
-          (p) =>
-            `<li><strong>${esc(p.name)}</strong>: ${esc(p.description)}${
-              p.tech.length ? ` ${L.tech}: ${esc(p.tech.join(", "))}.` : ""
-            }${p.url ? ` ${link(p.url)}` : ""}</li>`,
-        )
-        .join("")}</ul>`
-    : "";
+  const projectItems = r.projects.map(
+    (p) =>
+      `<li><strong>${esc(p.name)}</strong>: ${esc(p.description)}${p.tech.length ? ` ${L.tech}: ${esc(p.tech.join(", "))}.` : ""}${p.url ? ` ${link(p.url)}` : ""}</li>`,
+  );
+  const projects = projectItems.length ? `${keep(`<h2>${L.projects}</h2>${list(projectItems.slice(0, 1))}`)}${list(projectItems.slice(1))}` : "";
 
   // Igual ao modelo: curso com período vira bloco (título + instituição); sem período, linha simples.
-  const education = r.education
-    .map((e) =>
-      e.period
-        ? `<div class="edu-title">${esc(e.degree)}</div><div class="job-meta">${esc(`${e.institution} | ${e.period}`)}</div>`
-        : `<div class="job-meta" style="margin-top:3pt">${esc([e.degree, e.institution].filter(Boolean).join(", "))}</div>`,
-    )
-    .join("\n");
+  // A formação é curta: fica toda junta, com o título.
+  const education = keep(
+    `<h2>${L.education}</h2>${r.education
+      .map((e) =>
+        e.period
+          ? `<div class="edu-title">${esc(e.degree)}</div><div class="job-meta">${esc(`${e.institution} | ${e.period}`)}</div>`
+          : `<div class="job-meta" style="margin-top:3pt">${esc([e.degree, e.institution].filter(Boolean).join(", "))}</div>`,
+      )
+      .join("\n")}`,
+  );
 
-  const certs = r.certifications.length
-    ? `<h2>${L.certifications}</h2>
-<ul>${r.certifications
-        .map((c) => `<li>${esc([c.name, c.issuer].filter((x) => x?.trim()).join(", "))}${c.date?.trim() ? ` (${esc(c.date)})` : ""}</li>`)
-        .join("")}</ul>`
-    : "";
+  const certItems = r.certifications.map((c) => `<li>${esc([c.name, c.issuer].filter((x) => x?.trim()).join(", "))}${c.date?.trim() ? ` (${esc(c.date)})` : ""}</li>`);
+  const certs = certItems.length ? `${keep(`<h2>${L.certifications}</h2>${list(certItems.slice(0, 2))}`)}${list(certItems.slice(2))}` : "";
 
   return `<!doctype html>
 <html lang="${r.language}">
@@ -134,24 +139,21 @@ export function resumeHtml(resume: Resume, paper: "A4" | "Letter"): string {
 <div class="headline">${esc(r.headline)}</div>
 <div class="contact">${contactParts.join(" | ")}</div>
 
-<h2>${L.summary}</h2>
-<p>${esc(r.summary)}</p>
+${keep(`<h2>${L.summary}</h2>
+<p>${esc(r.summary)}</p>`)}
 
-<h2>${L.skills}</h2>
-<div class="skills">${skills}</div>
+${skills}
 
-<h2>${L.experience}</h2>
 ${experience}
 
 ${projects}
 
-<h2>${L.education}</h2>
 ${education}
 
 ${certs}
 
-<h2>${L.languages}</h2>
-<p class="small">${esc(r.languages)}</p>
+${keep(`<h2>${L.languages}</h2>
+<p class="small">${esc(r.languages)}</p>`)}
 </body></html>`;
 }
 

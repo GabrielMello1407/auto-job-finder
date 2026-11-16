@@ -107,6 +107,14 @@ Did a new project, changed jobs, finished a course? You don't need to rebuild ev
 
 4. **✅ Apply and rebuild the resumes**: the current profile goes to a backup, `profile_truth.md` and `rules.json` are updated, and the base resumes in Portuguese and English are rebuilt, keeping the wording of what didn't change. It takes a few minutes.
 
+**The profile keeps everything; the resume picks.** Tell it all the details you want: they stay in the profile, for interviews and for packages whose job asks for them. The base resume stays the way a recruiter reads it:
+- 4 to 6 bullets in the main role (up to 8 when it spans different projects) and up to 6 in the others, each one an achievement of up to two lines;
+- the numbers that show impact or scale. Small figures (few customers, a single user) and code counters (commits, lines of code) stay out;
+- no internal note from the profile, such as "self-reported", the date a number was measured or "to confirm";
+- up to 2 pages, using the space: with room to spare, more projects that support your target roles go in.
+
+After it is rebuilt, an automatic check flags what is out of line and the AI fixes those points.
+
 After applying:
 - **Ready packages made before the change** show the warning **"profile changed since"** and the **🔄 Generate again** button. Applications already sent are not flagged.
 - **The LinkedIn plan** tells you it is out of date (see [LinkedIn](#8-linkedin)).
