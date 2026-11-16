@@ -1,5 +1,6 @@
 import { loadExcluded, type Preferences } from "../profile.js";
 import { norm } from "../util/text.js";
+import { onsiteAbroadOk } from "./abroad.js";
 import type { RawJob } from "./sources/index.js";
 
 export interface FilterResult {
@@ -51,11 +52,12 @@ export function prefilter(raw: RawJob[], prefs: Preferences): FilterResult {
       continue;
     }
     // Presencial/híbrida: só nas cidades aceitas. Local vago ("Híbrido", "Brasil") segue para a triagem decidir.
+    // Quem aceita se mudar para outro país também recebe as do exterior: a triagem confere o patrocínio do visto.
     if (job.remote === false) {
       const loc = norm(job.location);
       const vague = !loc || /^(brasil|brazil|hibrido|presencial|on-?site|hybrid)$/.test(loc);
       const cityOk = prefs.onsiteCities.some((c) => loc.includes(norm(c)));
-      if (!vague && !cityOk) {
+      if (!vague && !cityOk && !onsiteAbroadOk(job.location, prefs)) {
         drop(`presencial/híbrida em ${job.location}`);
         continue;
       }

@@ -62,7 +62,7 @@ function meta(j) {
   const fresh = j.status === "new" ? `<span class="chip accent">${t("nova · sem triagem")}</span>` : "";
   const outdated = j.pkg?.outdated ? `<span class="chip warn" title="${esc(t("O seu perfil mudou depois que este pacote foi gerado. Gere de novo para usar as novidades."))}">${t("perfil mudou depois")}</span>` : "";
   const research = j.research ? researchChip(j.research) : "";
-  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}${ageChip(j)}${ghostChip(j)}${knockoutChip(j)}${referralChip(j)}</div>`;
+  return `<div class="job-meta"><strong>${esc(j.company)}</strong>${parts.map((p) => `<span class="sep">·</span>${p}`).join("")}${flags}${research}${duplicateChip(j)}${reopenedChip(j)}${closedChip(j)}${fresh}${outdated}${ageChip(j)}${ghostChip(j)}${knockoutChip(j)}${abroadChip(j)}${referralChip(j)}</div>`;
 }
 
 /* Prioridade: frescor, vaga fantasma, critérios eliminatórios e indicação (src/jobs/priority.ts e referral.ts). */
@@ -93,10 +93,23 @@ function ghostChip(j) {
   return `<span class="chip warn" title="${esc(j.ghost.map((g) => GHOST_TEXT[g] ?? g).join("; "))}">${t("👻 pode ser vaga fantasma")}</span>`;
 }
 const failedKnockouts = (j) => (j.knockouts ?? []).filter((k) => k.meets === "nao");
+// O critério de vaga no exterior é do agente (src/jobs/abroad.ts), não da IA: traduz na página.
+const requirementText = (k, j) =>
+  j.abroad && k.requirement.startsWith("Morar e trabalhar no exterior") ? t("Morar e trabalhar no exterior ({country})", { country: j.abroad.country }) : k.requirement;
 function knockoutChip(j) {
   const failed = failedKnockouts(j);
   if (!failed.length || !TO_SEND.includes(j.status)) return "";
-  return `<span class="chip bad" title="${esc(failed.map((k) => k.requirement).join("; "))}">${esc(t("⛔ eliminatório: {what}", { what: failed[0].requirement }))}</span>`;
+  return `<span class="chip bad" title="${esc(failed.map((k) => requirementText(k, j)).join("; "))}">${esc(t("⛔ eliminatório: {what}", { what: requirementText(failed[0], j) }))}</span>`;
+}
+// Vaga no exterior (src/jobs/abroad.ts): quando não atende, o ⛔ do critério já aparece.
+function abroadChip(j) {
+  const a = j.abroad;
+  if (!a || a.meets === "nao" || !TO_SEND.includes(j.status)) return "";
+  if (a.meets === "incerto")
+    return `<span class="chip warn" title="${esc(t("A vaga não diz se patrocina o visto. Pergunte ao recrutador antes de gerar o pacote."))}">${esc(t("✈️ {country}: pergunte sobre o visto", { country: a.country }))}</span>`;
+  return a.sponsorship === "sim"
+    ? `<span class="chip ok">${esc(t("✈️ patrocina visto · {country}", { country: a.country }))}</span>`
+    : `<span class="chip ok">${esc(t("✈️ {country}", { country: a.country }))}</span>`;
 }
 function referralChip(j) {
   const r = j.referral;
@@ -502,7 +515,7 @@ function priorityPanels(d) {
       <ul class="knockouts">${d.knockouts
         .map((k) => {
           const [cls, mark] = MEETS[k.meets] ?? MEETS.incerto;
-          return `<li><span class="chip ${cls}">${mark}</span><span>${esc(k.requirement)}${k.evidence ? `<small class="faint">${esc(k.evidence)}</small>` : ""}</span></li>`;
+          return `<li><span class="chip ${cls}">${mark}</span><span>${esc(requirementText(k, d))}${k.evidence ? `<small class="faint">${esc(k.evidence)}</small>` : ""}</span></li>`;
         })
         .join("")}</ul>
       <p class="faint" style="margin-top:8px">${

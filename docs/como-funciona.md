@@ -89,8 +89,8 @@ Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta a
 - título sem nenhum dos cargos-alvo, ou com palavra excluída;
 - empresa que você não quer;
 - vaga publicada há mais dias que o limite;
-- presencial ou híbrida fora das suas cidades;
-- remota, mas restrita a países que você não aceitou.
+- presencial ou híbrida fora das suas cidades (a não ser que você aceite se mudar para fora e a vaga seja em outro país: `abroad.ts#onsiteAbroadOk`, limitado a `relocationCountries` quando preenchido);
+- remota, mas restrita a lugares fora de `acceptedRegions` (de onde a pessoa pode trabalhar, não onde a empresa fica).
 
 As vagas que passam vão para `data/jobs.json` com status `new`.
 
@@ -198,9 +198,25 @@ flowchart LR
 | Sinais de vaga fantasma | -10 por sinal, até -20 |
 | Eliminatório `nao` | -25 |
 | Indicação recebida | +10 |
+| Vaga no exterior que não diz se patrocina o visto | -10 |
 
 - **Frescor** (`ageDays`, `freshness`): `nova` até 3 dias, `recente` até 14, `antiga` depois disso. Sem data de publicação, não conta.
 - **Sinais de vaga fantasma** (`ghostSignals`): publicada há mais de 30 dias; a mesma vaga já vista antes (`reopenedFrom`); banco de talentos ou "oportunidades futuras"; menos de 400 caracteres depois do `cleanJobText`. Resumo da busca na web e vaga colada não contam como curtos, porque são curtos de propósito. Os sinais só avisam e baixam a ordem; quem decide é a pessoa.
+
+### Vagas no exterior (`src/jobs/abroad.ts`)
+
+Vaga remota restrita a um país quer quem já mora lá; vaga presencial ou híbrida no exterior pode levar alguém, se patrocinar o visto. A triagem só informa `workCountry` (o país onde a pessoa teria de morar, vazio quando dá para trabalhar de onde ela está) e `visaSponsorship` (`sim`, `nao`, `nao_informado`, pelo anúncio). O `applyAbroad`, sem IA, transforma isso em um critério eliminatório `local`, "Morar e trabalhar no exterior (país)", no lugar dos critérios de local e de autorização que a IA tenha criado:
+
+| Caso | Atende |
+|---|---|
+| `workCountry` está em `acceptedRegions` (a pessoa já pode trabalhar lá) | `sim` |
+| Remota e sem patrocínio | `nao` |
+| A pessoa não aceita se mudar (`relocateAbroad`), ou o país não está em `relocationCountries` | `nao` |
+| Patrocina o visto | `sim` |
+| Não patrocina | `nao` |
+| Não diz | `incerto` (perguntar ao recrutador) |
+
+Qualquer coisa diferente de `sim` impede a vaga de ficar como `candidatar`, então o piloto automático não gera pacote para ela. Os nomes de país são comparados em português e inglês (`sameCountry`, `mentionsCountry`). A interface mostra ✈️ (`abroadStatus`) e traduz o critério.
 
 ## 4. O pacote de cada vaga
 
@@ -409,6 +425,7 @@ src/
     page.ts              texto da vaga a partir da página (JobPosting, Gupy, LinkedIn ou conteúdo principal) e cleanJobText
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
+    abroad.ts            vagas no exterior: remota restrita a um país x mudança com visto patrocinado
     priority.ts          ordem das vagas: triagem, frescor, sinais de vaga fantasma, eliminatórios, indicação
     funnel.ts            resultados: etapa da recusa, follow-ups, sem retorno, o funil e as conclusões
     referral.ts          indicação: links de busca no LinkedIn e mensagens curtas

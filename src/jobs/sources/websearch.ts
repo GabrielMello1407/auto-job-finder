@@ -33,8 +33,9 @@ export async function webSearchJobs(prefs: Preferences, profileSystem: string[],
 Cargos-alvo: ${prefs.targetRoles.join("; ") || "(ver perfil)"}${prefs.seniority ? ` · senioridade: ${prefs.seniority}` : ""}
 Termos de busca: ${prefs.queries.join("; ")}
 País do candidato: ${prefs.country}
-Regiões aceitas para remoto: ${prefs.acceptedRegions.join(", ")}
+Regiões de onde o candidato pode trabalhar (vaga remota): ${prefs.acceptedRegions.join(", ")}
 Cidades aceitas para presencial/híbrido: ${prefs.onsiteCities.join(", ")}
+${prefs.relocateAbroad ? `Também aceita vaga presencial ou híbrida em outro país${prefs.relocationCountries.length ? ` (${prefs.relocationCountries.join(", ")})` : ""} se a empresa patrocinar o visto e a mudança (visa sponsorship, relocation).` : "Não aceita se mudar para outro país."}
 Empresas excluídas: ${prefs.excludedCompanies.join(", ") || "nenhuma"}
 ${prefs.webSearchHints}
 ${extra ?? ""}

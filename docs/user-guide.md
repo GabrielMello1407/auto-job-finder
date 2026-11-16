@@ -187,6 +187,9 @@ Jobs with **🚩 scam signals** (requests for payment or documents, or an unreal
 | **👻 may be a ghost job** | Posted more than 30 days ago, the same job seen before, a talent pool with no specific job, or almost no details. Not every posting leads to a hire: check the company site to see whether the job still exists. Hover over the badge to see why | goes down |
 | **⛔ dealbreaker: ...** | A requirement the job filters on (years of experience, language, location, work authorization, degree) that your profile shows you don't meet | goes down and is no longer recommended |
 | **🤝 referred** | Someone at the company referred you (see [Ask for a referral](#ask-for-a-referral)) | goes up |
+| **✈️ sponsors visa · country** | An on-site or hybrid job abroad that sponsors the visa and the relocation, and you accept moving (see [Jobs abroad and visas](#jobs-abroad-and-visas)) | stays as it is |
+| **✈️ country: ask about the visa** | A job abroad whose posting doesn't say whether it sponsors the visa. Ask the recruiter before building the package | goes down a little |
+| **⛔ dealbreaker: Live and work abroad (country)** | A remote job only for people who already live in another country, or a job abroad that doesn't sponsor the visa (or you don't accept moving) | goes down and is no longer recommended |
 
 The dealbreakers come from the triage. In the job's details, **⛔ The job's dealbreakers** lists each one with ✓ (your profile proves it), ✗ (it shows you don't meet it) or ? (your profile doesn't say: check before applying). Platforms often filter on these before anyone reads the resume, but the agent never discards a job on its own because of them: "5+ years" with 4 sometimes gets through, and the decision is yours. Fill in the [standard form answers](#standard-form-answers) so the triage knows your work authorization and whether you would relocate.
 
@@ -335,7 +338,7 @@ What changes: the menus, buttons, dialogs, messages and the names of tasks. What
 | **🎯 What you're looking for** | Target titles and seniority: the triage compares each job with them |
 | **🔎 How to search** | Search terms, job sources, AI web search by default and how many days old a job can be |
 | **🧹 Title filter** | Words the title must have and words that rule the job out. Cuts jobs **without spending the AI** |
-| **📍 Where** | Accepted regions for remote jobs with restrictions, and cities for on-site/hybrid |
+| **📍 Where** | Where you can work from (for remote jobs restricted by country), cities for on-site/hybrid, and whether you would move abroad with a sponsored visa (see [below](#jobs-abroad-and-visas)) |
 | **🏢 Companies** | Companies you don't want and career pages (Greenhouse, Lever, Ashby) to watch |
 | **📝 Standard form answers** | What forms always ask and is not in the resume (see [below](#standard-form-answers)) |
 | **⭐ Minimum scores** | Minimum triage for the autopilot to build a package and minimum rating for "ready to send" |
@@ -351,6 +354,20 @@ Job sources:
 | `greenhouse`, `lever`, `ashby` | career pages of the companies you choose |
 
 **Search terms in two languages.** Each term becomes a search in each source. International sources find jobs with English terms ("data analyst"); Gupy and Brazilian sites, with Portuguese terms ("analista de dados"). If you live in Brazil and accept jobs from abroad, keep both. If you built your profile before Gupy was added to the agent, turn it on here, under **Job sources**.
+
+### Jobs abroad and visas
+
+There are two kinds of jobs "only for another country", and they work differently:
+
+- **Remote, restricted to a country** (for example "Remote, United States only"): the company wants someone who already lives and can work there. It doesn't relocate anyone. If you don't live there, it gets **⛔ dealbreaker: Live and work abroad (country)**.
+- **On-site or hybrid abroad:** the company may bring you over if it sponsors the visa and the relocation. This only shows up if you turn on **✈️ I'd move to another country if the company sponsors the visa and the relocation** in **📍 Where** (and, if you want, list the **Countries you'd move to**). Then the triage reads what the posting says:
+  - it sponsors ("visa sponsorship", "relocation package"): **✈️ sponsors visa · country**, and the job is recommended like any other;
+  - it doesn't say: **✈️ country: ask about the visa**. Ask the recruiter before building the package;
+  - it doesn't sponsor, or asks for existing work authorization: **⛔**.
+
+**Where you can work from** is not "where the company can be": it is where you can legally work today. Keep your country and regions that include it (brazil, latam, americas, worldwide). Add another country only if you already have authorization to work there; then its jobs count as yours.
+
+After changing these options, a job already reviewed keeps its old review: open it and click **🧠 Review again** to apply the new rules.
 
 ### Standard form answers
 
@@ -484,6 +501,9 @@ Open the AI button and look at the diagnosis. Check that you signed in (`claude`
 
 **The PDF is not generated.**
 The agent didn't find a Chromium browser. Install Chrome, or set the browser path in `CHROME_PATH` in `.env`.
+
+**A job only for people in the United States (or another country) showed up.**
+If the source says so in a field (Himalayas, Remotive, Remote OK, Jobicy, We Work Remotely, Get on Board), the filter drops it, unless that country is in **Where you can work from**. Check that list: it is where you can legally work, not where companies can be. When the restriction is only written in the description (Greenhouse, Lever, Ashby, Arbeitnow, the web search), the triage catches it and shows **⛔ dealbreaker: Live and work abroad (country)**. See [Jobs abroad and visas](#jobs-abroad-and-visas).
 
 **Few good jobs show up.**
 - Live in Brazil? Turn on the **`gupy`** source in the preferences and make sure you have **search terms in Portuguese**.

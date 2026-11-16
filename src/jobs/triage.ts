@@ -1,5 +1,6 @@
 import { structured } from "../llm.js";
 import { applicationFactsText, loadExcluded, loadPreferences } from "../profile.js";
+import { applyAbroad } from "./abroad.js";
 import { applyKnockouts } from "./priority.js";
 import { profileSystem } from "../prompts.js";
 import { TriageBatchSchema, type Job } from "../schemas.js";
@@ -53,7 +54,13 @@ Critérios:
 - scamSignals: domínio de e-mail estranho, pedido de documento/pagamento, teste que exige baixar e rodar código, salário irreal, vaga vaga demais.
 - market: país do empregador/contratação (BR se empresa brasileira contratando no Brasil; US se empresa americana, mesmo remota).
 - recommendation: "candidatar" (fit alta/média sem golpe), "decidir" (dúvida real), "descartar".
-- ${prefs.onsiteCities.length ? `Vaga presencial ou híbrida só serve nestas cidades/região: ${prefs.onsiteCities.join(", ")}. Fora delas, sem opção remota → "descartar".` : "O candidato não informou cidades para trabalho presencial: vaga só presencial/híbrida sem opção remota → \"decidir\"."}
+- O candidato mora em ${prefs.country} (a cidade está no perfil). ${
+        prefs.relocateAbroad
+          ? `Ele aceita se mudar para outro país se a empresa patrocinar o visto e a mudança${prefs.relocationCountries.length ? ` (só para: ${prefs.relocationCountries.join(", ")})` : ""}.`
+          : "Ele não aceita se mudar para outro país."
+      }
+- ${prefs.onsiteCities.length ? `Vaga presencial ou híbrida em ${prefs.country} só serve nestas cidades/região: ${prefs.onsiteCities.join(", ")}. Fora delas, sem opção remota → "descartar".` : `O candidato não informou cidades para trabalho presencial: vaga só presencial/híbrida em ${prefs.country} sem opção remota → "decidir".`}
+- Vaga que exige morar em outro país (presencial ou híbrida no exterior, ou remota só para quem mora lá: "US only", "must be based in Germany", local "United States"): preencha workCountry com o país e visaSponsorship com o que o anúncio diz sobre visto e mudança. Não crie critério eliminatório de local nem de autorização para isso (o agente cria a partir desses dois campos) e não descarte só por isso: se o resto combina, use "candidatar" ou "decidir". Vaga que dá para fazer de onde ele mora: workCountry vazio.
 - Cargos-alvo do candidato: ${prefs.targetRoles.join("; ") || "(ver perfil)"}. Senioridade buscada: ${prefs.seniority || "(ver perfil)"}.
 - Considere o nível de idioma declarado no perfil quando a vaga exigir fluência: isso é lacuna, não descarte automático.
 - knockouts: liste SÓ os critérios eliminatórios explícitos da vaga (o que ela diz ser obrigatório para ser considerado: anos mínimos, idioma exigido, presencial ou região, autorização de trabalho ou visto, formação ou certificação obrigatória). Para cada um: meets "sim" se o perfil comprova, "nao" se o perfil mostra que não atende (ex.: pede 5 anos e o perfil soma 2; pede inglês fluente e o perfil declara intermediário), "incerto" se o perfil não diz. Vaga sem critério eliminatório: lista vazia. Se algum for "nao", a recomendação não pode ser "candidatar".
@@ -71,8 +78,9 @@ ${batch.map(jobBlock).join("\n\n")}`,
       const job = jobs.find((j) => j.id === r.jobId);
       if (!job) continue;
       const { jobId: _ignored, ...raw } = r;
-      // Critério eliminatório que o perfil não atende: no máximo "decidir" (a pessoa decide).
-      const triage = applyKnockouts(raw);
+      // Vaga no exterior vira critério de local (src/jobs/abroad.ts); critério que o perfil não atende: no
+      // máximo "decidir" (a pessoa decide).
+      const triage = applyKnockouts(applyAbroad(raw, job.remote, prefs));
       job.triage = triage;
       if (job.status === statusBefore.get(job.id))
         job.status = triage.recommendation === "descartar" ? "discarded" : triage.recommendation === "candidatar" ? "shortlisted" : "triaged";

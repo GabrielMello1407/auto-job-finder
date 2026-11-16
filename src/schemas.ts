@@ -221,9 +221,23 @@ export const TriageSchema = z.object({
     .describe(
       "Critérios ELIMINATÓRIOS explícitos da vaga: o que ela diz ser obrigatório para ser considerado (anos mínimos, idioma exigido, presencial ou região, autorização de trabalho ou visto, formação ou certificação obrigatória). Vazio se a vaga não tem. Não inclua desejáveis.",
     ),
+  workCountry: z
+    .string()
+    .describe(
+      "País onde o candidato teria de morar para fazer esta vaga, quando é diferente do país onde ele mora: vaga presencial ou híbrida no exterior, ou remota só para quem mora em outro país. Em português (ex.: 'Estados Unidos', 'Portugal'). Vazio se dá para trabalhar de onde ele mora.",
+    ),
+  visaSponsorship: z
+    .enum(["sim", "nao", "nao_informado"])
+    .describe(
+      "Só importa com workCountry: sim se a vaga diz que patrocina visto ou ajuda na mudança; nao se diz que não patrocina ou exige já ter autorização de trabalho no país; nao_informado se não diz. Sem workCountry, use nao_informado.",
+    ),
 });
-/** Triagens antigas (de antes dos critérios eliminatórios) não têm `knockouts`. */
-export type Triage = Omit<z.infer<typeof TriageSchema>, "knockouts"> & { knockouts?: Knockout[] };
+/** Triagens antigas não têm `knockouts` nem os campos de vaga no exterior. */
+export type Triage = Omit<z.infer<typeof TriageSchema>, "knockouts" | "workCountry" | "visaSponsorship"> & {
+  knockouts?: Knockout[];
+  workCountry?: string;
+  visaSponsorship?: "sim" | "nao" | "nao_informado";
+};
 
 export const TriageBatchSchema = z.object({
   results: z.array(TriageSchema.extend({ jobId: z.string() })),

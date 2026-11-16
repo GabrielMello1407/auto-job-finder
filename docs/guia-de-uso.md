@@ -187,6 +187,9 @@ Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário 
 | **👻 pode ser vaga fantasma** | Publicada há mais de 30 dias, a mesma vaga já vista antes, banco de talentos sem vaga específica ou quase nenhum detalhe. Nem todo anúncio vira contratação: confira no site da empresa se a vaga ainda existe. Passe o mouse no selo para ver o motivo | desce |
 | **⛔ eliminatório: ...** | Um requisito que a vaga usa como filtro (anos de experiência, idioma, local, autorização de trabalho, formação) e que o seu perfil mostra que você não atende | desce e deixa de ser recomendada |
 | **🤝 indicação recebida** | Alguém da empresa indicou você (veja [Pedir indicação](#pedir-indicação)) | sobe |
+| **✈️ patrocina visto · país** | Vaga presencial ou híbrida no exterior que patrocina o visto e a mudança, e você aceita se mudar (veja [Vagas no exterior e visto](#vagas-no-exterior-e-visto)) | fica como está |
+| **✈️ país: pergunte sobre o visto** | Vaga no exterior cujo anúncio não diz se patrocina o visto. Pergunte ao recrutador antes de gerar o pacote | desce um pouco |
+| **⛔ eliminatório: Morar e trabalhar no exterior (país)** | Vaga remota só para quem já mora em outro país, ou vaga no exterior que não patrocina o visto (ou você não aceita se mudar) | desce e deixa de ser recomendada |
 
 Os critérios eliminatórios vêm da triagem. Nos detalhes da vaga, **⛔ Critérios eliminatórios da vaga** lista cada um com ✓ (o perfil comprova), ✗ (o perfil mostra que não atende) ou ? (o perfil não diz: confira antes de se candidatar). Plataformas costumam filtrar por eles antes de alguém ler o currículo, mas o agente nunca descarta a vaga sozinho por causa deles: "5+ anos" com 4 às vezes passa, e a decisão é sua. Preencha as [respostas fixas dos formulários](#respostas-fixas-dos-formulários) para a triagem saber da sua autorização de trabalho e se você mudaria de cidade.
 
@@ -335,7 +338,7 @@ O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não mud
 | **O que você procura** | Cargos-alvo e senioridade: a triagem compara cada vaga com eles |
 | **Como buscar** | Termos de busca, fontes de vagas, busca na web com IA por padrão e há quantos dias uma vaga pode ter sido publicada |
 | **Filtro pelo título** | Palavras que o título precisa ter e palavras que eliminam a vaga. Corta vagas **sem gastar IA** |
-| **Onde** | Regiões aceitas em vagas remotas com restrição e cidades para presencial/híbrido |
+| **Onde** | De onde você pode trabalhar (em vagas remotas restritas a um país), cidades para presencial/híbrido e se você se mudaria para fora com visto patrocinado (veja [abaixo](#vagas-no-exterior-e-visto)) |
 | **Empresas** | Empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
 | **Respostas fixas dos formulários** | O que os formulários sempre perguntam e não está no currículo (veja [abaixo](#respostas-fixas-dos-formulários)) |
 | **Notas mínimas** | Triagem mínima para o piloto automático gerar pacote e nota mínima para "pronto para enviar" |
@@ -351,6 +354,20 @@ Fontes de vagas:
 | `greenhouse`, `lever`, `ashby` | páginas de carreira das empresas que você indicar |
 
 **Termos de busca em dois idiomas.** Cada termo vira uma busca em cada fonte. As fontes internacionais acham vagas com termos em inglês ("data analyst"); a Gupy e os sites do Brasil, com termos em português ("analista de dados"). Se você mora no Brasil e aceita vagas de fora, deixe os dois. Quem montou o perfil antes de a Gupy entrar no agente precisa ligá-la aqui, em **Fontes de vagas**.
+
+### Vagas no exterior e visto
+
+Existem dois tipos de vaga "só para outro país", e eles funcionam diferente:
+
+- **Remota restrita a um país** (por exemplo "Remote, United States only"): a empresa quer alguém que já mora e pode trabalhar lá. Ela não leva ninguém. Se você não mora lá, a vaga fica com **⛔ eliminatório: Morar e trabalhar no exterior (país)**.
+- **Presencial ou híbrida no exterior:** a empresa pode te levar, se patrocinar o visto e a mudança. Elas só aparecem se você ligar **✈️ Aceito me mudar para outro país se a empresa patrocinar o visto e a mudança** em **Onde** (e, se quiser, listar os **Países para onde aceita se mudar**). Aí a triagem lê o que o anúncio diz:
+  - patrocina ("visa sponsorship", "relocation package"): **✈️ patrocina visto · país**, e a vaga é recomendada como qualquer outra;
+  - não diz: **✈️ país: pergunte sobre o visto**. Pergunte ao recrutador antes de gerar o pacote;
+  - não patrocina, ou pede autorização de trabalho que você ainda não tem: **⛔**.
+
+**De onde você pode trabalhar** não é "de onde pode ser a empresa": é onde você pode trabalhar legalmente hoje. Deixe o seu país e as regiões que o incluem (brasil, latam, americas, worldwide). Inclua outro país só se você já tem autorização de trabalho lá; aí as vagas de lá contam como suas.
+
+Depois de mudar essas opções, uma vaga já avaliada continua com a avaliação antiga: abra a vaga e clique em **🧠 Avaliar de novo** para aplicar as regras novas.
 
 ### Respostas fixas dos formulários
 
@@ -484,6 +501,9 @@ Abra o botão da IA e veja o diagnóstico. Confira se você já entrou na conta 
 
 **O PDF não é gerado.**
 O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminho do navegador em `CHROME_PATH` no `.env`.
+
+**Apareceu vaga só para quem mora nos Estados Unidos (ou em outro país).**
+Se a fonte informa isso num campo (Himalayas, Remotive, Remote OK, Jobicy, We Work Remotely, Get on Board), o filtro descarta a vaga, a não ser que esse país esteja em **De onde você pode trabalhar**. Confira essa lista: é onde você pode trabalhar legalmente, não de onde pode ser a empresa. Quando a restrição só está escrita na descrição (Greenhouse, Lever, Ashby, Arbeitnow, busca na web), a triagem percebe e mostra **⛔ eliminatório: Morar e trabalhar no exterior (país)**. Veja [Vagas no exterior e visto](#vagas-no-exterior-e-visto).
 
 **Aparecem poucas vagas boas.**
 - Mora no Brasil? Ligue a fonte **`gupy`** em Preferências e confira se há **termos de busca em português**.
