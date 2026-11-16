@@ -85,6 +85,23 @@ flowchart LR
 
 **Gupy** (`sources/gupy.ts`) is the job portal many companies in Brazil use, in every field. The portal's search page (`portal.gupy.io/job-search/term=...`) already carries the jobs as JSON (`__NEXT_DATA__`), 12 per page; the source reads up to 3 pages per term and skips jobs with an expired application deadline or from a deactivated career page. It only finds jobs with Portuguese terms, so the setup generates terms in the language of the person's country and turns Gupy on for people who live in Brazil.
 
+**Automatic search** (`src/routine.ts`): `runRoutine` is the same search as the button (plus the triage when `autoSearch.triage` is on), saved in `data/busca_automatica.json` and `data/busca_automatica.log`. It runs:
+- when the page opens (`POST /api/routine/open`, once per tab), if `autoSearch.onOpen` and the last run is older than `onOpenHours` (`dueOnOpen`);
+- every day through the system's scheduler (`src/scheduler.ts`), which runs `node bin/ajf.mjs rotina --agendada` with `AJF_HOME`. `syncSchedule` keeps it equal to the preferences (create, change the time, remove):
+
+| System | Scheduler | If the computer was off |
+|---|---|---|
+| Windows | Task Scheduler, task from XML (`schtasks /Create /XML`), hidden PowerShell window | `StartWhenAvailable`: runs when it starts |
+| macOS | launchd, `~/Library/LaunchAgents` | runs on wake (not after a shutdown) |
+| Linux | systemd user timer (`~/.config/systemd/user`) | `Persistent=true`: runs when it starts |
+| Linux without systemd | crontab, one line marked per data folder | waits for the next day |
+
+Commands run without a shell (`spawnSync` with an argument list); paths with spaces, quotes or `&` are escaped for each format (XML, PowerShell, systemd, sh, cron `%`). The text of each format comes from pure functions, tested on every system.
+
+**Several links at once** (`src/jobs/links.ts`): `extractJobLinks` finds the URLs in a pasted text or alert e-mail, unwraps redirects (Outlook SafeLinks, Google, LinkedIn and Indeed tracking) with `canonicalUrl`, keeps only links that look like one job (`looksLikeJob`: no searches, profiles, unsubscribe links or images), dedupes and stops at 30. `addJobLinks` adds each one as a pasted job; a failure doesn't stop the others. The job page gives the title, company and location (`page.ts#jobPageMeta`: JobPosting JSON-LD, Gupy data, the LinkedIn top card, the page title, and the company name in Greenhouse, Lever, Ashby or Gupy links). LinkedIn job pages are read at `www.linkedin.com/jobs/view/<id>`, the public page anyone with the link sees.
+
+**Followed companies** (`src/jobs/follow.ts`): `follow` adds the company to `followedCompanies` and, when the job link is from Greenhouse, Lever or Ashby (`boardFromUrl`), adds that careers page to `companyBoards` (and turns the source on), recording it so `unfollow` removes only what following added. Names are compared without legal suffixes (`companyKey`).
+
 Before spending the AI, a **deterministic filter** (`src/jobs/filter.ts`) cuts jobs that make no sense:
 - a title without any target title, or with an excluded word;
 - a company you don't want;
@@ -185,7 +202,7 @@ flowchart LR
 - **scam signals:** requests for payment or documents, an unrealistic salary, a test that asks you to download and run code;
 - **dealbreakers** (`knockouts`): what the job states as a hard requirement and platforms filter on before anyone reads the resume (years of experience, language level, location or on-site work, work authorization or visa, degree, certification). Each one gets `sim` (the profile proves it), `nao` (the profile shows it doesn't meet it) or `incerto` (the profile doesn't say), with the evidence. The standard form answers in the preferences (salary, availability, notice period, relocation, work authorization) count as evidence;
 - **market** (BR, US, UK, EU, LATAM...), language and seniority;
-- **recommendation:** `candidatar` (apply) goes to "Para decidir" with ⭐, `decidir` (decide) stays in "Para decidir", and `descartar` (discard) goes to "Encerradas". A `nao` dealbreaker turns `candidatar` into `decidir` (`priority.ts#applyKnockouts`): the job is never discarded on its own, because "5+ years" with 4 sometimes gets through.
+- **recommendation:** `candidatar` (apply) goes to "Para decidir" with ⭐, `decidir` (decide) stays in "Para decidir", and `descartar` (discard) goes to "Encerradas". A `nao` dealbreaker turns `candidatar` into `decidir` (`priority.ts#applyKnockouts`): the job is never discarded on its own, because "5+ years" with 4 sometimes gets through. A job the person pasted (`manual` source) is never discarded by the triage either: `descartar` keeps it in "Para decidir" (`triage.ts#statusAfterTriage`).
 
 ### Priority
 
@@ -198,6 +215,7 @@ flowchart LR
 | Ghost-job signals | -10 per signal, down to -20 |
 | A `nao` dealbreaker | -25 |
 | Referral received | +10 |
+| Company you follow | +8 |
 | Job abroad that doesn't say whether it sponsors the visa | -10 |
 
 - **Freshness** (`ageDays`, `freshness`): `nova` up to 3 days, `recente` up to 14, `antiga` after that. Without a posting date it doesn't count.
@@ -408,6 +426,8 @@ src/
   cli.ts                 terminal commands (commander)
   menu.ts                interactive terminal menu
   auto.ts                autopilot: search → triage → packages → dashboard
+  routine.ts             automatic search: when the app opens and every day
+  scheduler.ts           the system's scheduler (Windows Task Scheduler, launchd, systemd timer, crontab)
   dashboard.ts           output/painel.html (static summary)
   tracker.ts             output/tracker.csv (status history)
   llm.ts                 single entry point to the AI
@@ -425,6 +445,8 @@ src/
     page.ts              job text from the page (JobPosting, Gupy, LinkedIn or main content) and cleanJobText
     research.ts          web research for a job received without a link
     triage.ts            AI triage
+    links.ts             several job links at once (alert e-mails)
+    follow.ts            followed companies and their careers pages
     abroad.ts            jobs abroad: remote restricted to a country vs. relocation with a sponsored visa
     priority.ts          job order: triage, freshness, ghost-job signals, dealbreakers, referral
     funnel.ts            results: rejection stage, follow-ups, no reply, the funnel and its conclusions

@@ -4,7 +4,10 @@ import path from "node:path";
 import { autopilot } from "../../auto.js";
 import { hasProfile, paths, setEnvVar, settings } from "../../config.js";
 import { canWebSearch } from "../../llm.js";
-import { loadPreferences } from "../../profile.js";
+import { loadPreferences, savePreferences, type FollowedCompany } from "../../profile.js";
+import { dueOnOpen, loadRoutineState, runRoutine } from "../../routine.js";
+import { follow, isFollowed, unfollow } from "../../jobs/follow.js";
+import { addJobLinks, extractJobLinks } from "../../jobs/links.js";
 import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, type ProviderId } from "../../providers/index.js";
 import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
@@ -54,7 +57,7 @@ function packageOutdated(j: Job, dir: string | undefined, changedAt: number): bo
   }
 }
 
-export function jobSummary(j: Job, changedAt = profileChangedAt(), now = Date.now()) {
+export function jobSummary(j: Job, changedAt = profileChangedAt(), now = Date.now(), followed: FollowedCompany[] = loadPreferences().followedCompanies) {
   const dir = packageDir(j);
   const has = (f: string) => Boolean(dir && fs.existsSync(path.join(dir, f)));
   return {
@@ -109,7 +112,9 @@ export function jobSummary(j: Job, changedAt = profileChangedAt(), now = Date.no
     reopenedFrom: j.reopenedFrom,
     openCheck: j.openCheck,
     // Prioridade, frescor e alertas (src/jobs/priority.ts); resultado e follow-up (src/jobs/funnel.ts).
-    priority: priorityOf(j, now),
+    priority: priorityOf(j, now, followed),
+    // Empresa que a pessoa segue (src/jobs/follow.ts).
+    followed: isFollowed(j.company, followed),
     ageDays: ageDays(j, now),
     ghost: ghostSignals(j, now),
     knockouts: j.triage?.knockouts ?? [],
@@ -273,6 +278,13 @@ export function jobRoutes(app: App): Route[] {
           }
         }
         const done = await triageJobs(ids ? { ids } : {});
+        // Uma vaga só (colada): o resultado dela, para ninguém achar que a vaga sumiu.
+        const one = ids?.length === 1 ? done[0] : undefined;
+        if (one?.triage) {
+          const rec = one.triage.recommendation;
+          const verdict = rec === "candidatar" ? t("recomendada") : rec === "decidir" ? t("para você decidir") : t("a IA não recomenda; ficou em Para decidir");
+          return t("{company}: nota {score} · {verdict}", { company: one.company, score: one.triage.score, verdict });
+        }
         return t("{n} avaliada(s) · {top} recomendada(s)", { n: done.length, top: done.filter((j) => j.status === "shortlisted").length });
       },
       ids?.length === 1 ? ids[0] : undefined,
@@ -292,7 +304,13 @@ export function jobRoutes(app: App): Route[] {
         hasProfile: hasProfile(),
         jobs: (() => {
           const changedAt = profileChangedAt();
-          return loadJobs().map((j) => jobSummary(j, changedAt));
+          const followed = loadPreferences().followedCompanies;
+          return loadJobs().map((j) => jobSummary(j, changedAt, Date.now(), followed));
+        })(),
+        // Busca automática (src/routine.ts): a última e o que está ligado.
+        routine: (() => {
+          const auto = loadPreferences().autoSearch;
+          return { last: loadRoutineState().runs[0] ?? null, onOpen: auto.onOpen, daily: auto.daily ? auto.time : null };
         })(),
         settings: { minRating: settings.minRating, minTriageScore: settings.minTriageScore, repeatWindowDays: settings.repeatWindowDays, noReplyDays: settings.noReplyDays, followUpDays: settings.followUpDays },
         applyChannels: APPLY_CHANNELS,
@@ -406,6 +424,70 @@ export function jobRoutes(app: App): Route[] {
     ["POST", /^\/api\/triage$/, (c) => ({ task: enqueueTriage(c.t) })],
     [
       "POST",
+      /^\/api\/routine\/open$/,
+      (c) => {
+        // A página abriu: busca sozinha se a opção está ligada e a última busca automática é velha (src/routine.ts).
+        if (!hasProfile() || queue.has("search") || queue.has("auto")) return { started: false };
+        const prefs = loadPreferences();
+        if (!dueOnOpen(prefs.autoSearch, loadRoutineState().runs[0] ?? null)) return { started: false };
+        return {
+          started: true,
+          task: queue.add("search", c.t("Busca automática ao abrir o app"), async () => {
+            const r = await runRoutine("abrir", prefs);
+            if (!r.ok) throw new Error(r.errors.join(" | "));
+            console.log(r.summary);
+            return c.t("{n} vaga(s) nova(s) · {top} recomendada(s)", { n: r.added, top: r.recommended });
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/paste\/links\/preview$/,
+      async (c) => ({ links: extractJobLinks(str((await c.body()).text, 200_000)) }),
+    ],
+    [
+      "POST",
+      /^\/api\/paste\/links$/,
+      async (c) => {
+        // Vários links de vaga (ou um e-mail de alerta): cada um entra como vaga colada; a IA avalia as que entraram.
+        requireProfileForTasks();
+        const links = extractJobLinks(str((await c.body()).text, 200_000));
+        if (!links.length) throw new HttpError(400, "Não achei nenhum link de vaga no texto.");
+        return {
+          links: links.length,
+          task: queue.add("search", c.t("Adicionar {n} vaga(s) pelos links", { n: links.length }), async () => {
+            const r = await addJobLinks(links);
+            r.added.forEach((j) => app.jobsChanged(j.id));
+            const done = r.added.length ? await triageJobs({ ids: r.added.map((j) => j.id) }) : [];
+            if (r.failed.length) console.log(`Não abriram (abra o link e cole o texto):\n${r.failed.map((f) => `- ${f.url}`).join("\n")}`);
+            return c.t("{n} adicionada(s) · {known} já estavam · {failed} não abriram · {top} recomendada(s)", {
+              n: r.added.length,
+              known: r.known.length,
+              failed: r.failed.length,
+              top: done.filter((j) => j.status === "shortlisted").length,
+            });
+          }),
+        };
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/jobs\/([\w-]+)\/follow$/,
+      async (c) => {
+        // Seguir (ou deixar de seguir) a empresa da vaga (src/jobs/follow.ts).
+        const job = jobFrom(c.params[0]);
+        const on = Boolean((await c.body()).follow);
+        const prefs = loadPreferences();
+        const next = on ? follow(prefs, job) : unfollow(prefs, job.company);
+        savePreferences(next);
+        app.jobsChanged(job.id);
+        const entry = next.followedCompanies.find((f) => isFollowed(job.company, [f]));
+        return { followed: on, board: entry?.board ?? null };
+      },
+    ],
+    [
+      "POST",
       /^\/api\/paste$/,
       async (c) => {
         requireProfileForTasks();
@@ -416,7 +498,7 @@ export function jobRoutes(app: App): Route[] {
         const location = str(body.location, 120);
         const link = str(body.url, 1000);
         if (link && !isHttp(link)) throw new HttpError(400, "O link precisa começar com http:// ou https://.");
-        // Como no `ajf add`: o texto colado, ou só o link (o agente lê a página; LinkedIn exige colar o texto).
+        // Como no `ajf add`: o texto colado, ou só o link (o agente lê a página pública da vaga).
         if (text.length < 80 && !link) throw new HttpError(400, "Cole o texto completo da vaga ou informe o link.");
         if (text && text.length < 80) throw new HttpError(400, "Cole o texto completo da vaga (o que veio é curto demais).");
         let job: Job;

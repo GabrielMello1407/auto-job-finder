@@ -4,7 +4,7 @@ import { loadPreferences } from "../profile.js";
 import { profileSystem } from "../prompts.js";
 import { fixMojibake, norm, shortHash } from "../util/text.js";
 import { canonicalUrl } from "./dedupe.js";
-import { cleanJobText, jobPageText } from "./page.js";
+import { cleanJobText, jobPageMeta, jobPageText } from "./page.js";
 import { prefilter } from "./filter.js";
 import { SOURCES, type RawJob } from "./sources/index.js";
 import { webSearchJobs } from "./sources/websearch.js";
@@ -76,18 +76,24 @@ export function searchSummary(s: Pick<Awaited<ReturnType<typeof searchJobs>>, "a
 /** Adiciona uma vaga manualmente: URL (busca o texto da página) ou arquivo .md/.txt com a descrição. */
 export async function addJob(input: { url?: string; file?: string; text?: string; title?: string; company?: string; location?: string }) {
   let description = "";
+  let meta: { title?: string; company?: string; location?: string } = {};
   // Texto copiado da página inteira (LinkedIn, Indeed) traz "Vagas semelhantes" e botões: só fica a vaga.
   if (input.text) description = cleanJobText(input.text);
   else if (input.file) description = cleanJobText(fs.readFileSync(input.file, "utf8"));
   else if (input.url) {
-    if (/linkedin\.com/i.test(input.url))
-      throw new Error("O LinkedIn exige login para ler a vaga. Copie o texto da vaga e use 'ajf' → \"Colar uma vaga\" (ou ajf add --file vaga.md --url <link>).");
-    const res = await fetch(input.url, { headers: { "User-Agent": settings.userAgent } });
-    if (!res.ok) throw new Error(`Não consegui abrir a vaga (${res.status}). Cole o texto num arquivo e use --file.`);
+    // A página pública da vaga (o LinkedIn mostra a vaga sem login a quem só tem o link). Se pedir login, avisa.
+    const linkedin = /linkedin\.com/i.test(input.url);
+    const loginHint = "Abra o link, copie o texto da vaga e cole em 'ajf' → \"Colar uma vaga\" (ou ajf add --file vaga.md --url <link>).";
+    // A página pública da vaga no LinkedIn é a "www.linkedin.com/jobs/view/<id>" (os links de e-mail e sem "www" não servem).
+    const liId = linkedin ? input.url.match(/\/jobs\/view\/(?:[^/]*?-)?(\d{6,})/)?.[1] : undefined;
+    const res = await fetch(liId ? `https://www.linkedin.com/jobs/view/${liId}` : input.url, { headers: { "User-Agent": settings.userAgent } });
+    if (res.status === 404 || res.status === 410) throw new Error(`A vaga não existe mais (a página respondeu ${res.status}).`);
+    if (!res.ok) throw new Error(linkedin ? `O LinkedIn não mostrou a vaga sem login (${res.status}). ${loginHint}` : `Não consegui abrir a vaga (${res.status}). ${loginHint}`);
     const html = await res.text();
     description = jobPageText(html);
-    if (description.length < 400)
-      throw new Error("A página veio quase vazia (site com login/JS, ex.: LinkedIn). Cole o texto num arquivo e use --file.");
+    if (description.length < 400) throw new Error(`A página veio quase vazia (pede login ou só abre com JavaScript). ${loginHint}`);
+    // Só o link: cargo, empresa e local vêm da própria página (dados estruturados, LinkedIn, Gupy ou o link).
+    meta = jobPageMeta(html, input.url);
   }
   if (!description) throw new Error("Informe --url ou --file.");
 
@@ -95,9 +101,9 @@ export async function addJob(input: { url?: string; file?: string; text?: string
   const site = input.url?.match(/linkedin\.com|gupy\.io|indeed\.|glassdoor\.|catho\.|infojobs\.|vagas\.com|greenhouse\.io|lever\.co|ashbyhq\.com|workday/i)?.[0];
   const raw: RawJob = {
     source: site ? `manual:${site.toLowerCase().replace(/\.(com|io|co)?$/, "").replace(/\.$/, "")}` : "manual",
-    title: input.title || firstLine.slice(0, 120),
-    company: input.company || "(empresa a confirmar)",
-    location: input.location || "",
+    title: input.title || meta.title || firstLine.slice(0, 120),
+    company: input.company || meta.company || "(empresa a confirmar)",
+    location: input.location || meta.location || "",
     remote: null,
     // Sem link, o texto identifica a vaga: colar o mesmo texto de novo é a mesma vaga; outro texto, outra vaga.
     url: input.url || `manual://texto/${shortHash(norm(description), 12)}`,

@@ -7,7 +7,11 @@ import { canWebSearch } from "./llm.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
-import { loadBaseResume, loadPreferences } from "./profile.js";
+import { loadBaseResume, loadPreferences, savePreferences } from "./profile.js";
+import { follow, isFollowed, unfollow } from "./jobs/follow.js";
+import { addJobLinks, extractJobLinks } from "./jobs/links.js";
+import { loadRoutineState, runRoutine, syncSchedule } from "./routine.js";
+import { parseTime, SCHEDULER_LABELS } from "./scheduler.js";
 import { writeDashboard } from "./dashboard.js";
 import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
 import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
@@ -321,12 +325,14 @@ async function recommendedFlow() {
           ? [{ name: job.research ? "🔎 Pesquisar de novo na web" : "🔎 Pesquisar a vaga e a empresa na web", value: "research" }]
           : []),
         { name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" },
+        { name: isFollowed(job.company, loadPreferences().followedCompanies) ? "⭐ Deixar de seguir a empresa" : "☆ Seguir a empresa (as vagas dela sobem na lista)", value: "follow" },
         { name: "✅ Já me candidatei (marcar como enviada)", value: "applied" },
         { name: "🗑 Descartar", value: "discard" },
         { name: "⬅ Voltar", value: BACK },
       ],
     });
     if (action === "referral") await referralFlow(job);
+    if (action === "follow") followToggle(job);
     if (action === "tailor") await makePackages([job]);
     if (action === "details") printDetails(job);
     if (action === "answer") await answerFlow(job);
@@ -386,6 +392,7 @@ async function packagesFlow() {
           ...(job.duplicateOf ? [{ name: "🔁 Não é a mesma vaga (tirar a marca de repetida)", value: "notdup" }] : []),
           { name: "📁 Abrir pasta do pacote", value: "folder" },
           { name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" },
+        { name: isFollowed(job.company, loadPreferences().followedCompanies) ? "⭐ Deixar de seguir a empresa" : "☆ Seguir a empresa (as vagas dela sobem na lista)", value: "follow" },
           { name: "✅ Marcar como enviado", value: "applied" },
           { name: "🔄 Gerar de novo", value: "redo" },
           { name: "🗑 Descartar", value: "discard" },
@@ -394,6 +401,7 @@ async function packagesFlow() {
       });
       if (action === BACK) break;
       if (action === "referral") await referralFlow(job);
+    if (action === "follow") followToggle(job);
       if (action === "pdf" && job.files?.resume) openExternal(job.files.resume);
       if (action === "cover" && job.files?.coverLetter) openExternal(job.files.coverLetter);
       if (action === "folder" && job.outputDir) openExternal(job.outputDir);
@@ -483,7 +491,92 @@ async function activeFlow() {
   }
 }
 
+/** Seguir ou deixar de seguir a empresa da vaga (src/jobs/follow.ts), como o botão da interface. */
+function followToggle(job: Job) {
+  const prefs = loadPreferences();
+  const on = !isFollowed(job.company, prefs.followedCompanies);
+  const next = on ? follow(prefs, job) : unfollow(prefs, job.company);
+  savePreferences(next);
+  const entry = next.followedCompanies.find((x) => isFollowed(job.company, [x]));
+  console.log(
+    on
+      ? `⭐ Seguindo ${job.company}.${entry?.board ? ` A página de carreira (${entry.board.type}/${entry.board.id}) entra na próxima busca.` : " As vagas dela sobem na lista."}`
+      : `Você deixou de seguir ${job.company}.`,
+  );
+}
+
+/** Busca automática (src/routine.ts): o mesmo da seção ⏰ das Preferências na interface. */
+async function routineFlow() {
+  for (;;) {
+    const prefs = loadPreferences();
+    const st = loadRoutineState();
+    const a = prefs.autoSearch;
+    console.log(st.schedule ? `⏰ Agendada todo dia às ${st.schedule.time} (${SCHEDULER_LABELS[st.schedule.kind]}).` : "Sem busca diária agendada.");
+    const last = st.runs[0];
+    if (last) console.log(`Última: ${new Date(last.at).toLocaleString()} · ${last.ok ? `${last.added} nova(s), ${last.recommended} recomendada(s)` : `falhou: ${last.errors.join(" | ")}`}`);
+    const action = await select({
+      message: "Busca automática",
+      choices: [
+        { name: "🔎 Buscar agora", value: "run" },
+        { name: a.onOpen ? `Desligar a busca ao abrir o app (hoje: se a última foi há mais de ${a.onOpenHours} h)` : "Ligar a busca ao abrir o app", value: "open" },
+        { name: a.daily ? `Tirar a busca diária (hoje às ${a.time})` : "Agendar a busca diária, mesmo com o app fechado", value: "daily" },
+        { name: a.web ? "Tirar a busca na web com IA da busca automática" : "Incluir a busca na web com IA (mais vagas, mais lenta)", value: "web" },
+        { name: "⬅ Voltar", value: BACK },
+      ],
+    });
+    if (action === BACK) return;
+    if (action === "run") {
+      const run = await runRoutine("manual", prefs);
+      console.log(run.ok ? `✅ ${run.added} vaga(s) nova(s) · ${run.recommended} recomendada(s). ${run.summary}` : `❌ ${run.errors.join(" | ")}`);
+      continue;
+    }
+    if (action === "open") a.onOpen = !a.onOpen;
+    if (action === "web") a.web = !a.web;
+    if (action === "daily") {
+      if (!a.daily) {
+        const time = (await input({ message: "Horário (HH:MM):", default: a.time })).trim();
+        if (!parseTime(time)) {
+          console.log("Horário inválido. Use HH:MM, por exemplo 08:00.");
+          continue;
+        }
+        a.time = time;
+      }
+      a.daily = !a.daily;
+      try {
+        const r = syncSchedule(a, { force: a.daily });
+        console.log(a.daily ? `⏰ Agendada às ${a.time} (${r.kind ? SCHEDULER_LABELS[r.kind] : "?"}). O computador precisa estar ligado.` : "Busca diária tirada do agendador.");
+      } catch (e) {
+        a.daily = false;
+        console.log(`❌ Não deu para agendar: ${(e as Error).message}`);
+      }
+    }
+    savePreferences(prefs);
+  }
+}
+
 async function pasteFlow() {
+  const how = await select({
+    message: "O que você vai colar?",
+    choices: [
+      { name: "📝 Uma vaga (o texto, com ou sem link)", value: "one" },
+      { name: "🔗 Vários links ou um e-mail de alerta (LinkedIn, Indeed...)", value: "links" },
+    ],
+  });
+  if (how === "links") {
+    const all = await editor({ message: "Vou abrir o editor: cole os links ou o e-mail de alerta, salve e feche.", postfix: ".txt", waitForUserInput: false });
+    const links = extractJobLinks(all);
+    if (!links.length) return console.log("Não achei nenhum link de vaga no texto.");
+    console.log(`🔗 ${links.length} link(s) de vaga. Adicionando...`);
+    const res = await addJobLinks(links);
+    console.log(`${res.added.length} adicionada(s) · ${res.known.length} já estavam · ${res.failed.length} não abriram`);
+    for (const x of res.failed) console.log(`  - ${x.url}`);
+    if (res.added.length) {
+      console.log("🧠 Triagem...");
+      await triageJobs({ ids: res.added.map((j) => j.id) });
+    }
+    refresh();
+    return;
+  }
   const text = await editor({
     message: "Vou abrir o editor: cole a descrição completa da vaga, salve e feche.",
     postfix: ".md",
@@ -589,6 +682,7 @@ export async function mainMenu() {
         { name: `📨 Candidaturas em andamento (${count("applied", "interview", "offer")})${due ? ` — ⏰ ${due} follow-up` : ""}`, value: "active" },
         { name: "➕ Colar uma vaga (LinkedIn, Gupy, indicação)", value: "paste" },
         { name: "🔎 Só buscar e triar vagas novas", value: "search" },
+        { name: "⏰ Busca automática (ao abrir o app e todo dia)", value: "routine" },
         { name: "🔒 Conferir se as vagas ainda estão abertas", value: "check" },
         { name: "📊 Resultados: o que está funcionando (canal, fonte, prazo)", value: "results" },
         { name: "🌐 Abrir painel no navegador", value: "dashboard" },
@@ -610,6 +704,7 @@ export async function mainMenu() {
       if (choice === "active") await activeFlow();
       if (choice === "paste") await pasteFlow();
       if (choice === "search") await searchFlow();
+      if (choice === "routine") await routineFlow();
       if (choice === "check") {
         console.log("🔒 Conferindo as vagas que você ainda não enviou...");
         console.log(closedSummary(await checkOpenJobs()));

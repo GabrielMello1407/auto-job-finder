@@ -32,7 +32,7 @@
 ## What it does
 
 1. **Builds your profile** from whatever you have: a resume (PDF or DOCX), your LinkedIn PDF, a portfolio, GitHub, some text, or by answering questions.
-2. **Finds jobs** on job boards, on the Gupy portal (Brazil) and across the web (LinkedIn, Indeed), and **scores each one** against your profile: fit, gaps, dealbreakers and scam signals. The freshest, best-fitting jobs come first, and possible ghost jobs (old, reposted, talent pools) are flagged. The same job posted on several sites shows up once, and jobs that already closed are dropped before a package is made. A job you got through a referral, an e-mail or WhatsApp works too, even without a link: the agent looks for the official posting and the company on the web and checks whether the job is real.
+2. **Finds jobs** on job boards, on the Gupy portal (Brazil) and across the web (LinkedIn, Indeed), and **scores each one** against your profile: fit, gaps, dealbreakers and scam signals. The freshest, best-fitting jobs come first, and possible ghost jobs (old, reposted, talent pools) are flagged. It can search on its own every day, even with the app closed (Windows, macOS and Linux), take a whole job alert e-mail at once, and follow the companies you like. The same job posted on several sites shows up once, and jobs that already closed are dropped before a package is made. A job you got through a referral, an e-mail or WhatsApp works too, even without a link: the agent looks for the official posting and the company on the web and checks whether the job is real.
 3. **Prepares a package** for every good job:
    - an ATS-friendly resume tailored to the job, in PDF;
    - a cover letter, when the market expects one;

@@ -85,6 +85,23 @@ flowchart LR
 
 A **Gupy** (`sources/gupy.ts`) é o portal de vagas que boa parte das empresas do Brasil usa, em todas as áreas. A página de busca do portal (`portal.gupy.io/job-search/term=...`) já traz as vagas em JSON (`__NEXT_DATA__`), 12 por página; a fonte lê até 3 páginas por termo e pula as vagas com prazo de inscrição vencido ou de página de carreira desativada. Ela só acha vagas com termos em português, por isso o cadastro gera termos no idioma do país e liga a Gupy para quem mora no Brasil.
 
+**Busca automática** (`src/routine.ts`): o `runRoutine` é a mesma busca do botão (mais a triagem, com `autoSearch.triage` ligado), guardada em `data/busca_automatica.json` e `data/busca_automatica.log`. Ela roda:
+- quando a página abre (`POST /api/routine/open`, uma vez por aba), se `autoSearch.onOpen` estiver ligado e a última busca for mais velha que `onOpenHours` (`dueOnOpen`);
+- todo dia, pelo agendador do sistema (`src/scheduler.ts`), que roda `node bin/ajf.mjs rotina --agendada` com o `AJF_HOME`. O `syncSchedule` deixa o agendador igual às preferências (criar, trocar o horário, tirar):
+
+| Sistema | Agendador | Se o computador estava desligado |
+|---|---|---|
+| Windows | Agendador de Tarefas, tarefa em XML (`schtasks /Create /XML`), janela do PowerShell escondida | `StartWhenAvailable`: roda quando ligar |
+| macOS | launchd, `~/Library/LaunchAgents` | roda ao acordar (não depois de desligado) |
+| Linux | timer do systemd do usuário (`~/.config/systemd/user`) | `Persistent=true`: roda quando ligar |
+| Linux sem systemd | crontab, uma linha marcada por pasta de dados | espera o dia seguinte |
+
+Os comandos rodam sem shell (`spawnSync` com lista de argumentos); caminhos com espaço, aspas ou `&` são escapados para cada formato (XML, PowerShell, systemd, sh, `%` do cron). O texto de cada formato sai de funções puras, testadas em todos os sistemas.
+
+**Vários links de uma vez** (`src/jobs/links.ts`): o `extractJobLinks` acha as URLs de um texto colado ou e-mail de alerta, desembrulha os redirecionamentos (Outlook SafeLinks, Google, rastreio do LinkedIn e do Indeed) com o `canonicalUrl`, fica só com o que parece uma vaga (`looksLikeJob`: sem buscas, perfis, links de descadastro ou imagens), tira as repetidas e para em 30. O `addJobLinks` adiciona cada um como vaga colada; um que falha não para os outros. A página da vaga dá cargo, empresa e local (`page.ts#jobPageMeta`: JSON-LD JobPosting, dados da Gupy, o topo da vaga do LinkedIn, o título da página e o nome da empresa nos links do Greenhouse, Lever, Ashby e Gupy). A vaga do LinkedIn é lida em `www.linkedin.com/jobs/view/<id>`, a página pública que qualquer pessoa com o link vê.
+
+**Empresas seguidas** (`src/jobs/follow.ts`): o `follow` põe a empresa em `followedCompanies` e, quando o link da vaga é do Greenhouse, do Lever ou do Ashby (`boardFromUrl`), põe essa página de carreira em `companyBoards` (e liga a fonte), anotando isso para o `unfollow` tirar só o que o seguir pôs. Os nomes são comparados sem sufixo jurídico (`companyKey`).
+
 Antes de gastar IA, um **filtro determinístico** (`src/jobs/filter.ts`) corta as vagas que não fazem sentido:
 - título sem nenhum dos cargos-alvo, ou com palavra excluída;
 - empresa que você não quer;
@@ -185,7 +202,7 @@ flowchart LR
 - **sinais de golpe:** pedido de pagamento ou documentos, salário irreal, teste que manda baixar e rodar código;
 - **critérios eliminatórios** (`knockouts`): o que a vaga põe como requisito obrigatório e que as plataformas usam como filtro antes de alguém ler o currículo (anos de experiência, nível de idioma, local ou trabalho presencial, autorização de trabalho ou visto, formação, certificação). Cada um ganha `sim` (o perfil comprova), `nao` (o perfil mostra que não atende) ou `incerto` (o perfil não diz), com a evidência. As respostas fixas dos formulários nas preferências (pretensão, disponibilidade, aviso prévio, mudança de cidade, autorização de trabalho) contam como evidência;
 - **mercado** (BR, US, UK, EU, LATAM...), idioma e senioridade;
-- **recomendação:** `candidatar` vira "Para decidir" com ⭐, `decidir` fica em "Para decidir", e `descartar` vai para "Encerradas". Um eliminatório `nao` transforma `candidatar` em `decidir` (`priority.ts#applyKnockouts`): a vaga nunca é descartada sozinha, porque "5+ anos" com 4 às vezes passa.
+- **recomendação:** `candidatar` vira "Para decidir" com ⭐, `decidir` fica em "Para decidir", e `descartar` vai para "Encerradas". Um eliminatório `nao` transforma `candidatar` em `decidir` (`priority.ts#applyKnockouts`): a vaga nunca é descartada sozinha, porque "5+ anos" com 4 às vezes passa. Vaga que a pessoa colou (fonte `manual`) também nunca é descartada pela triagem: `descartar` a deixa em "Para decidir" (`triage.ts#statusAfterTriage`).
 
 ### Prioridade
 
@@ -198,6 +215,7 @@ flowchart LR
 | Sinais de vaga fantasma | -10 por sinal, até -20 |
 | Eliminatório `nao` | -25 |
 | Indicação recebida | +10 |
+| Empresa que você segue | +8 |
 | Vaga no exterior que não diz se patrocina o visto | -10 |
 
 - **Frescor** (`ageDays`, `freshness`): `nova` até 3 dias, `recente` até 14, `antiga` depois disso. Sem data de publicação, não conta.
@@ -408,6 +426,8 @@ src/
   cli.ts                 comandos do terminal (commander)
   menu.ts                menu interativo no terminal
   auto.ts                piloto automático: busca → triagem → pacotes → painel
+  routine.ts             busca automática: ao abrir o app e todo dia
+  scheduler.ts           o agendador do sistema (Agendador de Tarefas do Windows, launchd, timer do systemd, crontab)
   dashboard.ts           output/painel.html (resumo estático)
   tracker.ts             output/tracker.csv (histórico de status)
   llm.ts                 ponto único de acesso à IA
@@ -425,6 +445,8 @@ src/
     page.ts              texto da vaga a partir da página (JobPosting, Gupy, LinkedIn ou conteúdo principal) e cleanJobText
     research.ts          pesquisa na web de uma vaga recebida sem link
     triage.ts            triagem pela IA
+    links.ts             vários links de vaga de uma vez (e-mails de alerta)
+    follow.ts            empresas seguidas e as páginas de carreira delas
     abroad.ts            vagas no exterior: remota restrita a um país x mudança com visto patrocinado
     priority.ts          ordem das vagas: triagem, frescor, sinais de vaga fantasma, eliminatórios, indicação
     funnel.ts            resultados: etapa da recusa, follow-ups, sem retorno, o funil e as conclusões

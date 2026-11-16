@@ -1,5 +1,7 @@
 import type { Job, Knockout, Triage } from "../schemas.js";
+import type { FollowedCompany } from "../profile.js";
 import { abroadStatus } from "./abroad.js";
+import { isFollowed } from "./follow.js";
 import { cleanJobText, isWebSummary } from "./page.js";
 
 /**
@@ -10,7 +12,8 @@ import { cleanJobText, isWebSummary } from "./page.js";
  * - critérios eliminatórios que o perfil não atende;
  * - sinais de vaga fantasma (anúncio sem contratação real);
  * - vaga no exterior sem patrocínio de visto informado (src/jobs/abroad.ts);
- * - indicação recebida.
+ * - indicação recebida;
+ * - empresa que a pessoa segue.
  */
 
 const DAY = 86_400_000;
@@ -63,7 +66,7 @@ export function applyKnockouts<T extends Triage>(triage: T): T {
 }
 
 /** Prioridade de 0 a ~110: quanto maior, antes a vaga aparece e antes ganha pacote no piloto automático. */
-export function priorityOf(job: Job, now = Date.now()): number {
+export function priorityOf(job: Job, now = Date.now(), followed: FollowedCompany[] = []): number {
   let p = job.triage?.score ?? 40;
   const age = ageDays(job, now);
   if (age != null) p += age <= 3 ? 5 : -Math.min(30, (age - 3) * 1.5);
@@ -72,5 +75,7 @@ export function priorityOf(job: Job, now = Date.now()): number {
   // Vaga no exterior que não diz se patrocina o visto: depende de perguntar ao recrutador antes.
   else if (abroadStatus(job.triage)?.meets === "incerto") p -= 10;
   if (job.referral?.status === "recebida") p += 10;
+  // Empresa que a pessoa segue (src/jobs/follow.ts).
+  if (followed.length && isFollowed(job.company, followed)) p += 8;
   return Math.round(p);
 }

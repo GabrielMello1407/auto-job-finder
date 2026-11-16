@@ -11,6 +11,11 @@ import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
+import { addJobLinks, extractJobLinks } from "./jobs/links.js";
+import { loadPreferences, savePreferences } from "./profile.js";
+import { follow, isFollowed, unfollow } from "./jobs/follow.js";
+import { loadRoutineState, routineLogFile, runRoutine, syncSchedule } from "./routine.js";
+import { parseTime, SCHEDULER_LABELS } from "./scheduler.js";
 import { checkJobOpen, checkOpenJobs, closedSummary, jobFlags, OPEN_ICON, recordOpenCheck } from "./jobs/open.js";
 import { SOURCES } from "./jobs/sources/index.js";
 import { applicationSheet, sheetMarkdown } from "./writers/applicationSheet.js";
@@ -189,8 +194,9 @@ program
 
 program
   .command("add")
-  .description("adiciona uma vaga manualmente (URL ou arquivo com a descrição colada)")
-  .option("--url <url>", "link da vaga (sites com login, como LinkedIn, não funcionam: use --file)")
+  .description("adiciona uma vaga manualmente (URL ou arquivo com a descrição colada), ou várias de uma vez pelos links (--links)")
+  .option("--url <url>", "link da vaga (o agente lê a página pública; se pedir login, use --file)")
+  .option("--links <arquivo>", "arquivo com vários links de vaga ou um e-mail de alerta (LinkedIn, Indeed...): adiciona todas")
   .option("--file <arquivo>", "arquivo .md/.txt com o texto da vaga")
   .option("--title <título>")
   .option("--company <empresa>")
@@ -198,6 +204,20 @@ program
   .option("--pesquisar", "pesquisa a vaga e a empresa na web antes da triagem (vaga recebida sem link, por indicação ou e-mail)")
   .option("--no-triage", "não rodar a triagem automaticamente")
   .action(async (o) => {
+    if (o.links) {
+      const text = fs.readFileSync(o.links, "utf8");
+      const links = extractJobLinks(text);
+      if (!links.length) return console.log("Não achei nenhum link de vaga no arquivo.");
+      console.log(`🔗 ${links.length} link(s) de vaga. Adicionando...`);
+      const res = await addJobLinks(links);
+      console.log(`\n${res.added.length} adicionada(s) · ${res.known.length} já estavam · ${res.failed.length} não abriram`);
+      if (res.failed.length) console.log(`Não abriram (abra o link, copie o texto e use 'ajf add --file'):\n${res.failed.map((x) => `  - ${x.url}`).join("\n")}`);
+      if (o.triage && res.added.length) {
+        await triageJobs({ ids: res.added.map((j) => j.id) });
+        printJobs(res.added.map((j) => findJob(loadJobs(), j.id)));
+      }
+      return;
+    }
     const job = await addJob(o);
     console.log(`Vaga adicionada: ${job.id} — ${job.title} (${job.company})`);
     if (o.pesquisar) await researchJob(job.id).catch((e) => console.log(`⚠ Pesquisa na web: ${e instanceof Error ? e.message : e}`));
@@ -370,6 +390,62 @@ program
     const outcome = next === "rejected" ? await askRejection(job, o.etapa, o.motivo) : undefined;
     const updated = changeStatus(job, next, o.note ?? "", o.next, undefined, outcome);
     console.log(`${updated.company} — ${updated.title} → ${STATUS_LABELS[next]} (registrado em ${path.relative(paths.root, paths.tracker)})`);
+  });
+
+program
+  .command("rotina")
+  .description("busca automática: roda a busca (e a triagem, se ligada nas preferências) e guarda o resultado; agenda ou tira a busca diária do agendador do sistema")
+  .option("--agendada", "chamada pelo agendador do sistema (não pergunta nada)")
+  .option("--agendar <HH:MM>", "busca todo dia neste horário, mesmo com o app fechado (Windows, macOS ou Linux)")
+  .option("--desagendar", "tira a busca diária do agendador do sistema")
+  .option("--status", "mostra o que está agendado e as últimas buscas automáticas")
+  .action(async (o) => {
+    const prefs = loadPreferences();
+    if (o.agendar || o.desagendar) {
+      prefs.autoSearch = { ...prefs.autoSearch, daily: Boolean(o.agendar), time: o.agendar ?? prefs.autoSearch.time };
+      if (o.agendar && !parseTime(o.agendar)) throw new Error(`Horário inválido: ${o.agendar} (use HH:MM, por exemplo 08:00).`);
+      const r = syncSchedule(prefs.autoSearch, { force: Boolean(o.agendar) });
+      savePreferences(prefs);
+      return console.log(
+        o.agendar
+          ? `⏰ Busca diária agendada às ${o.agendar} (${r.kind ? SCHEDULER_LABELS[r.kind] : "?"}). O computador precisa estar ligado. Log: ${routineLogFile()}`
+          : "Busca diária tirada do agendador.",
+      );
+    }
+    if (o.status) {
+      const st = loadRoutineState();
+      console.log(st.schedule ? `⏰ Agendada todo dia às ${st.schedule.time} (${SCHEDULER_LABELS[st.schedule.kind]}).` : "Sem busca diária agendada.");
+      console.log(`Buscar ao abrir o app: ${prefs.autoSearch.onOpen ? `sim, se a última foi há mais de ${prefs.autoSearch.onOpenHours} h` : "não"}.`);
+      for (const x of st.runs.slice(0, 5))
+        console.log(`  ${new Date(x.at).toLocaleString()} · ${x.trigger} · ${x.ok ? `${x.added} nova(s), ${x.recommended} recomendada(s)` : `falhou: ${x.errors.join(" | ")}`}`);
+      return;
+    }
+    if (!hasProfile()) return console.log("Ainda não há perfil: rode 'ajf init' (ou abra 'ajf').");
+    const run = await runRoutine(o.agendada ? "agenda" : "manual", prefs);
+    console.log(run.ok ? `✅ ${run.added} vaga(s) nova(s) · ${run.recommended} recomendada(s). ${run.summary}` : `❌ ${run.errors.join(" | ")}`);
+    if (!run.ok) process.exitCode = 1;
+  });
+
+program
+  .command("seguir")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo de uma vaga (sem nada, lista as empresas que você segue)")
+  .description("segue a empresa de uma vaga: as vagas dela sobem na lista e, se o link for do Greenhouse, Lever ou Ashby, a página de carreira dela entra na busca")
+  .option("--parar", "deixa de seguir a empresa")
+  .action(async (busca: string[], o) => {
+    const prefs = loadPreferences();
+    if (!busca.length && !o.parar) {
+      if (!prefs.followedCompanies.length) return console.log("Você ainda não segue nenhuma empresa. Use: ajf seguir <empresa ou id da vaga>");
+      return console.log(prefs.followedCompanies.map((x) => `⭐ ${x.name}${x.board ? ` (${x.board.type}/${x.board.id})` : ""}`).join("\n"));
+    }
+    const job = await pickJob({ query: busca.join(" "), message: o.parar ? "Deixar de seguir a empresa de qual vaga?" : "Seguir a empresa de qual vaga?" });
+    const next = o.parar ? unfollow(prefs, job.company) : follow(prefs, job);
+    savePreferences(next);
+    const entry = next.followedCompanies.find((x) => isFollowed(job.company, [x]));
+    console.log(
+      o.parar
+        ? `Você deixou de seguir ${job.company}.`
+        : `⭐ Seguindo ${job.company}.${entry?.board ? ` A página de carreira (${entry.board.type}/${entry.board.id}) entra na próxima busca.` : " As vagas dela sobem na lista."}`,
+    );
   });
 
 program

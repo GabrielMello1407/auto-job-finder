@@ -146,7 +146,24 @@ Cada vaga mostra três indicadores:
 - **🚀 Piloto automático:** busca, avalia e já gera os pacotes das melhores vagas (triagem ≥ 70 e sem sinal de golpe). Você escolhe quantos pacotes no máximo. Vaga que já acabou é descartada e o piloto passa para a próxima, sem gastar um dos pacotes.
 
 A busca não traz a mesma vaga duas vezes: a que aparece de novo em outro site (mesma empresa, mesmo cargo, mesmo texto) entra direto em "Encerradas", marcada com **🔁 repetida**, e não é avaliada nem vira outro pacote. Vale também para vagas em que você já se candidatou: aí basta a mesma empresa e o mesmo cargo. Se o agente errar, abra a vaga e clique em **↩ Reabrir** (ou **Não é a mesma vaga**, se ela já tem pacote).
-- **➕ Colar vaga:** para a vaga que você viu no LinkedIn, num grupo de WhatsApp ou numa indicação. Cole o texto completo ou, se a página abre sem login (Gupy, site da empresa), só o link.
+
+#### Busca automática
+
+A maior parte das candidaturas chega nos primeiros dias depois que a vaga sai, então achar cedo faz diferença. Em **Preferências → ⏰ Busca automática**:
+- **Buscar ao abrir o app:** quando você abre o app e a última busca automática foi há mais de N horas (12, por padrão).
+- **Buscar todo dia, mesmo com o app fechado:** no horário que você escolher, pelo agendador do próprio sistema. Windows: Agendador de Tarefas. macOS: launchd. Linux: timer do systemd, ou crontab onde não há systemd. O computador precisa estar ligado; se estava desligado no horário, a busca roda quando ele ligar (no crontab, só no dia seguinte). Desligar a opção tira a tarefa agendada.
+- **Avaliar as vagas novas com a IA** logo depois da busca, e **Incluir a busca na web com IA** (mais vagas, mas é a parte mais lenta e cara).
+
+Tudo vem desligado. As últimas buscas aparecem na mesma seção, e ao abrir **Vagas** o aviso **🆕 N vaga(s) nova(s) desde a sua última visita** tem **Ver só as novas** e **✓ Já vi**. No terminal: `ajf rotina` (busca agora), `ajf rotina --agendar 08:00`, `ajf rotina --desagendar` e `ajf rotina --status`.
+
+> Se você trocar a versão do Node.js ou mudar a pasta do projeto de lugar, desligue e ligue de novo a busca diária (ou rode `ajf rotina --agendar` de novo), para o agendador apontar para o lugar novo.
+
+#### Seguir empresa
+
+Nos detalhes da vaga, **☆ Seguir empresa**: as vagas dessa empresa ganham **⭐ você segue**, sobem na lista e entram na busca na web. Se o link da vaga é do Greenhouse, do Lever ou do Ashby, a página de carreira da empresa também passa a ser monitorada em toda busca, e as vagas novas dela chegam no dia em que abrem. A lista fica em **Preferências → Empresas → Empresas que você segue**; tirar um nome deixa de seguir (e a página de carreira que entrou ao seguir sai junto). No terminal: `ajf seguir <empresa ou id da vaga>`, `ajf seguir --parar <...>` e `ajf seguir` para listar.
+- **➕ Colar vaga:** para a vaga que você viu no LinkedIn, num grupo de WhatsApp ou numa indicação. Cole o texto completo ou, se a página da vaga abre sem login (LinkedIn, Gupy, site da empresa), só o link. Recebeu um **alerta de vagas por e-mail** (LinkedIn, Indeed, Gupy)? Cole o e-mail inteiro: o agente acha os links de vaga (até 30), abre a página pública de cada um, preenche cargo, empresa e local a partir dela, e a IA avalia. Os links que pedem login ou que não existem mais aparecem no log da tarefa, para você abrir e colar o texto.
+
+Vaga que você colou nunca é descartada sozinha: se a IA não recomendar, ela fica em **Para decidir** com o motivo, e o aviso da tarefa diz a nota.
 
 #### Vaga sem link (indicação, e-mail, WhatsApp)
 
@@ -187,6 +204,7 @@ Vagas com **🚩 sinais de golpe** (pedido de pagamento, documentos ou salário 
 | **👻 pode ser vaga fantasma** | Publicada há mais de 30 dias, a mesma vaga já vista antes, banco de talentos sem vaga específica ou quase nenhum detalhe. Nem todo anúncio vira contratação: confira no site da empresa se a vaga ainda existe. Passe o mouse no selo para ver o motivo | desce |
 | **⛔ eliminatório: ...** | Um requisito que a vaga usa como filtro (anos de experiência, idioma, local, autorização de trabalho, formação) e que o seu perfil mostra que você não atende | desce e deixa de ser recomendada |
 | **🤝 indicação recebida** | Alguém da empresa indicou você (veja [Pedir indicação](#pedir-indicação)) | sobe |
+| **⭐ você segue** | Empresa que você segue (veja [Seguir empresa](#seguir-empresa)) | sobe |
 | **✈️ patrocina visto · país** | Vaga presencial ou híbrida no exterior que patrocina o visto e a mudança, e você aceita se mudar (veja [Vagas no exterior e visto](#vagas-no-exterior-e-visto)) | fica como está |
 | **✈️ país: pergunte sobre o visto** | Vaga no exterior cujo anúncio não diz se patrocina o visto. Pergunte ao recrutador antes de gerar o pacote | desce um pouco |
 | **⛔ eliminatório: Morar e trabalhar no exterior (país)** | Vaga remota só para quem já mora em outro país, ou vaga no exterior que não patrocina o visto (ou você não aceita se mudar) | desce e deixa de ser recomendada |
@@ -337,9 +355,10 @@ O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não mud
 |---|---|
 | **O que você procura** | Cargos-alvo e senioridade: a triagem compara cada vaga com eles |
 | **Como buscar** | Termos de busca, fontes de vagas, busca na web com IA por padrão e há quantos dias uma vaga pode ter sido publicada |
+| **Busca automática** | Buscar ao abrir o app e/ou todo dia num horário, mesmo com o app fechado (veja [Busca automática](#busca-automática)) |
 | **Filtro pelo título** | Palavras que o título precisa ter e palavras que eliminam a vaga. Corta vagas **sem gastar IA** |
 | **Onde** | De onde você pode trabalhar (em vagas remotas restritas a um país), cidades para presencial/híbrido e se você se mudaria para fora com visto patrocinado (veja [abaixo](#vagas-no-exterior-e-visto)) |
-| **Empresas** | Empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
+| **Empresas** | Empresas que você segue (veja [Seguir empresa](#seguir-empresa)), empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
 | **Respostas fixas dos formulários** | O que os formulários sempre perguntam e não está no currículo (veja [abaixo](#respostas-fixas-dos-formulários)) |
 | **Notas mínimas** | Triagem mínima para o piloto automático gerar pacote e nota mínima para "pronto para enviar" |
 
@@ -463,7 +482,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf search [--web] [--hint "só Londrina"] [-q termos] [-s fontes] [-v]` | Busca vagas (`-v` mostra o que o filtro cortou e de qual vaga cada repetida é cópia) |
 | `ajf triage [--id <ids...>] [-l 10]` | Triagem das vagas novas, ou de novo das indicadas |
 | `ajf jobs [--status shortlisted] [-a]` · `ajf show <id>` | Lista e detalhes |
-| `ajf add --file vaga.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` | Adiciona uma vaga. Com `--pesquisar`, pesquisa a vaga e a empresa na web antes da triagem (vaga sem link) |
+| `ajf add --file vaga.md --company X --title Y [--pesquisar]` · `ajf add --url <link>` · `ajf add --links alerta.txt` | Adiciona uma vaga. Com `--pesquisar`, pesquisa a vaga e a empresa na web antes da triagem (vaga sem link). Com `--links`, adiciona todos os links de vaga de um arquivo (uma lista ou um e-mail de alerta) |
 | `ajf pesquisar [empresa, cargo ou id]` | Pesquisa na web uma vaga já salva: anúncio oficial, site da empresa, o que faltou no texto e se é real |
 | `ajf tailor <id> [--interview] [--market US] [--lang en] [--paper Letter] [--cover/--no-cover] [--mesmo-encerrada]` | Gera o pacote. Antes, confere se a vaga ainda está aberta; `--mesmo-encerrada` gera mesmo assim |
 | `ajf conferir [empresa, cargo ou id]` | Confere se as vagas ainda aceitam candidaturas. Sem nada, confere todas que você ainda não enviou |
@@ -474,6 +493,8 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |
 | `ajf enviei [empresa ou cargo] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marca que você se candidatou e por onde (acha a vaga pelo nome; sem `--via`, pergunta) |
 | `ajf status [empresa, cargo ou id] [status] [--etapa triagem] [--motivo "..."]` | Muda o status (entrevista, oferta, recusa...). Na recusa, `--etapa` registra até onde chegou (`sem_resposta`, `triagem`, `rh`, `tecnica`, `final`, `desconhecida`) e `--motivo` o motivo; sem eles, pergunta |
+| `ajf rotina [--agendar 08:00\|--desagendar\|--status]` | Busca automática: roda agora, agenda ou tira a busca diária no agendador do sistema (Windows, macOS, Linux), ou mostra as últimas |
+| `ajf seguir [empresa ou id da vaga] [--parar]` | Segue (ou deixa de seguir) a empresa de uma vaga; sem nada, lista as empresas que você segue |
 | `ajf followup [empresa, cargo ou id] [--enviei]` | Lista os follow-ups pendentes; com a vaga e `--enviei`, registra o follow-up que você mandou |
 | `ajf indicacao [empresa, cargo ou id] [--pedi\|--recebi\|--sem-resposta] [--refazer]` | Indicação: links de busca no LinkedIn (você abre) e mensagens prontas; registra se você pediu ou recebeu |
 | `ajf resultados` | O funil das suas candidaturas: taxa de resposta e de entrevista por canal, fonte, prazo e nota, e onde as recusas acontecem |
@@ -501,6 +522,9 @@ Abra o botão da IA e veja o diagnóstico. Confira se você já entrou na conta 
 
 **O PDF não é gerado.**
 O agente não achou um navegador Chromium. Instale o Chrome, ou informe o caminho do navegador em `CHROME_PATH` no `.env`.
+
+**A busca automática roda com o computador desligado?**
+Não: o computador precisa estar ligado. Com a busca diária no Windows, no macOS ou num timer do systemd no Linux, se o computador estava desligado no horário, a busca roda assim que ele ligar; no crontab, ela espera o dia seguinte. **Buscar ao abrir o app** cobre o resto. O log fica em `data/busca_automatica.log`.
 
 **Apareceu vaga só para quem mora nos Estados Unidos (ou em outro país).**
 Se a fonte informa isso num campo (Himalayas, Remotive, Remote OK, Jobicy, We Work Remotely, Get on Board), o filtro descarta a vaga, a não ser que esse país esteja em **De onde você pode trabalhar**. Confira essa lista: é onde você pode trabalhar legalmente, não de onde pode ser a empresa. Quando a restrição só está escrita na descrição (Greenhouse, Lever, Ashby, Arbeitnow, busca na web), a triagem percebe e mostra **⛔ eliminatório: Morar e trabalhar no exterior (país)**. Veja [Vagas no exterior e visto](#vagas-no-exterior-e-visto).

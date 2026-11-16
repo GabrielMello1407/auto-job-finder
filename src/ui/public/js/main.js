@@ -391,6 +391,14 @@ action("language", async () => {
     await loadProfile().catch(() => {});
     await showRoute();
     connect();
+    // Busca automática ao abrir o app (Preferências → ⏰ Busca automática). O servidor decide se está na hora;
+    // uma vez por aba, para recarregar a página não disparar de novo.
+    if (S.hasProfile && S.routine?.onOpen && !sessionStorage.getItem("ajf.routineChecked")) {
+      sessionStorage.setItem("ajf.routineChecked", "1");
+      api("/api/routine/open", {})
+        .then((r) => r.started && toast(t("⏰ Busca automática: procurando vagas novas desde a última busca.")))
+        .catch(() => {});
+    }
   } catch (e) {
     $("#view").innerHTML = `<div class="empty"><div class="big">⚠️</div><p>${esc(e.message)}</p></div>`;
     $("#offline").hidden = false;

@@ -27,7 +27,7 @@ export interface AutoOptions {
  * pacote, não repetidas. Na ordem de prioridade (aderência, frescor, vaga fantasma, eliminatórios:
  * src/jobs/priority.ts), para as mais recentes ganharem pacote primeiro.
  */
-export function candidatesForPackage(jobs = loadJobs(), now = Date.now()): Job[] {
+export function candidatesForPackage(jobs = loadJobs(), now = Date.now(), followed = loadPreferences().followedCompanies): Job[] {
   return jobs
     .filter(
       (j) =>
@@ -36,7 +36,7 @@ export function candidatesForPackage(jobs = loadJobs(), now = Date.now()): Job[]
         !(j.triage?.scamSignals.length ?? 0) &&
         !j.duplicateOf,
     )
-    .sort((a, b) => priorityOf(b, now) - priorityOf(a, now));
+    .sort((a, b) => priorityOf(b, now, followed) - priorityOf(a, now, followed));
 }
 
 /**

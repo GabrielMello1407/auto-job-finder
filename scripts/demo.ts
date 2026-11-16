@@ -1203,6 +1203,9 @@ async function main() {
   // Aceita se mudar para outro país com visto patrocinado: mostra os selos ✈️ (vaga no exterior).
   prefs.relocateAbroad = true;
   prefs.relocationCountries = [];
+  // Uma empresa seguida (selo ⭐). A busca automática fica desligada: a demo nunca busca de verdade.
+  prefs.followedCompanies = [{ name: "Clínica Bem-Estar Exemplo" }];
+  prefs.autoSearch = { onOpen: false, onOpenHours: 12, daily: false, time: "08:00", web: false, triage: true };
   fs.writeFileSync(prefsFile, JSON.stringify(prefs, null, 2));
 
   // Um ponto "a confirmar" para a página Perfil mostrar como eles aparecem.
@@ -1340,6 +1343,20 @@ async function main() {
   fs.writeFileSync(path.join(DEMO, "data", "jobs.json"), JSON.stringify(jobs, null, 2));
   seedProfileUpdate(fs.readFileSync(truthFile, "utf8"));
   await seedNumberHints();
+  // Duas buscas automáticas já feitas, para as Preferências mostrarem o histórico.
+  fs.writeFileSync(
+    path.join(DEMO, "data", "busca_automatica.json"),
+    JSON.stringify(
+      {
+        runs: [
+          { at: ago(0, 3), trigger: "agenda", ok: true, added: 4, recommended: 2, summary: "4 novas · de 312 encontradas; 41 passaram no filtro", errors: [] },
+          { at: ago(1, 3), trigger: "abrir", ok: true, added: 6, recommended: 1, summary: "6 novas · de 298 encontradas; 37 passaram no filtro", errors: [] },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
   seedLinkedin();
   console.log(`✅ Demonstração montada em ${DEMO} (${jobs.length} vagas fictícias, perfil da Ana Souza).`);
 
