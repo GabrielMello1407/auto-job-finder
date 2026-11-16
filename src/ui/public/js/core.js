@@ -24,6 +24,8 @@ export const S = {
   provider: {},
   webSearch: false,
   webDefault: false,
+  /** Preencher formulários com o favorito do navegador (Preferências). */
+  autofill: false,
 };
 
 /** Ganchos preenchidos pelo main.js (evita import circular): recarregar o estado e trocar de página. */

@@ -352,6 +352,11 @@ O que acontece depois da candidatura fica registrado, para a pessoa ver o que fu
   - O `ajf candidatar` e o menu (`menu.ts#applyModeFlow`) seguem a mesma fila no terminal.
   - O passo de indicação segue `preferences.applyMode.referralStep`.
   - Nada é enviado: a pessoa se candidata e marca.
+- **Preencher formulários** (`src/autofill/`, desligado por padrão, `preferences.autofill`): um favorito do navegador, não uma extensão e não o agente abrindo o site.
+  - **Os dados:** `autofillText` monta um JSON de uma linha com o currículo da vaga (o do pacote, ou o currículo-base), a mensagem curta e, se ligadas, as respostas fixas. Ele leva só os grupos ligados, com os links em `https://`. A pessoa copia (botão da interface, `GET /api/jobs/:id/autofill`, ou `ajf preencher`), abre o formulário, clica no favorito e cola na caixa que ele abre.
+  - **O favorito:** `bookmarklet.js` é JavaScript puro; `bookmarkletHref` o transforma num link `javascript:` sem nenhum dado da pessoa. A página mostra esse link para arrastar, e `ajf preencher --favorito` o grava numa página local.
+  - **Como preenche:** `match` reconhece o campo pelo `autocomplete`, pelo tipo, por `name`/`id` e depois pelo rótulo (Greenhouse, Lever, Ashby, Workable e formulários comuns em português, inglês e espanhol). Rótulo em forma de pergunta só recebe as respostas fixas. `plan` só escolhe campos vazios e com dado e pula texto maior que o limite do campo, e "Nome" sozinho vira o primeiro nome quando o formulário tem sobrenome. `clean` só aceita a marca do ajf e chaves de texto conhecidas. O valor entra pelo setter nativo mais os eventos `input`/`change`, para formulários em React e Vue perceberem.
+  - **O que ele nunca faz:** requisição, anexar arquivo, usar `innerHTML`, clicar ou enviar nada (o `tests/autofill.test.ts` confere o código). Ele mostra o que preencheu, ou o link para abrir o formulário quando ele está num quadro de outro site.
 - **Indicação** (`src/jobs/referral.ts`): o agente nunca entra no LinkedIn. `referralLinks` monta dois links de busca no LinkedIn para a pessoa abrir logada: pessoas da empresa na rede dela (1º e 2º grau) e quem recruta na empresa. `referralMessages` escreve duas mensagens curtas só com fatos do perfil, uma para quem já conhece a pessoa e um convite de conexão para quem não conhece (até 300 caracteres, o limite do LinkedIn), conferidas pelas mesmas travas das respostas dos formulários; nunca inventa vínculo. `Job.referral` guarda a situação (pedida, recebida, sem resposta). Depois de `REFERRAL_WAIT_DAYS` (3) sem resposta, a página sugere se candidatar pela plataforma, porque chegar cedo pesa mais que esperar.
 
 ## Perguntas do formulário
@@ -415,7 +420,8 @@ flowchart LR
   - o servidor só escuta em `127.0.0.1`;
   - só aceita quem abriu pelo link com token, que vira um cookie `SameSite=Strict`;
   - confere Host e Origin, para nenhum site aberto no navegador conseguir mandar ações;
-  - arquivos só são servidos de dentro de `output/`.
+  - arquivos só são servidos de dentro de `output/`;
+  - o único link `javascript:` da página é o favorito dos formulários, gerado de `src/autofill/bookmarklet.js` sem nenhum dado da pessoa; clicado na página, ele só explica como instalar.
 - **Fila de tarefas** (`src/ui/tasks.ts`): busca, pacotes e cadastro rodam um de cada vez, porque usam a mesma IA, o mesmo navegador para PDF e o mesmo `jobs.json`. O que a tarefa escreveria no terminal vira o andamento ao vivo na tela. Entre uma tarefa e outra, o navegador do PDF é fechado.
 - **Mesmas ações do terminal:** a interface chama as mesmas funções do `ajf` e do menu (`src/menu.ts`). Nada de lógica duplicada.
 - **Idioma (português e inglês):** o texto em português é a chave da tradução, no estilo gettext. O `src/ui/public/locales/en.json` liga cada texto em português ao inglês, com `{variáveis}`.
@@ -486,6 +492,7 @@ src/
     emailDraft.ts        rascunho .eml com o currículo anexado e link do Gmail
     applicationSheet.ts  ficha de candidatura (campos dos formulários, sem IA)
   render/                template HTML → PDF (navegador headless)
+  autofill/              favorito dos formulários: os dados para colar (index.ts) e o código do favorito (bookmarklet.js)
   ui/
     server.ts http.ts    servidor local, segurança, arquivos
     i18n.ts              tradução no servidor (cabeçalho x-ajf-lang)

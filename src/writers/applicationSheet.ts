@@ -144,7 +144,7 @@ export function sheetFromResume(resume: Resume, from: ApplicationSheet["from"] =
 }
 
 /** O currículo da vaga: o do pacote (adaptado), senão o currículo-base no idioma da vaga. */
-function resumeFor(job: Job): { resume: Resume; from: ApplicationSheet["from"] } {
+export function resumeFor(job: Job): { resume: Resume; from: ApplicationSheet["from"] } {
   if (job.outputDir) {
     try {
       return { resume: ResumeSchema.parse(JSON.parse(fs.readFileSync(path.join(job.outputDir, "resume.json"), "utf8"))), from: "pacote" };

@@ -38,7 +38,7 @@
    - a cover letter, when the market expects one;
    - the application e-mail, messages for the recruiter, a follow-up and a thank-you note, with the e-mail ready to open in your mail program (resume already attached) or in Gmail;
    - a short cover message for the platforms' "message" field;
-   - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy, with your standard answers (salary, availability, work authorization);
+   - a sheet with the fields that application platforms ask for (Gupy, InHire, Greenhouse...), ready to copy, with your standard answers (salary, availability, work authorization), plus an optional browser bookmark that fills those fields in for you (it never clicks Submit);
    - step-by-step instructions to apply through the right channel;
    - answers to application-form questions ("Why do you want to work here?"), typed or read from a screenshot of the form, which you refine in a chat.
 4. **Helps you ask for a referral:** LinkedIn searches for people at the company (you open them; the agent never goes into LinkedIn) and short, honest messages.

@@ -5,7 +5,7 @@ import { Command, Option } from "commander";
 import { hasProfile, paths, settings } from "./config.js";
 import { autopilot } from "./auto.js";
 import { writeDashboard } from "./dashboard.js";
-import { answerFlow, applyModeFlow, askRejection, mainMenu, numbersFlow } from "./menu.js";
+import { answerFlow, applyModeFlow, askRejection, autofillFlow, mainMenu, numbersFlow } from "./menu.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
 import { chooseProvider, chooseSearchProvider, printProviders } from "./onboarding/provider.js";
@@ -462,6 +462,15 @@ program
   .option("--sem-indicacao", "não mostra o passo de pedir indicação")
   .action(async (o) => {
     await applyModeFlow({ referral: o.semIndicacao ? false : undefined });
+  });
+
+program
+  .command("preencher")
+  .argument("[busca...]", "ID ou parte do nome da empresa/cargo (sem nada, abre a lista)")
+  .description("preencher formulários com o favorito do navegador: mostra os dados da vaga para colar no favorito '🪄 Preencher com ajf'")
+  .option("--favorito", "abre a página para instalar o favorito no navegador")
+  .action(async (busca: string[], o) => {
+    await autofillFlow(busca.join(" "), Boolean(o.favorito));
   });
 
 program

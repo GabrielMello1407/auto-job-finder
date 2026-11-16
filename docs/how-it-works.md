@@ -352,6 +352,11 @@ What happens after an application is recorded, so the person can see what works.
   - `ajf candidatar` and the menu (`menu.ts#applyModeFlow`) follow the same queue in the terminal.
   - The referral step follows `preferences.applyMode.referralStep`.
   - Nothing is sent: the person applies and marks it.
+- **Filling in forms** (`src/autofill/`, off by default, `preferences.autofill`): a browser bookmark, not an extension and not the agent opening the site.
+  - **The data:** `autofillText` builds a one-line JSON from the job's resume (the package's, or the base one), the short message and, if turned on, the standard answers. It holds only the groups turned on, with links as `https://`. The person copies it (UI button, `GET /api/jobs/:id/autofill`, or `ajf preencher`), opens the form, clicks the bookmark and pastes it into the bookmark's prompt.
+  - **The bookmark:** `bookmarklet.js` is plain JavaScript; `bookmarkletHref` turns it into a `javascript:` link with no personal data in it. The page shows that link to drag, and `ajf preencher --favorito` writes it into a local page.
+  - **How it fills:** `match` recognizes a field by `autocomplete`, type, `name`/`id`, then its label (Greenhouse, Lever, Ashby, Workable and generic forms in Portuguese, English and Spanish). Labels that read as questions only take the standard answers. `plan` only picks empty fields with data and skips text longer than the field's limit, and "Nome" alone becomes the first name when the form has a last-name field. `clean` only accepts the ajf marker and known text keys. Values are set through the native setter plus `input`/`change` events, so React and Vue forms see them.
+  - **What it never does:** make requests, attach files, use `innerHTML`, or click or submit anything (`tests/autofill.test.ts` checks the code for that). It shows what it filled, or a link to open the form when it sits in a frame from another site.
 - **Referral** (`src/jobs/referral.ts`): the agent never opens LinkedIn. `referralLinks` builds two LinkedIn search links for the person to open while logged in: people at the company in their network (1st and 2nd degree) and recruiters at the company. `referralMessages` writes two short messages with profile facts only, one for someone who knows the person and a connection note for someone who doesn't (up to 300 characters, LinkedIn's limit), checked by the same guards as the form answers; it never claims a connection. `Job.referral` keeps the status (asked, received, no reply). After `REFERRAL_WAIT_DAYS` (3) without a reply, the page suggests applying through the platform, since applying early weighs more than waiting.
 
 ## Application-form questions
@@ -415,7 +420,8 @@ flowchart LR
   - the server only listens on `127.0.0.1`;
   - it only accepts whoever opened it through the tokened link, which becomes a `SameSite=Strict` cookie;
   - it checks Host and Origin, so no website open in the browser can send actions;
-  - files are only served from inside `output/`.
+  - files are only served from inside `output/`;
+  - the only `javascript:` link on the page is the form bookmark, generated from `src/autofill/bookmarklet.js` with no personal data; clicking it on the page only explains how to install it.
 - **Task queue** (`src/ui/tasks.ts`): search, packages and setup run one at a time, because they use the same AI, the same browser for PDFs and the same `jobs.json`. What a task would print in the terminal becomes live progress on screen. Between tasks, the PDF browser is closed.
 - **Same actions as the terminal:** the interface calls the same functions as `ajf` and the menu (`src/menu.ts`). No duplicated logic.
 - **Language (English and Portuguese):** the Portuguese text is the translation key, gettext style. `src/ui/public/locales/en.json` maps each Portuguese text to English, with `{variables}`.
@@ -486,6 +492,7 @@ src/
     emailDraft.ts        .eml draft with the resume attached and the Gmail link
     applicationSheet.ts  application sheet (form fields, no AI)
   render/                HTML template → PDF (headless browser)
+  autofill/              form bookmark: the data to paste (index.ts) and the bookmark code (bookmarklet.js)
   ui/
     server.ts http.ts    local server, security, files
     i18n.ts              server-side translation (x-ajf-lang header)

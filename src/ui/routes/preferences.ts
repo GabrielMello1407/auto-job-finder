@@ -1,6 +1,7 @@
 import { ensureDir, paths, setEnvVar, settings } from "../../config.js";
 import { SOURCES } from "../../jobs/sources/index.js";
 import { SERPAPI_KEY_URL, SERPAPI_SIGNUP_URL, serpApiJobs } from "../../jobs/sources/googlejobs.js";
+import { bookmarkletHref } from "../../autofill/index.js";
 import { sameCompany, unfollow } from "../../jobs/follow.js";
 import { loadPreferences, savePreferences, type Preferences } from "../../profile.js";
 import { loadRoutineState, syncSchedule } from "../../routine.js";
@@ -24,6 +25,8 @@ export function preferenceRoutes(): Route[] {
         minTriageScore: settings.minTriageScore,
         // Google for Jobs: só se há chave (a chave nunca volta para a página) e onde pegar uma.
         googleJobs: { hasKey: Boolean(process.env.SERPAPI_KEY?.trim()), signupUrl: SERPAPI_SIGNUP_URL, keyUrl: SERPAPI_KEY_URL },
+        // O favorito "Preencher com ajf": sempre o mesmo código, sem dado nenhum da pessoa.
+        bookmarklet: bookmarkletHref(),
         // Busca automática: qual agendador o sistema tem, o que está agendado e as últimas buscas.
         routine: (() => {
           const state = loadRoutineState();
@@ -112,6 +115,15 @@ export function preferenceRoutes(): Route[] {
         // Modo candidatura e resultados.
         prefs.applyMode = { referralStep: Boolean(b.applyReferralStep) };
         prefs.results = { compareResumes: Boolean(b.compareResumes) };
+        prefs.autofill = {
+          enabled: Boolean(b.autofillEnabled),
+          contact: Boolean(b.autofillContact),
+          links: Boolean(b.autofillLinks),
+          location: Boolean(b.autofillLocation),
+          current: Boolean(b.autofillCurrent),
+          message: Boolean(b.autofillMessage),
+          facts: Boolean(b.autofillFacts),
+        };
 
         // Google for Jobs: termos por rodada (cota da SerpApi) e a chave, que só vai para o .env.
         prefs.googleJobs = { maxQueries: Math.round(clamp(b.googleJobsMaxQueries, 1, 10, old.googleJobs.maxQueries)) };

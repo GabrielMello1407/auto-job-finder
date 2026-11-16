@@ -15,6 +15,7 @@ import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, reco
 import { followUpDue, isNoReply, isRejectionStage, readRejectionEmail } from "../../jobs/funnel.js";
 import { applyKit, applyQueue } from "../../jobs/applyQueue.js";
 import { currentFunnel } from "../../jobs/resumeStats.js";
+import { autofillText } from "../../autofill/index.js";
 import { abroadStatus } from "../../jobs/abroad.js";
 import { ageDays, ghostSignals, priorityOf } from "../../jobs/priority.js";
 import { referralLinks, referralMessages, referralOverdue, setReferral } from "../../jobs/referral.js";
@@ -325,6 +326,8 @@ export function jobRoutes(app: App): Route[] {
         provider: providerState(),
         webSearch: canWebSearch(),
         webDefault: loadPreferences().webSearchByDefault,
+        // Preencher formulários com o favorito (src/autofill/): mostra o botão de copiar os dados.
+        autofill: loadPreferences().autofill.enabled,
         tasks: queue.list(),
       }),
     ],
@@ -644,6 +647,15 @@ export function jobRoutes(app: App): Route[] {
         track(updated, updated.status, "", `indicação: ${status}`);
         app.jobsChanged(job.id);
         return { job: jobSummary(updated) };
+      },
+    ],
+    [
+      "GET",
+      /^\/api\/jobs\/([\w-]+)\/autofill$/,
+      (c) => {
+        // O texto que a pessoa copia e cola no favorito "Preencher com ajf". Nada sai daqui sozinho.
+        if (!loadPreferences().autofill.enabled) throw new HttpError(400, "O preenchimento de formulários está desligado (Preferências → Candidatura e resultados).");
+        return { text: autofillText(jobFrom(c.params[0]), c.lang) };
       },
     ],
     [

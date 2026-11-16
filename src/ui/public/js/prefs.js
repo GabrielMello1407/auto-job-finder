@@ -1,5 +1,5 @@
 // Preferências de busca: cargos, termos, filtros de título, regiões, fontes e notas mínimas.
-import { $, action, api, app, btn, esc, formData, link, S, t, tagsField, toast } from "./core.js";
+import { $, action, api, app, btn, copy, esc, formData, link, S, t, tagsField, toast } from "./core.js";
 
 let data = null; // GET /api/preferences
 let dirty = false;
@@ -43,6 +43,34 @@ action("googlejobs-test", async () => {
   } catch (e) {
     out.textContent = `❌ ${e.message}`;
   }
+});
+
+/*
+ * Preencher formulários (src/autofill/): o favorito "Preencher com ajf" e os grupos de campos. O link do
+ * favorito é código gerado pelo servidor, sem dado da pessoa; clicar nele aqui só explica como instalar.
+ */
+function autofillBlock(a) {
+  const group = (name, on, label) => `<label class="option"><input type="checkbox" name="${name}"${on ? " checked" : ""}><span>${label}</span></label>`;
+  return `<div class="panel inset" id="autofill">
+    <h4>${t("🪄 Preencher formulários com um clique")}</h4>
+    <p class="muted">${t("Um favorito do navegador preenche os campos do formulário de candidatura (Greenhouse, Lever, Ashby, Workable, sites de empresas) com os seus dados. Você copia os dados da vaga no ajf, abre o formulário, clica no favorito e cola. Ele preenche só os campos vazios que reconhece, não anexa arquivos e nunca clica em Enviar.")}</p>
+    <label class="switch"><input type="checkbox" name="autofillEnabled"${a.enabled ? " checked" : ""}><span>${t("Ligar o preenchimento de formulários")}<small>${t("Mostra o botão 🪄 Copiar para o preenchimento no modo candidatura e na ficha da vaga.")}</small></span></label>
+    <div class="field"><span>${t("O que preencher")}</span><div class="via-grid">
+      ${group("autofillContact", a.contact !== false, t("Nome, e-mail e telefone"))}
+      ${group("autofillLinks", a.links !== false, t("LinkedIn, GitHub e site"))}
+      ${group("autofillLocation", a.location !== false, t("Cidade"))}
+      ${group("autofillCurrent", a.current !== false, t("Empresa e cargo atuais"))}
+      ${group("autofillMessage", a.message !== false, t("Mensagem curta (campo de mensagem ou carta)"))}
+      ${group("autofillFacts", Boolean(a.facts), t("Respostas fixas (pretensão, disponibilidade, visto)"))}
+    </div><small>${t("As respostas fixas só entram em campos de texto que perguntam exatamente isso. Confira sempre antes de enviar.")}</small></div>
+    <div class="field"><span>${t("Instalar o favorito")}</span><small>${t("Mostre a barra de favoritos (Ctrl+Shift+B no Chrome e no Edge, Cmd+Shift+B no Mac) e arraste o botão abaixo para ela. Não dá para arrastar? Copie o código, crie um favorito e cole no lugar do endereço.")}</small>
+      <div class="btn-row"><a class="btn primary small" id="ajf-bookmarklet" href="${esc(data.bookmarklet)}" draggable="true">${t("🪄 Preencher com ajf")}</a>${btn("bookmarklet-copy", t("📋 Copiar o código do favorito"), null, "small ghost")}</div></div>
+  </div>`;
+}
+
+action("bookmarklet-copy", async () => {
+  await copy(data.bookmarklet);
+  toast(t("Código copiado. Crie um favorito e cole no lugar do endereço."));
 });
 
 /* Busca automática (src/routine.ts): ao abrir o app e/ou todo dia pelo agendador do sistema. */
@@ -159,7 +187,8 @@ function paint() {
       t("📨 Candidatura e resultados"),
       "",
       `<label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
-      <label class="switch"><input type="checkbox" name="compareResumes"${p.results?.compareResumes !== false ? " checked" : ""}><span>${t("Comparar as versões do currículo nos Resultados")}<small>${t("Mostra a taxa de resposta pelo topo do currículo (cargo no título, palavras-chave, números) e pela versão do currículo-base. Só aparece quando há dados para comparar.")}</small></span></label>`,
+      <label class="switch"><input type="checkbox" name="compareResumes"${p.results?.compareResumes !== false ? " checked" : ""}><span>${t("Comparar as versões do currículo nos Resultados")}<small>${t("Mostra a taxa de resposta pelo topo do currículo (cargo no título, palavras-chave, números) e pela versão do currículo-base. Só aparece quando há dados para comparar.")}</small></span></label>
+      ${autofillBlock(p.autofill ?? {})}`,
     )}
     ${section(
       t("⭐ Notas mínimas"),
@@ -182,6 +211,11 @@ function paint() {
   form.addEventListener("input", mark);
   form.addEventListener("change", mark);
   form.addEventListener("submit", (e) => e.preventDefault());
+  // O favorito é para arrastar para a barra; clicado aqui, só explica.
+  $("#ajf-bookmarklet")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    toast(t("Arraste este botão para a barra de favoritos do navegador."));
+  });
 }
 
 action("prefs-save", async () => {

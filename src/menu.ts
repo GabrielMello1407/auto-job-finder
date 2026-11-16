@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkbox, confirm, editor, input, number, select, Separator } from "@inquirer/prompts";
 import { autopilot, candidatesForPackage } from "./auto.js";
-import { hasProfile, settings } from "./config.js";
+import { ensureDir, hasProfile, paths, settings } from "./config.js";
+import { autofillText, bookmarkletPage } from "./autofill/index.js";
 import { canWebSearch } from "./llm.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
@@ -19,7 +20,7 @@ import { researchJob, researchLines, withoutResearch } from "./jobs/research.js"
 import { findJob, loadJobs, markNotDuplicate } from "./jobs/store.js";
 import { applyKit, applyQueue } from "./jobs/applyQueue.js";
 import { currentFunnel } from "./jobs/resumeStats.js";
-import { changeStatus, markApplied, recordFollowUp } from "./jobs/status.js";
+import { changeStatus, markApplied, pickJob, recordFollowUp, SENDABLE } from "./jobs/status.js";
 import { defaultStage, followUpDue, funnelText, isNoReply, isRejectionStage, REJECTION_STAGES } from "./jobs/funnel.js";
 import { referralLinks, referralMessages, REFERRAL_WAIT_DAYS, setReferral } from "./jobs/referral.js";
 import { analyzeNumbers, bulletsWithoutNumbers, numbersNews, withHints } from "./onboarding/numbers.js";
@@ -231,6 +232,31 @@ function emailSection(j: Job, heading: string): string | null {
   return md.slice(start, next < 0 ? undefined : next).trim();
 }
 
+/** Os dados da vaga para colar no favorito "Preencher com ajf" (src/autofill/). */
+function printAutofill(job: Job) {
+  console.log(`\n🪄 Copie a linha abaixo, abra o formulário de ${job.company}, clique no favorito "🪄 Preencher com ajf" e cole (Ctrl+V):\n`);
+  console.log(autofillText(job, "pt-BR"));
+  console.log("\nEle preenche só os campos vazios que reconhece, não anexa arquivos e nunca envia: confira e envie você. Ainda não tem o favorito? ajf preencher --favorito");
+}
+
+/**
+ * Preencher formulários pelo terminal (`ajf preencher`): mostra os dados de uma vaga para colar no favorito, ou
+ * (--favorito) abre a página para instalar o favorito no navegador.
+ */
+export async function autofillFlow(query?: string, install = false) {
+  if (install) {
+    ensureDir(paths.outputDir);
+    const file = path.join(paths.outputDir, "favorito_preencher.html");
+    fs.writeFileSync(file, bookmarkletPage());
+    console.log(`🪄 Abrindo ${file}: arraste o botão para a barra de favoritos do navegador.`);
+    openExternal(file);
+    return;
+  }
+  if (!loadPreferences().autofill.enabled)
+    return console.log("O preenchimento de formulários está desligado. Ligue na interface (ajf): Preferências → Candidatura e resultados.");
+  printAutofill(await pickJob({ query, statuses: SENDABLE, message: "Qual vaga?" }));
+}
+
 /**
  * Modo candidatura: os pacotes prontos, um de cada vez, do mais prioritário ao menos (src/jobs/applyQueue.ts).
  * Mostra o que o envio pede e abre o que a pessoa escolher; ela envia e marca. Também usado pelo `ajf candidatar`.
@@ -275,6 +301,7 @@ export async function applyModeFlow(opts: { referral?: boolean } = {}) {
           ...(kit.resume ? [{ name: "📄 Abrir o currículo (PDF)", value: "pdf" }] : []),
           { name: "✉️ Abrir o e-mail de candidatura no programa de e-mail (com o currículo anexado)", value: "draft" },
           { name: "📋 Ver a ficha (campos do formulário para copiar)", value: "sheet" },
+          ...(prefs.autofill.enabled ? [{ name: "🪄 Dados para o preenchimento (favorito do navegador)", value: "autofill" }] : []),
           { name: "📝 Responder uma pergunta do formulário", value: "answer" },
           ...(referralStep ? [{ name: "🤝 Pedir indicação (links do LinkedIn e mensagens)", value: "referral" }] : []),
           { name: "✅ Enviei: marcar e ir para a próxima", value: "sent" },
@@ -293,6 +320,7 @@ export async function applyModeFlow(opts: { referral?: boolean } = {}) {
         } else console.log("Este pacote não tem o e-mail de candidatura.");
       }
       if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
+      if (action === "autofill") printAutofill(job);
       if (action === "answer") await answerFlow(job);
       if (action === "referral") await referralFlow(job);
       if (action === "sent") {
@@ -471,6 +499,7 @@ async function packagesFlow() {
           { name: "✉️ Abrir o e-mail de candidatura no programa de e-mail (com o currículo anexado)", value: "draft" },
           { name: "📧 Mostrar e-mail de candidatura", value: "email" },
           { name: "📋 Ficha de candidatura (campos do formulário para copiar)", value: "sheet" },
+          ...(loadPreferences().autofill.enabled ? [{ name: "🪄 Dados para o preenchimento (favorito do navegador)", value: "autofill" }] : []),
           { name: "💬 Mostrar mensagens de LinkedIn", value: "linkedin" },
           { name: "📝 Responder pergunta do formulário", value: "answer" },
           { name: "🔗 Abrir a vaga para me candidatar", value: "apply" },
@@ -501,6 +530,7 @@ async function packagesFlow() {
         } else console.log("Este pacote não tem o e-mail de candidatura.");
       }
       if (action === "sheet") console.log("\n" + sheetMarkdown(applicationSheet(job), `Ficha de candidatura: ${job.company}`));
+      if (action === "autofill") printAutofill(job);
       if (action === "notdup") {
         Object.assign(job, markNotDuplicate(job.id));
         console.log("Marca de repetida tirada.");

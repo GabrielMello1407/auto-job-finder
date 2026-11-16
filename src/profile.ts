@@ -61,6 +61,24 @@ export interface Preferences {
   applyMode: { referralStep: boolean };
   /** Resultados (src/jobs/funnel.ts): comparar as versões do currículo (src/jobs/resumeStats.ts). */
   results: { compareResumes: boolean };
+  /** Preencher formulários com o favorito do navegador (src/autofill/): ligado e quais grupos de campos. */
+  autofill: AutofillPrefs;
+}
+
+export interface AutofillPrefs {
+  enabled: boolean;
+  /** Nome, e-mail e telefone. */
+  contact: boolean;
+  /** LinkedIn, GitHub e site. */
+  links: boolean;
+  /** Cidade. */
+  location: boolean;
+  /** Empresa e cargo atuais. */
+  current: boolean;
+  /** A mensagem curta do pacote, no campo de mensagem ou carta. */
+  message: boolean;
+  /** As respostas fixas (pretensão, disponibilidade, aviso prévio, mudança, visto). */
+  facts: boolean;
 }
 
 export interface AutoSearch {
@@ -132,6 +150,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   applicationFacts: { salaryExpectation: "", availability: "", noticePeriod: "", relocation: "", workAuthorization: "" },
   applyMode: { referralStep: true },
   results: { compareResumes: true },
+  autofill: { enabled: false, contact: true, links: true, location: true, current: true, message: true, facts: false },
 };
 
 function requireProfile() {
@@ -151,6 +170,7 @@ export function loadPreferences(): Preferences {
     googleJobs: { ...DEFAULT_PREFERENCES.googleJobs, ...raw.googleJobs },
     applyMode: { ...DEFAULT_PREFERENCES.applyMode, ...raw.applyMode },
     results: { ...DEFAULT_PREFERENCES.results, ...raw.results },
+    autofill: { ...DEFAULT_PREFERENCES.autofill, ...raw.autofill },
   };
 }
 

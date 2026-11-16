@@ -268,6 +268,18 @@ Formulários de plataforma pedem de novo o que já está no currículo: nome, te
 
 Tudo sai do currículo adaptado para a vaga (ou do currículo-base, antes do pacote), sem nada novo. A mesma ficha fica em `ficha_de_candidatura.md`, na pasta do pacote.
 
+#### Preencher formulários com um clique
+
+Um favorito do navegador, o **🪄 Preencher com ajf**, preenche o formulário de candidatura (Greenhouse, Lever, Ashby, Workable, sites de empresas) com os seus dados. Ele começa desligado.
+
+1. Ligue em [Preferências](#7-preferências-de-busca) → **📨 Candidatura e resultados** → **🪄 Preencher formulários com um clique**. Escolha **O que preencher**: nome, e-mail e telefone; LinkedIn, GitHub e site; cidade; empresa e cargo atuais; a mensagem curta; e, se quiser, as respostas fixas (pretensão, disponibilidade, visto).
+2. Instale o favorito uma vez: mostre a barra de favoritos (Ctrl+Shift+B no Chrome e no Edge, Cmd+Shift+B no Mac) e arraste o botão **🪄 Preencher com ajf** para ela. Não dá para arrastar? **📋 Copiar o código do favorito**, crie um favorito e cole o código no lugar do endereço.
+3. Em cada vaga: no [modo candidatura](#modo-candidatura) ou na aba **Ficha** da vaga, clique em **🪄 Copiar para o preenchimento**. Abra o formulário, clique no favorito e cole (Ctrl+V).
+
+Ele preenche só os campos **vazios** que reconhece e marca cada um com uma borda. Um quadro na página mostra o que foi preenchido. Ele não anexa arquivos (o currículo você anexa), não responde perguntas como "por que você quer trabalhar aqui?" (use a aba [Perguntas](#perguntas-do-formulário)) e **nunca clica em Enviar**. Ele não manda nada para lugar nenhum: os seus dados só saem do ajf quando você copia e cola. Se o formulário estiver dentro de um quadro de outro site, o quadro mostra o link para abrir direto; clique no favorito de novo lá.
+
+No terminal: `ajf preencher <empresa>` mostra a linha para copiar, e `ajf preencher --favorito` abre uma página com o favorito para instalar.
+
 ### Acompanhar
 
 ![Candidaturas em andamento](images/vagas-em-andamento.jpg)
@@ -382,7 +394,7 @@ O que muda: menus, botões, janelas, avisos e o nome das tarefas. O que não mud
 | **Onde** | De onde você pode trabalhar (em vagas remotas restritas a um país), cidades para presencial/híbrido e se você se mudaria para fora com visto patrocinado (veja [abaixo](#vagas-no-exterior-e-visto)) |
 | **Empresas** | Empresas que você segue (veja [Seguir empresa](#seguir-empresa)), empresas que você não quer e páginas de carreira (Greenhouse, Lever, Ashby) para monitorar |
 | **Respostas fixas dos formulários** | O que os formulários sempre perguntam e não está no currículo (veja [abaixo](#respostas-fixas-dos-formulários)) |
-| **Candidatura e resultados** | Se o [modo candidatura](#modo-candidatura) mostra o passo de indicação e se os [Resultados](#resultados) comparam as versões do currículo (os dois ligados por padrão) |
+| **Candidatura e resultados** | Se o [modo candidatura](#modo-candidatura) mostra o passo de indicação, se os [Resultados](#resultados) comparam as versões do currículo (os dois ligados por padrão) e o [preenchimento de formulários com um clique](#preencher-formulários-com-um-clique) (desligado por padrão) |
 | **Notas mínimas** | Triagem mínima para o piloto automático gerar pacote e nota mínima para "pronto para enviar" |
 
 Fontes de vagas:
@@ -529,6 +541,7 @@ Tudo da interface também existe no terminal. O terminal (comandos, menu e mensa
 | `ajf responder [empresa, cargo ou id] [-p "pergunta"] [--limite 500] [--contexto "..."] [--imagem print.png] [--pesquisar]` | Responde uma pergunta do formulário de candidatura e deixa ajustar até você dar Enter. `--imagem` lê a pergunta (e o limite) de um print; sem opções, também dá para arrastar o arquivo do print no terminal em vez de digitar. Em pergunta sobre a empresa, oferece pesquisar a missão e os valores antes; `--pesquisar` pesquisa sem perguntar |
 | `ajf linkedin [--current perfil.pdf]` · `ajf linkedin --conferir --current perfil.pdf` | Plano de LinkedIn, ou a conferência do LinkedIn atual (PDF exportado ou texto em `.md`/`.txt`) |
 | `ajf candidatar [--sem-indicacao]` | Modo candidatura: os pacotes prontos um de cada vez, do mais prioritário ao menos, com o link, como se candidatar, a mensagem curta, a ficha e o "Enviei" com o canal. `--sem-indicacao` esconde o passo de indicação |
+| `ajf preencher [empresa, cargo ou id] [--favorito]` | Preencher formulários com o favorito do navegador: mostra os dados da vaga para colar no **🪄 Preencher com ajf**. `--favorito` abre uma página para instalar o favorito |
 | `ajf ficha [empresa, cargo ou id]` | Mostra os campos do formulário de candidatura (dados, resumo em 3 tamanhos, cada experiência), prontos para copiar |
 | `ajf rascunho [empresa, cargo ou id] [--nao-abrir]` | Abre o e-mail de candidatura no seu programa de e-mail, com o currículo anexado. Quem envia é você |
 | `ajf enviei [empresa ou cargo] [--via plataforma\|email\|linkedin\|site\|whatsapp\|indicacao\|outro] [--note "..."]` | Marca que você se candidatou e por onde (acha a vaga pelo nome; sem `--via`, pergunta) |
@@ -568,6 +581,9 @@ A busca na web com IA abre muitas páginas por termo de busca, e algumas IAs gas
 
 **O Google for Jobs diz "A SerpApi recusou".**
 A mensagem depois vem da SerpApi. Se diz que a chave é inválida, copie de novo em [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key). Se diz que as buscas acabaram, a cota do mês terminou: diminua **Termos de busca por rodada** ou espere o mês seguinte.
+
+**O favorito 🪄 deixou um campo vazio, ou não aconteceu nada.**
+Ele só preenche campos de texto vazios que reconhece pelo nome ou pelo rótulo; listas, opções de sim ou não, envio de arquivo e perguntas ficam com você. Se o quadro disser que não achou campos, o formulário pode estar dentro de um quadro de outro site (abra pelo link do quadro) ou numa página que monta os campos de um jeito diferente, como alguns formulários da Workday: aí use a aba **Ficha**. Cole exatamente o que o **🪄 Copiar para o preenchimento** copiou; qualquer outra coisa é recusada.
 
 **A busca automática roda com o computador desligado?**
 Não: o computador precisa estar ligado. Com a busca diária no Windows, no macOS ou num timer do systemd no Linux, se o computador estava desligado no horário, a busca roda assim que ele ligar; no crontab, ela espera o dia seguinte. **Buscar ao abrir o app** cobre o resto. O log fica em `data/busca_automatica.log`.

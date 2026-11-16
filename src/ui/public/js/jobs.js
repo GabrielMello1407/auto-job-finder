@@ -592,13 +592,24 @@ function priorityPanels(d) {
 }
 const daysBetween = (a, b) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000));
 
+/* Preencher formulários (src/autofill/): copia os dados da vaga para colar no favorito do navegador. */
+const autofillButton = (id) =>
+  S.autofill && id ? btn("autofill-copy", t("🪄 Copiar para o preenchimento"), id, "small", t("Copia os seus dados para o favorito 🪄 Preencher com ajf colar no formulário")) : "";
+
+action("autofill-copy", async (id) => {
+  const r = await api(`/api/jobs/${encodeURIComponent(id)}/autofill`);
+  await copy(r.text);
+  toast(t("🪄 Copiado. No formulário, clique no favorito 🪄 Preencher com ajf e cole (Ctrl+V)."));
+});
+
 /* Ficha de candidatura: os campos que os formulários pedem, cada um com o botão de copiar. */
 function sheetTab(s) {
   const from =
     s.from === "pacote"
       ? t("Do currículo adaptado para esta vaga.")
       : t("Do seu currículo-base (esta vaga ainda não tem pacote; gerado o pacote, a ficha usa o currículo adaptado).");
-  return `<div class="panel"><p class="muted">${t("Os campos que formulários como Gupy, InHire, Greenhouse e Workday pedem de novo, prontos para copiar.")} ${from} ${t("Perguntas como “por que você quer trabalhar aqui?” ficam na aba Perguntas.")}</p></div>
+  return `<div class="panel"><p class="muted">${t("Os campos que formulários como Gupy, InHire, Greenhouse e Workday pedem de novo, prontos para copiar.")} ${from} ${t("Perguntas como “por que você quer trabalhar aqui?” ficam na aba Perguntas.")}</p>
+    ${S.autofill ? `<div class="btn-row" style="margin-top:10px">${autofillButton(drawer.id)}</div><p class="faint" style="margin-top:6px">${t("No formulário, clique no favorito 🪄 Preencher com ajf e cole (Ctrl+V). Confira os campos antes de enviar.")}</p>` : ""}</div>
   ${s.sections
     .map(
       (sec, i) => `<section class="panel sheet"><h3>${esc(sec.title)}</h3>${sec.fields
@@ -680,7 +691,8 @@ function applyTab(d, j) {
   );
   step(
     t("Preencha o formulário"),
-    `<p class="muted">${t("Os campos que o formulário pede (dados, resumo, cada experiência), prontos para copiar.")}</p><div class="btn-row">${btn("dtab", t("📋 Abrir a ficha"), "ficha", "small")}</div>`,
+    `<p class="muted">${t("Os campos que o formulário pede (dados, resumo, cada experiência), prontos para copiar.")}</p><div class="btn-row">${btn("dtab", t("📋 Abrir a ficha"), "ficha", "small")}${autofillButton(d.id)}</div>
+    ${S.autofill ? `<p class="faint" style="margin-top:8px">${t("No formulário, clique no favorito 🪄 Preencher com ajf e cole (Ctrl+V). Confira os campos antes de enviar.")}</p>` : ""}`,
   );
   if (d.applyNote)
     step(

@@ -38,7 +38,7 @@
    - carta de apresentação, quando o mercado pede;
    - e-mail de candidatura, mensagens para o recrutador, follow-up e agradecimento, com o e-mail pronto para abrir no seu programa de e-mail (já com o currículo anexado) ou no Gmail;
    - uma mensagem curta de apresentação para o campo "mensagem" das plataformas;
-   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar, com as suas respostas fixas (pretensão, disponibilidade, autorização de trabalho);
+   - a ficha com os campos que os formulários das plataformas pedem (Gupy, InHire, Greenhouse...), prontos para copiar, com as suas respostas fixas (pretensão, disponibilidade, autorização de trabalho), e um favorito do navegador opcional que preenche esses campos para você (ele nunca clica em Enviar);
    - o passo a passo para se candidatar pelo canal certo;
    - respostas para as perguntas do formulário ("Por que você quer trabalhar aqui?"), digitadas ou lidas de um print do formulário, que você ajusta conversando.
 4. **Ajuda a pedir indicação:** buscas no LinkedIn por pessoas da empresa (você abre; o agente nunca entra no LinkedIn) e mensagens curtas e honestas.
