@@ -8,7 +8,7 @@ import { loadPreferences, savePreferences, type FollowedCompany } from "../../pr
 import { dueOnOpen, loadRoutineState, runRoutine } from "../../routine.js";
 import { follow, isFollowed, unfollow } from "../../jobs/follow.js";
 import { addJobLinks, extractJobLinks } from "../../jobs/links.js";
-import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, type ProviderId } from "../../providers/index.js";
+import { activeProviderId, detectProviders, getProvider, normalizeProviderId, providerInfo, searchProviderId, type ProviderId } from "../../providers/index.js";
 import { addJob, searchJobs, searchSummary } from "../../jobs/search.js";
 import { CHECKABLE, checkJobOpen, checkOpenJobs, closedSummary, OPEN_ICON, recordOpenCheck } from "../../jobs/open.js";
 import { APPLY_CHANNELS, changeStatus, guessApplyVia, isApplyVia, isStatus, recordFollowUp, SENDABLE, STATUS_LABELS } from "../../jobs/status.js";
@@ -191,7 +191,9 @@ export function providerState() {
   } catch (e) {
     error = (e as Error).message;
   }
-  return { active, label: active ? providerInfo(active).label : null, error };
+  // IA da busca na web, se houver uma diferente da principal (AJF_SEARCH_PROVIDER).
+  const search = searchProviderId();
+  return { active, label: active ? providerInfo(active).label : null, error, search: search && search !== active ? search : null, searchLabel: search && search !== active ? providerInfo(search).label : null };
 }
 
 const jobFrom = (id: string) => {
@@ -346,6 +348,23 @@ export function jobRoutes(app: App): Route[] {
         const det = detectProviders().find((d) => d.info.id === id);
         if (!det?.ready) throw new HttpError(400, "Essa IA não está pronta nesta máquina: {detail}", { detail: providerDetail(c.t, det?.detail ?? "") });
         setEnvVar("AJF_PROVIDER", id);
+        return providerState();
+      },
+    ],
+    [
+      "POST",
+      /^\/api\/providers\/search$/,
+      async (c) => {
+        // IA só para a busca na web; vazio volta a usar a principal.
+        const raw = str((await c.body()).id, 40);
+        if (!raw) {
+          setEnvVar("AJF_SEARCH_PROVIDER", "");
+          return providerState();
+        }
+        const id = normalizeProviderId(raw);
+        const det = id ? detectProviders().find((d) => d.info.id === id) : undefined;
+        if (!id || !det?.ready || !det.info.webSearch) throw new HttpError(400, "Essa IA não está pronta nesta máquina ou não faz busca na web.");
+        setEnvVar("AJF_SEARCH_PROVIDER", id);
         return providerState();
       },
     ],

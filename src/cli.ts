@@ -8,7 +8,7 @@ import { writeDashboard } from "./dashboard.js";
 import { answerFlow, askRejection, mainMenu, numbersFlow } from "./menu.js";
 import { runInit, runProfileUpdate } from "./onboarding/index.js";
 import { rebuildBaseResumes } from "./onboarding/update.js";
-import { chooseProvider, printProviders } from "./onboarding/provider.js";
+import { chooseProvider, chooseSearchProvider, printProviders } from "./onboarding/provider.js";
 import { openExternal } from "./util/open.js";
 import { addJob, searchJobs, searchSummary } from "./jobs/search.js";
 import { addJobLinks, extractJobLinks } from "./jobs/links.js";
@@ -68,8 +68,10 @@ program
   .description("mostra as IAs detectadas (Claude, Codex, Gemini, APIs) e escolhe qual usar")
   .option("--escolher", "pergunta qual usar e salva no .env")
   .option("--testar", "faz uma chamada curta para confirmar que a IA responde")
+  .option("--busca <ia>", "IA só para a busca na web (achar vagas, pesquisar empresas): o id dela, ou \"principal\" para voltar à IA principal")
   .action(async (o) => {
     if (o.escolher) await chooseProvider();
+    if (o.busca !== undefined) await chooseSearchProvider(o.busca);
     printProviders();
     if (o.testar) {
       const { z } = await import("zod");

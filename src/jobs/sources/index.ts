@@ -3,6 +3,7 @@ import type { Job } from "../../schemas.js";
 import { htmlToText, shortHash } from "../../util/text.js";
 import { canonicalUrl } from "../dedupe.js";
 import { getonbrd, githubBr, jobicy, weworkremotely } from "./extra.js";
+import { googleJobs } from "./googlejobs.js";
 import { gupy } from "./gupy.js";
 
 export type RawJob = Omit<Job, "id" | "addedAt" | "status">;
@@ -10,6 +11,10 @@ export type RawJob = Omit<Job, "id" | "addedAt" | "status">;
 export interface SourceContext {
   queries: string[];
   companyBoards: { greenhouse: string[]; lever: string[]; ashby: string[] };
+  /** País da pessoa (Google for Jobs usa para o país e o idioma da busca). */
+  country?: string;
+  /** Quantos termos de busca o Google for Jobs usa por rodada (cada um gasta uma busca da cota). */
+  googleJobsMaxQueries?: number;
 }
 
 export interface JobSource {
@@ -250,4 +255,5 @@ export const SOURCES: Record<string, JobSource> = {
   greenhouse,
   lever,
   ashby,
+  googlejobs: googleJobs,
 };

@@ -1,5 +1,5 @@
 // Preferências de busca: cargos, termos, filtros de título, regiões, fontes e notas mínimas.
-import { $, action, api, app, btn, esc, formData, S, t, tagsField, toast } from "./core.js";
+import { $, action, api, app, btn, esc, formData, link, S, t, tagsField, toast } from "./core.js";
 
 let data = null; // GET /api/preferences
 let dirty = false;
@@ -15,6 +15,35 @@ function section(title, text, inner) {
 }
 const tags = (label, name, values, help = "", placeholder) =>
   `<div class="field"><span>${label}</span>${help ? `<small>${help}</small>` : ""}${tagsField(name, values, placeholder)}</div>`;
+
+/*
+ * Google for Jobs pela SerpApi (src/jobs/sources/googlejobs.ts). A chave vai para o .env e nunca volta para a
+ * página: aqui só dá para colar uma nova, testar ou remover.
+ */
+function googleJobsBlock(p) {
+  const g = data.googleJobs;
+  return `<div class="panel inset" id="google-jobs">
+    <h4>${t("Google for Jobs")}</h4>
+    <p class="muted">${t("Traz as vagas que o Google reúne de LinkedIn, Indeed, Glassdoor e páginas de carreira, já com a descrição completa e sem IA navegando: bem mais barato e rápido que a busca na web. Usa a API da SerpApi, que pede uma chave. O plano gratuito tem 250 buscas por mês. Depois de salvar a chave, ligue a fonte googlejobs acima.")}</p>
+    <p>${g.hasKey ? `<span class="chip ok">${t("✅ chave configurada")}</span>` : `<span class="chip warn">${t("sem chave")}</span>`}</p>
+    <div class="btn-row">${link(g.signupUrl, t("Criar conta grátis na SerpApi"), "small")}${link(g.keyUrl, t("Onde está a minha chave"), "small")}</div>
+    <label class="field"><span>${g.hasKey ? t("Trocar a chave") : t("Chave da SerpApi")}</span><small>${t("Fica só no arquivo .env deste computador e não aparece de novo na tela.")}</small><input type="password" name="serpapiKey" autocomplete="off" spellcheck="false" placeholder="${esc(g.hasKey ? t("deixe vazio para manter a atual") : t("cole a chave aqui"))}"></label>
+    <div class="btn-row"><button type="button" class="small" data-act="googlejobs-test">${t("🔌 Testar a chave")}</button><span class="muted" id="gj-test-out"></span></div>
+    ${g.hasKey ? `<label class="switch"><input type="checkbox" name="serpapiKeyRemove"><span>${t("Remover a chave salva")}</span></label>` : ""}
+    <label class="field"><span>${t("Termos de busca por rodada")}</span><small>${t("Cada termo gasta 1 busca da sua cota. Com 3 por rodada e uma busca por dia, são umas 90 por mês.")}</small><input type="number" name="googleJobsMaxQueries" min="1" max="10" value="${esc(p.googleJobs?.maxQueries ?? 3)}" style="max-width:140px"></label>
+  </div>`;
+}
+
+action("googlejobs-test", async () => {
+  const out = $("#gj-test-out");
+  out.textContent = t("testando… (gasta 1 busca da cota)");
+  try {
+    const r = await api("/api/preferences/googlejobs/test", { key: $("#prefs").elements.serpapiKey.value.trim() });
+    out.textContent = t("✅ A chave funciona: {n} vaga(s) para o primeiro termo de busca.", { n: r.count });
+  } catch (e) {
+    out.textContent = `❌ ${e.message}`;
+  }
+});
 
 /* Busca automática (src/routine.ts): ao abrir o app e/ou todo dia pelo agendador do sistema. */
 const TRIGGER = { abrir: t("ao abrir o app"), agenda: t("agendada"), manual: t("pelo terminal") };
@@ -76,6 +105,7 @@ function paint() {
           (s) => `<label class="source-opt"><input type="checkbox" name="defaultSources" data-list value="${esc(s.id)}"${p.defaultSources.includes(s.id) ? " checked" : ""}><span><b>${esc(s.id)}</b><br><small class="muted">${esc(t(s.description))}</small></span></label>`,
         )
         .join("")}</div></div>
+      ${googleJobsBlock(p)}
       <label class="switch"><input type="checkbox" name="webSearchByDefault"${p.webSearchByDefault ? " checked" : ""}><span>${t("Buscar também na web com IA por padrão")}<small>${t("LinkedIn, Gupy, Indeed e sites de empresas. Mais vagas no Brasil, mas é mais lento e usa mais a IA.")}${S.webSearch ? "" : ` ${t("A IA escolhida não faz busca na web.")}`}</small></span></label>
       <label class="field"><span>${t("Dica para a busca na web")}</span><small>${t("Em uma ou duas frases: que vagas priorizar.")}</small><textarea name="webSearchHints" rows="3">${esc(p.webSearchHints)}</textarea></label>
       <label class="field"><span>${t("Ignorar vagas publicadas há mais de (dias)")}</span><input type="number" name="maxAgeDays" min="1" max="365" value="${esc(p.maxAgeDays)}"></label>`,

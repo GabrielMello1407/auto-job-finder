@@ -159,22 +159,23 @@ export function providerInfo(id: ProviderId): ProviderInfo {
   return PROVIDERS.find((p) => p.id === id)!;
 }
 
-/** Modelo para a chamada: explícito > AJF_TRIAGE_MODEL/AJF_MODEL > padrão do provedor (vazio = padrão da CLI). */
-export function modelResolver(id: ProviderId) {
+/**
+ * Modelo para a chamada: explícito > AJF_TRIAGE_MODEL/AJF_MODEL > padrão do provedor (vazio = padrão da CLI).
+ * `envModels` false ignora AJF_MODEL/AJF_TRIAGE_MODEL: eles são da IA principal (a IA da busca usa o padrão dela).
+ */
+export function modelResolver(id: ProviderId, envModels = true) {
   const info = providerInfo(id);
+  const env = (k: string) => (envModels ? process.env[k] : undefined);
   return (o: CallOptions): string | undefined =>
-    o.model ||
-    (o.tier === "fast"
-      ? process.env.AJF_TRIAGE_MODEL || process.env.AJF_MODEL || info.defaultFastModel
-      : process.env.AJF_MODEL || info.defaultModel) ||
-    undefined;
+    o.model || (o.tier === "fast" ? env("AJF_TRIAGE_MODEL") || env("AJF_MODEL") || info.defaultFastModel : env("AJF_MODEL") || info.defaultModel) || undefined;
 }
 
-const cache = new Map<ProviderId, LlmProvider>();
+const cache = new Map<string, LlmProvider>();
 
-export function createProvider(id: ProviderId): LlmProvider {
-  if (!cache.has(id)) {
-    const m = modelResolver(id);
+export function createProvider(id: ProviderId, envModels = true): LlmProvider {
+  const key = `${id}:${envModels}`;
+  if (!cache.has(key)) {
+    const m = modelResolver(id, envModels);
     const p =
       id === "claude-code" ? claudeCodeProvider(m)
       : id === "codex" ? codexProvider(m)
@@ -182,9 +183,9 @@ export function createProvider(id: ProviderId): LlmProvider {
       : id === "openai" ? openaiProvider(m)
       : id === "gemini" ? geminiProvider(m)
       : anthropicProvider(id, m);
-    cache.set(id, p);
+    cache.set(key, p);
   }
-  return cache.get(id)!;
+  return cache.get(key)!;
 }
 
 export const NO_PROVIDER_MESSAGE = `Nenhuma IA encontrada nesta máquina. Escolha uma opção (todas funcionam):
@@ -195,4 +196,21 @@ export function getProvider(): LlmProvider {
   const id = activeProviderId();
   if (!id) throw new Error(NO_PROVIDER_MESSAGE);
   return createProvider(id);
+}
+
+/**
+ * IA da busca na web (AJF_SEARCH_PROVIDER): outra IA só para buscar vagas e pesquisar empresas na web, que é
+ * a parte que mais gasta. Vazia, inválida, sem busca na web ou não pronta nesta máquina: vale a IA principal.
+ */
+export function searchProviderId(detections: Detection[] = detectProviders()): ProviderId | null {
+  const id = normalizeProviderId(process.env.AJF_SEARCH_PROVIDER);
+  if (!id || !providerInfo(id).webSearch) return null;
+  return detections.find((d) => d.info.id === id)?.ready ? id : null;
+}
+
+/** O provedor das chamadas com busca na web: a IA da busca, se houver uma diferente da principal; senão a principal. */
+export function getSearchProvider(): LlmProvider {
+  const id = searchProviderId();
+  if (id && id !== activeProviderId()) return createProvider(id, false);
+  return getProvider();
 }

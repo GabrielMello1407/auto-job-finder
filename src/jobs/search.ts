@@ -20,7 +20,12 @@ export interface SearchOptions {
 
 export async function searchJobs(opts: SearchOptions = {}) {
   const prefs = loadPreferences();
-  const ctx = { queries: opts.queries?.length ? opts.queries : prefs.queries, companyBoards: prefs.companyBoards };
+  const ctx = {
+    queries: opts.queries?.length ? opts.queries : prefs.queries,
+    companyBoards: prefs.companyBoards,
+    country: prefs.country,
+    googleJobsMaxQueries: prefs.googleJobs.maxQueries,
+  };
   const names = opts.sources?.length ? opts.sources : prefs.defaultSources;
 
   const raw: RawJob[] = [];

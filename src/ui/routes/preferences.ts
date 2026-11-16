@@ -1,5 +1,6 @@
 import { ensureDir, paths, setEnvVar, settings } from "../../config.js";
 import { SOURCES } from "../../jobs/sources/index.js";
+import { SERPAPI_KEY_URL, SERPAPI_SIGNUP_URL, serpApiJobs } from "../../jobs/sources/googlejobs.js";
 import { sameCompany, unfollow } from "../../jobs/follow.js";
 import { loadPreferences, savePreferences, type Preferences } from "../../profile.js";
 import { loadRoutineState, syncSchedule } from "../../routine.js";
@@ -7,6 +8,9 @@ import { parseTime, SCHEDULER_LABELS, schedulerKind } from "../../scheduler.js";
 import { clamp, HttpError, str, strList, type Route } from "../http.js";
 
 /** Preferências de busca (profile/preferences.json) e as notas mínimas (.env). */
+
+/** Chave da SerpApi: letras e números (a da conta tem 64). Só para pegar colagem errada, não é segurança. */
+const SERPAPI_KEY_FORMAT = /^[A-Za-z0-9_-]{16,128}$/;
 
 export function preferenceRoutes(): Route[] {
   return [
@@ -18,6 +22,8 @@ export function preferenceRoutes(): Route[] {
         sources: Object.entries(SOURCES).map(([id, s]) => ({ id, description: s.description })),
         minRating: settings.minRating,
         minTriageScore: settings.minTriageScore,
+        // Google for Jobs: só se há chave (a chave nunca volta para a página) e onde pegar uma.
+        googleJobs: { hasKey: Boolean(process.env.SERPAPI_KEY?.trim()), signupUrl: SERPAPI_SIGNUP_URL, keyUrl: SERPAPI_KEY_URL },
         // Busca automática: qual agendador o sistema tem, o que está agendado e as últimas buscas.
         routine: (() => {
           const state = loadRoutineState();
@@ -25,6 +31,24 @@ export function preferenceRoutes(): Route[] {
           return { scheduler: kind ? SCHEDULER_LABELS[kind] : null, schedule: state.schedule ?? null, runs: state.runs.slice(0, 5) };
         })(),
       }),
+    ],
+    [
+      "POST",
+      /^\/api\/preferences\/googlejobs\/test$/,
+      async (c) => {
+        // Uma busca de teste com a chave digitada (ou a salva). Gasta 1 busca da cota da SerpApi.
+        const typed = str((await c.body()).key, 200);
+        const key = typed || process.env.SERPAPI_KEY?.trim() || "";
+        if (!key) throw new HttpError(400, "Cole a chave da SerpApi para testar.");
+        if (!SERPAPI_KEY_FORMAT.test(key)) throw new HttpError(400, "Essa não parece uma chave da SerpApi. Copie de novo na página da sua conta.");
+        const prefs = loadPreferences();
+        try {
+          const jobs = await serpApiJobs(prefs.queries[0] || prefs.targetRoles[0] || "developer", key, prefs.country);
+          return { ok: true, count: jobs.length };
+        } catch (e) {
+          throw new HttpError(400, "A SerpApi recusou: {error}", { error: (e as Error).message });
+        }
+      },
     ],
     [
       "PUT",
@@ -85,8 +109,17 @@ export function preferenceRoutes(): Route[] {
         const added = names.filter((n) => !kept.some((f) => sameCompany(f.name, n))).map((name) => ({ name }));
         Object.assign(prefs, next, { followedCompanies: [...kept, ...added] });
 
+        // Google for Jobs: termos por rodada (cota da SerpApi) e a chave, que só vai para o .env.
+        prefs.googleJobs = { maxQueries: Math.round(clamp(b.googleJobsMaxQueries, 1, 10, old.googleJobs.maxQueries)) };
+        const newKey = str(b.serpapiKey, 200);
+        if (newKey && !SERPAPI_KEY_FORMAT.test(newKey)) throw new HttpError(400, "Essa não parece uma chave da SerpApi. Copie de novo na página da sua conta.");
+        if (prefs.defaultSources.includes("googlejobs") && !newKey && (b.serpapiKeyRemove || !process.env.SERPAPI_KEY))
+          throw new HttpError(400, "Para usar o Google for Jobs, cole a chave da SerpApi (o link para criar a conta grátis está ao lado).");
+
         if (!prefs.queries.length) throw new HttpError(400, "Deixe pelo menos um termo de busca.");
         if (!prefs.defaultSources.length && !prefs.webSearchByDefault) throw new HttpError(400, "Ligue pelo menos uma fonte de vagas ou a busca na web.");
+        if (newKey) setEnvVar("SERPAPI_KEY", newKey);
+        else if (b.serpapiKeyRemove) setEnvVar("SERPAPI_KEY", "");
 
         ensureDir(paths.profileDir);
         savePreferences(prefs);

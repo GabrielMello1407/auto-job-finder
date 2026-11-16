@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { getProvider, providerInfo, type CallOptions, type SearchOptions } from "./providers/index.js";
+import { getProvider, getSearchProvider, providerInfo, type CallOptions, type SearchOptions } from "./providers/index.js";
 
 /**
  * Ponto único de acesso à IA. Toda chamada passa por aqui e vai para o provedor ativo
@@ -28,10 +28,10 @@ export function text(opts: CallOptions): Promise<string> {
   return getProvider().text(opts);
 }
 
-/** O provedor ativo consegue buscar na web? */
+/** A IA da busca na web (ou a principal, se não houver outra) consegue buscar na web? */
 export function canWebSearch(): boolean {
   try {
-    return Boolean(getProvider().webSearchStructured);
+    return Boolean(getSearchProvider().webSearchStructured);
   } catch {
     return false;
   }
@@ -42,7 +42,7 @@ export function canWebSearch(): boolean {
  * pública (LinkedIn, Gupy, Indeed, Glassdoor, sites de carreira).
  */
 export function webSearchStructured<S extends z.ZodType>(schema: S, opts: SearchOptions): Promise<z.infer<S>> {
-  const p = getProvider();
+  const p = getSearchProvider();
   if (!p.webSearchStructured)
     throw new Error(`O provedor ${providerInfo(p.id).label} não faz busca na web. As fontes por API continuam funcionando.`);
   return p.webSearchStructured(schema, opts);

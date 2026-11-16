@@ -38,6 +38,8 @@ export interface Preferences {
   autoSearch: AutoSearch;
   /** Empresas que a pessoa segue (src/jobs/follow.ts): sobem na lista e entram na busca na web. */
   followedCompanies: FollowedCompany[];
+  /** Fonte Google for Jobs (src/jobs/sources/googlejobs.ts): quantos termos de busca por rodada (cada um gasta uma busca da cota). A chave fica no .env (SERPAPI_KEY). */
+  googleJobs: { maxQueries: number };
   /** Empresas que a pessoa não quer (também lidas de excluded.md). */
   excludedCompanies: string[];
   /** Empresas com páginas Greenhouse/Lever/Ashby para monitorar. */
@@ -116,6 +118,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   relocationCountries: [],
   autoSearch: { onOpen: false, onOpenHours: 12, daily: false, time: "08:00", web: false, triage: true },
   followedCompanies: [],
+  googleJobs: { maxQueries: 3 },
   excludedCompanies: [],
   companyBoards: { greenhouse: [], lever: [], ashby: [] },
   defaultSources: ["remotive", "himalayas", "jobicy", "arbeitnow"],
@@ -139,6 +142,7 @@ export function loadPreferences(): Preferences {
     applicationFacts: { ...DEFAULT_PREFERENCES.applicationFacts, ...raw.applicationFacts },
     autoSearch: { ...DEFAULT_PREFERENCES.autoSearch, ...raw.autoSearch },
     followedCompanies: Array.isArray(raw.followedCompanies) ? raw.followedCompanies : [],
+    googleJobs: { ...DEFAULT_PREFERENCES.googleJobs, ...raw.googleJobs },
   };
 }
 
