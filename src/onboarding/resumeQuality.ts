@@ -6,6 +6,7 @@ import { htmlToPdf } from "../render/pdf.js";
 import { resumeHtml } from "../render/resumeHtml.js";
 import type { Resume } from "../schemas.js";
 import { buildBaseResume, reviseBaseResume } from "./build.js";
+import { currentMarket, mentions, type MarketKeyword } from "./marketKeywords.js";
 
 /**
  * Conferência do currículo-base sem IA: o que um recrutador estranharia (tópicos demais, nota interna,
@@ -16,7 +17,10 @@ import { buildBaseResume, reviseBaseResume } from "./build.js";
 /** Tópicos por posição: só a principal (a que tem mais projetos) pode passar de MAX_BULLETS, até MAX_MAIN_BULLETS. */
 export const MAX_BULLETS = 6;
 export const MAX_MAIN_BULLETS = 8;
-const MAX_TOTAL_BULLETS = 22;
+/** O prompt pede de 12 a 16 tópicos no total; a conferência aponta a partir daqui. */
+export const MAX_TOTAL_BULLETS = 18;
+/** Palavras do mercado que faltam e que a revisão tenta encaixar (as mais pedidas primeiro). */
+const MAX_MISSING_KEYWORDS = 8;
 const MAX_BULLET_CHARS = 300;
 const MAX_SUMMARY_CHARS = 750;
 const MAX_SKILL_GROUPS = 8;
@@ -33,8 +37,11 @@ const PENDING = /\ba confirmar\b|\bto be confirmed\b/i;
 
 const cut = (s: string, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** Os problemas do currículo-base, em frases que vão para a revisão da IA e para o log. Puro. */
-export function baseResumeIssues(r: Resume, pages?: number): string[] {
+/**
+ * Os problemas do currículo-base, em frases que vão para a revisão da IA e para o log. Com `market` (as palavras
+ * do mercado que o perfil comprova, marketKeywords.ts), aponta as mais pedidas que o currículo não mostra. Puro.
+ */
+export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeyword[] = []): string[] {
   const out: string[] = [];
   const total = r.experience.reduce((n, e) => n + e.bullets.length, 0);
   // A posição com mais tópicos é a principal: ela pode ir até 8; as outras, até 6.
@@ -56,7 +63,13 @@ export function baseResumeIssues(r: Resume, pages?: number): string[] {
     }
     for (const [prefix, n] of prefixes) if (n >= 3) out.push(`${where}: o prefixo "${prefix}:" se repete em ${n} tópicos`);
   });
-  if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em até 20`);
+  if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em 12 a 16`);
+  const text = JSON.stringify(r);
+  const missing = market.filter((k) => !mentions(text, k.term)).slice(0, MAX_MISSING_KEYWORDS);
+  if (missing.length)
+    out.push(
+      `palavras que as vagas analisadas pedem, que o perfil comprova e que o currículo não mostra: ${missing.map((k) => `"${k.term}" (${k.jobs} vagas)`).join(", ")}. Use as que forem verdade onde couberem, com essa grafia`,
+    );
   if (r.summary.length > MAX_SUMMARY_CHARS) out.push(`resumo longo demais (${r.summary.length} caracteres; até cerca de 600)`);
   if (INTERNAL_NOTE.test(r.summary)) out.push(`nota interna do perfil no resumo`);
   if (r.skills.length > MAX_SKILL_GROUPS) out.push(`${r.skills.length} categorias de competências; use de 4 a 7`);
@@ -83,32 +96,64 @@ async function pageCount(r: Resume): Promise<number | undefined> {
   }
 }
 
+/**
+ * Dados que a IA não pode inventar e que fazem falta para quem contrata: só a pessoa resolve (no perfil ou numa
+ * novidade). Vão para o log da atualização, não para a IA. Puro.
+ */
+export function resumeHints(r: Resume): string[] {
+  const out: string[] = [];
+  const en = r.language === "en";
+  if (!r.contact.phone?.trim())
+    out.push(en ? "No phone number: many recruiters call and most forms ask for one." : "Sem telefone: muitos recrutadores ligam ou chamam no WhatsApp, e os formulários pedem.");
+  for (const e of r.education)
+    if (!e.period?.trim()) out.push(en ? `Education without a date: "${e.degree}". Add the year or period.` : `Formação sem período: "${e.degree}". Informe o ano ou o período, senão pode parecer um curso não concluído.`);
+  const current = r.experience.filter((e) => /^(atual|present|current|presente|hoje)$/i.test(e.end.trim()));
+  if (current.length >= 3)
+    out.push(
+      en
+        ? `${current.length} current roles at the same time: check that they are all still current.`
+        : `${current.length} cargos atuais ao mesmo tempo: confira se todos continuam atuais (cargos demais em paralelo levantam dúvida sobre disponibilidade).`,
+    );
+  return out;
+}
+
 /** Confere e, se precisar, revisa uma vez. Devolve o currículo e o que ainda ficou (só aviso). */
-export async function polishBaseResume(truth: string, draft: Resume, log: (m: string) => void = console.log): Promise<{ resume: Resume; issues: string[] }> {
+export async function polishBaseResume(
+  truth: string,
+  draft: Resume,
+  log: (m: string) => void = console.log,
+  market: MarketKeyword[] = [],
+): Promise<{ resume: Resume; issues: string[] }> {
   let resume = withoutPendingNotes(draft);
-  const issues = baseResumeIssues(resume, await pageCount(resume));
+  const issues = baseResumeIssues(resume, await pageCount(resume), market);
   if (!issues.length) return { resume, issues };
   log(`   revisando o currículo (${issues.length} ponto(s): ${cut(issues.join("; "), 160)})`);
   try {
-    resume = withoutPendingNotes(await reviseBaseResume(truth, resume, issues));
+    resume = withoutPendingNotes(await reviseBaseResume(truth, resume, issues, market));
   } catch (e) {
     log(`   ⚠ a revisão não deu certo (${(e as Error).message}); fica a versão sem revisão.`);
     return { resume, issues };
   }
-  return { resume, issues: baseResumeIssues(resume, await pageCount(resume)) };
+  return { resume, issues: baseResumeIssues(resume, await pageCount(resume), market) };
 }
 
 /**
  * Os dois currículos-base (PT e EN) a partir do perfil, conferidos e revisados. Com `previous`, atualiza o
  * currículo atual em vez de montar do zero. Usado pelo cadastro (`ajf init`) e pela atualização do perfil.
+ * As palavras do mercado (marketKeywords.ts) vêm das vagas que a pessoa já analisou; sem vagas, não há.
  */
 export async function buildBaseResumes(truth: string, previous?: Resume, log: (m: string) => void = console.log): Promise<{ pt: Resume; en: Resume; issues: string[] }> {
+  const market = currentMarket(truth);
+  if (market.proven.length) log(`Palavras do seu mercado: ${market.proven.length} termo(s) que o perfil comprova, de ${market.total} vaga(s) analisada(s).`);
   log("Montando o currículo-base em português...");
-  const pt = await polishBaseResume(truth, await buildBaseResume(truth, "pt-BR", undefined, previous), log);
+  const pt = await polishBaseResume(truth, await buildBaseResume(truth, "pt-BR", undefined, previous, market.proven), log, market.proven);
   log("Montando o currículo-base em inglês...");
   const en = await polishBaseResume(truth, await buildBaseResume(truth, "en", pt.resume), log);
   // Cargo em inglês só no currículo em inglês; nos dois, sem travessão como pontuação.
   const issues = [...pt.issues.map((i) => `PT: ${i}`), ...en.issues.map((i) => `EN: ${i}`)];
   for (const i of issues) log(`   ⚠ ${i}`);
+  for (const h of resumeHints(pt.resume)) log(`💡 ${h}`);
+  if (market.gaps.length)
+    log(`📚 O seu mercado pede e o seu perfil não mostra (lacunas para estudar, nunca vão para o currículo): ${market.gaps.slice(0, 8).map((k) => `${k.term} (${k.jobs})`).join(", ")}.`);
   return { pt: withoutDashesResume(withoutTranslatedTitles(pt.resume, en.resume)), en: withoutDashesResume(en.resume), issues };
 }

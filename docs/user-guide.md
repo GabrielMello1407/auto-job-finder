@@ -108,12 +108,16 @@ Did a new project, changed jobs, finished a course? You don't need to rebuild ev
 4. **✅ Apply and rebuild the resumes**: the current profile goes to a backup, `profile_truth.md` and `rules.json` are updated, and the base resumes in Portuguese and English are rebuilt, keeping the wording of what didn't change. It takes a few minutes.
 
 **The profile keeps everything; the resume picks.** Tell it all the details you want: they stay in the profile, for interviews and for packages whose job asks for them. The base resume stays the way a recruiter reads it:
-- 4 to 6 bullets in the main role (up to 8 when it spans different projects) and up to 6 in the others, each one an achievement of up to two lines;
+- 4 to 6 bullets in each current or relevant role (up to 8 in the main one when it spans different projects), 12 to 16 in total, each one a single achievement of up to two lines;
+- a summary with your role, your field's main skills and 1 or 2 real results, with no generic adjectives;
+- the terms the jobs you analyzed ask for most, when your profile proves them;
 - the numbers that show impact or scale. Small figures (few customers, a single user) and code counters (commits, lines of code) stay out;
 - no internal note from the profile, such as "self-reported", the date a number was measured or "to confirm";
 - up to 2 pages, using the space: with room to spare, more projects that support your target roles go in.
 
-After it is rebuilt, an automatic check flags what is out of line and the AI fixes those points.
+After it is rebuilt, an automatic check flags what is out of line and the AI fixes those points. The log also shows:
+- **💡** what only you can fill in: no phone number, education without a date, too many current roles at once;
+- **📚** the terms your jobs ask for that your profile doesn't show. That is a study plan, and it never goes into the resume.
 
 After applying:
 - **Ready packages made before the change** show the warning **"profile changed since"** and the **🔄 Generate again** button. Applications already sent are not flagged.
