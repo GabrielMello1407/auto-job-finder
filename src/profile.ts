@@ -192,7 +192,12 @@ export const NON_EVIDENCE_HEADING = /^## .*(lacuna|regras de comunica|a confirma
  * coisas que a pessoa NÃO tem — não podem contar como prova nas travas e no relatório ATS.
  */
 export function profileTruthEvidence(): string {
-  return loadProfileTruth()
+  return evidenceOf(loadProfileTruth());
+}
+
+/** As seções de evidência de um texto de perfil (sem Lacunas, A confirmar, Nunca, Regras de comunicação). Puro. */
+export function evidenceOf(truth: string): string {
+  return truth
     .split(/^(?=## )/m)
     .filter((section) => !NON_EVIDENCE_HEADING.test(section.split("\n")[0]))
     .join("");

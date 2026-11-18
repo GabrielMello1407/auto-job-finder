@@ -135,47 +135,62 @@ As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação
  */
 export const RESUME_CURATION = `REGRAS DO CURRÍCULO-BASE (como um recrutador e um ATS leem):
 - O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até 2 páginas.
-- Tópicos por posição: a posição principal (a mais relevante para os cargos-alvo) tem de 4 a 6, e até 8 quando reúne projetos diferentes; as outras, de 2 a 4, nunca mais de 6; posições antigas ou pouco relevantes, 1 a 2.
-- Use o espaço: o limite é 2 páginas, não 1. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar a segunda página vazia. Se passa de 2 páginas, corte primeiro o que pesa menos.
-- Cada tópico é uma realização: começa com verbo de ação, ocupa no máximo 2 linhas (cerca de 250 caracteres) e diz o que foi feito, como (só as ferramentas que importam) e o resultado. Junte fatos relacionados num tópico só; não liste funcionalidades uma a uma.
-- Vários projetos na mesma posição: cite o nome do projeto dentro do tópico, sem repetir o mesmo prefixo ("Projeto X:") em vários tópicos seguidos. Os projetos menores podem ficar de fora.
+- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 4 a 6 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 8 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1 a 2. No total, de 12 a 16 tópicos de experiência.
+- Posições ao mesmo tempo: a principal (o emprego formal ou a mais relevante para os cargos-alvo) vem primeiro.
+- Use o espaço sem encher: o limite é 2 páginas. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar meia página vazia. Se passa de 2 páginas ou de 16 tópicos, corte primeiro o que pesa menos.
+- Cada tópico é UMA realização: começa com verbo de ação, ocupa no máximo 2 linhas (cerca de 250 caracteres) e diz o que foi feito, como (só as ferramentas que importam) e o resultado. Junte fatos relacionados num tópico só; não liste funcionalidades uma a uma; não junte duas realizações sem relação no mesmo tópico.
+- Vários projetos, clientes ou frentes na mesma posição: cada um que for relevante ganha um tópico antes de outro ganhar o segundo. Cite o nome dentro do tópico, sem repetir o mesmo prefixo ("Projeto X:") em vários tópicos seguidos. Os menores podem ficar de fora.
 - Números: use os que mostram impacto ou escala que importa para os cargos-alvo (tempo economizado, melhoria percentual, volume processado, pessoas atendidas, economia ou receita relevante), no máximo 1 ou 2 por tópico. Deixe de fora números que diminuem o trabalho (poucos clientes, receita pequena, um único usuário, contagens de cadastros) e contadores internos de trabalho (commits, pull requests, linhas de código, quantidade de rotas, arquivos, modelos ou migrations), a não ser que o cargo-alvo peça exatamente isso.
 - Número marcado como estimado no perfil: escreva "cerca de" (em inglês, "about"). Nunca escreva de onde o número veio nem quando foi medido ("autodeclarado", "estimado", "conforme relato", "segundo a pessoa", "levantamento de DD/MM/AAAA").
 - Nada de pendências, perguntas ou notas para a pessoa: nada do que está em "A confirmar", nenhuma frase como "a confirmar", "verificar" ou "pendente".
-- Resumo: 3 a 4 frases, até cerca de 600 caracteres, sem repetir a lista de competências.
-- Competências: 4 a 7 categorias com o que um ATS procura (tecnologias, ferramentas, métodos, áreas), até cerca de 12 itens por categoria. Detalhe de implementação fica no tópico da experiência, não em competências.
+- Resumo: 3 a 4 frases, até cerca de 600 caracteres: o cargo ou a área, o tempo de experiência (só se o perfil disser), as principais competências da área (as que um ATS procura) e 1 ou 2 resultados concretos do perfil. Sem adjetivos genéricos que qualquer pessoa escreveria ("foco em qualidade", "proativo", "apaixonado por").
+- Competências: 4 a 7 categorias com o que um ATS procura (tecnologias, ferramentas, métodos, áreas, registros), até cerca de 12 itens por categoria. Prefira os termos que as vagas da área procuram aos de nicho que ninguém procura. Detalhe de implementação fica no tópico da experiência, não em competências.
+- Palavras do mercado (bloco <palavras_do_mercado>, quando houver): termos que as vagas analisadas pela pessoa pedem e que o perfil comprova. Use cada um onde for verdade (competências, resumo ou um tópico), com a grafia da vaga (as maiúsculas seguem o padrão do currículo: "Testes automatizados", não "testes automatizados"). Nunca use um termo que o perfil não comprova.
 - Revise ortografia e concordância.`;
+
+/** As palavras do mercado da pessoa que o perfil comprova (src/onboarding/marketKeywords.ts), para o prompt. */
+export function marketBlock(terms: { term: string; jobs: number }[] = []): string {
+  if (!terms.length) return "";
+  return `\n\n<palavras_do_mercado>\n${terms.map((k) => `- ${k.term} (em ${k.jobs} vagas analisadas)`).join("\n")}\n</palavras_do_mercado>`;
+}
 
 /**
  * Currículo-base a partir do profile_truth. Em inglês, traduz a versão em português (`ptVersion`).
  * Com `previous` (o currículo-base atual), atualiza: mantém a redação do que continua bom e encaixa o que é novo
  * dentro dos limites, em vez de acrescentar tópicos a cada novidade.
  */
-export function buildBaseResume(profileTruth: string, lang: "pt-BR" | "en", ptVersion?: Resume, previous?: Resume): Promise<Resume> {
+export function buildBaseResume(
+  profileTruth: string,
+  lang: "pt-BR" | "en",
+  ptVersion?: Resume,
+  previous?: Resume,
+  market: { term: string; jobs: number }[] = [],
+): Promise<Resume> {
   const en = lang === "en";
+  const words = en ? "" : marketBlock(market);
   return structured(ResumeSchema, {
     label: `init:resume-${lang}`,
     effort: "high",
     system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, RESUME_CURATION],
     user: !en && previous
-      ? `<curriculo_base_atual>\n${JSON.stringify(previous, null, 2)}\n</curriculo_base_atual>
+      ? `<curriculo_base_atual>\n${JSON.stringify(previous, null, 2)}\n</curriculo_base_atual>${words}
 
 O profile_truth acima foi atualizado. Atualize este currículo-base em português do Brasil (language "pt-BR") para refletir o perfil atual, no mesmo padrão ATS e seguindo as REGRAS DO CURRÍCULO-BASE:
 - Mantenha a redação dos tópicos, do resumo e da headline que continuam valendo e já seguem as regras.
 - O que é novo no perfil (experiência, projeto, certificação, competência, resultado): encaixe no tópico relacionado ou troque um tópico mais fraco. Não acrescente tópicos além do limite de cada posição. Nem toda novidade precisa entrar: ela continua no perfil.
 - Ajuste o que mudou (datas, cargos, empresa atual) e retire o que não está mais no perfil.
 - Se o currículo atual já passa dos limites ou quebra alguma regra, corrija agora.
-- experience: TODAS as posições do perfil, ordem cronológica reversa, cargos e datas exatamente como no perfil (cargo só em português, sem tradução entre parênteses).
+- experience: TODAS as posições do perfil, ordem cronológica reversa (posições ao mesmo tempo: a principal primeiro), cargos e datas exatamente como no perfil (cargo só em português, sem tradução entre parênteses).
 Não invente nada.`
       : en && ptVersion
       ? `<curriculo_pt>\n${JSON.stringify(ptVersion, null, 2)}\n</curriculo_pt>
 
 Traduza este currículo para inglês americano (language "en"), adaptando para o padrão de resume dos EUA: verbos de ação sem pronome, datas MM/YYYY, "Present" no lugar de "Atual", modalidade Remote/Hybrid/On-site. Mesmas posições, datas, números e fatos, nada novo, e o mesmo número de tópicos. Cargos em inglês: use o "Cargo em inglês" do perfil quando houver; senão, traduza fielmente, sem promover nem mudar a senioridade. Linha de idiomas no mesmo nível declarado (ex.: "Portuguese: native | English: intermediate").`
-      : `Monte o currículo-base em português do Brasil (language "pt-BR") a partir do profile_truth, no padrão ATS e seguindo as REGRAS DO CURRÍCULO-BASE:
+      : `${words ? `${words.trim()}\n\n` : ""}Monte o currículo-base em português do Brasil (language "pt-BR") a partir do profile_truth, no padrão ATS e seguindo as REGRAS DO CURRÍCULO-BASE:
 - headline: cargo-alvo principal | 3–5 competências comprovadas.
 - summary: 3–4 frases fortes e verdadeiras (o que faz, para quem, resultados reais).
 - skills: 4–7 categorias coerentes com a área, só itens com evidência.
-- experience: TODAS as posições, ordem cronológica reversa, cargos (só em português, sem tradução entre parênteses) e datas exatamente como no perfil, com o número de tópicos das regras (verbo de ação + o quê + como + resultado real).
+- experience: TODAS as posições, ordem cronológica reversa (posições ao mesmo tempo: a principal primeiro), cargos (só em português, sem tradução entre parênteses) e datas exatamente como no perfil, com o número de tópicos das regras (verbo de ação + o quê + como + resultado real).
 - projects: 0–3 projetos/portfólio relevantes (vazio se não houver).
 - education, certifications (só certificações/cursos reais; issuer e date como no perfil, vazio se não houver), languages (uma linha, nível declarado).
 - contact: copie do perfil; campos ausentes ficam vazios. availability: modalidades aceitas.
@@ -184,13 +199,13 @@ Não invente nada.`,
 }
 
 /** Revisão de um currículo-base: corrige só os problemas apontados pela conferência (resumeQuality.ts). */
-export function reviseBaseResume(profileTruth: string, resume: Resume, problems: string[]): Promise<Resume> {
+export function reviseBaseResume(profileTruth: string, resume: Resume, problems: string[], market: { term: string; jobs: number }[] = []): Promise<Resume> {
   const en = resume.language === "en";
   return structured(ResumeSchema, {
     label: `init:resume-${resume.language}-revisao`,
     effort: "high",
     system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, RESUME_CURATION],
-    user: `<curriculo>\n${JSON.stringify(resume, null, 2)}\n</curriculo>
+    user: `<curriculo>\n${JSON.stringify(resume, null, 2)}\n</curriculo>${en ? "" : marketBlock(market)}
 
 <problemas>
 ${problems.map((p) => `- ${p}`).join("\n")}
