@@ -21,6 +21,11 @@ export const MAX_MAIN_BULLETS = 8;
 export const MAX_TOTAL_BULLETS = 18;
 /** Palavras do mercado que faltam e que a revisão tenta encaixar (as mais pedidas primeiro). */
 const MAX_MISSING_KEYWORDS = 8;
+/**
+ * A conferência só cobra as palavras do topo da lista. As do fim (pedidas por poucas vagas) a IA usa se
+ * couberem; cobrá-las vira enchimento ("pull requests" como competência).
+ */
+export const MARKET_CHECK_TOP = 30;
 const MAX_BULLET_CHARS = 300;
 const MAX_SUMMARY_CHARS = 750;
 const MAX_SKILL_GROUPS = 8;
@@ -65,10 +70,13 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
   });
   if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em 12 a 16`);
   const text = JSON.stringify(r);
-  const missing = market.filter((k) => !mentions(text, k.term)).slice(0, MAX_MISSING_KEYWORDS);
+  const missing = market
+    .slice(0, MARKET_CHECK_TOP)
+    .filter((k) => !mentions(text, k.term))
+    .slice(0, MAX_MISSING_KEYWORDS);
   if (missing.length)
     out.push(
-      `palavras que as vagas analisadas pedem, que o perfil comprova e que o currículo não mostra: ${missing.map((k) => `"${k.term}" (${k.jobs} vagas)`).join(", ")}. Use as que forem verdade onde couberem, com essa grafia`,
+      `palavras que as vagas analisadas pedem, que o perfil comprova e que o currículo não mostra: ${missing.map((k) => `"${k.term}" (${k.jobs} vagas)`).join(", ")}. Use as que forem verdade onde couberem, com essa grafia (as maiúsculas seguem o padrão do currículo)`,
     );
   if (r.summary.length > MAX_SUMMARY_CHARS) out.push(`resumo longo demais (${r.summary.length} caracteres; até cerca de 600)`);
   if (INTERNAL_NOTE.test(r.summary)) out.push(`nota interna do perfil no resumo`);

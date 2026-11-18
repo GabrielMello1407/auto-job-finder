@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { marketBlock, RESUME_CURATION } from "../src/onboarding/build.js";
 import { countKeywords, mentions, minJobs, splitMarket } from "../src/onboarding/marketKeywords.js";
-import { baseResumeIssues, MAX_BULLETS, MAX_MAIN_BULLETS, MAX_TOTAL_BULLETS, resumeHints, withoutPendingNotes } from "../src/onboarding/resumeQuality.js";
+import { baseResumeIssues, MARKET_CHECK_TOP, MAX_BULLETS, MAX_MAIN_BULLETS, MAX_TOTAL_BULLETS, resumeHints, withoutPendingNotes } from "../src/onboarding/resumeQuality.js";
 import { loadBaseResume } from "../src/profile.js";
 import { resumeHtml } from "../src/render/resumeHtml.js";
 import type { Resume } from "../src/schemas.js";
@@ -103,10 +103,26 @@ test("palavras do mercado: contam as vagas, só entram as que o perfil comprova,
   const gaps2 = splitMarket(countKeywords([...lists, ["COREN ativo"]]), truth, 6).gaps;
   assert.deepEqual(gaps2.map((k) => k.term), ["COREN ativo"], "o que só aparece em Lacunas é lacuna, não prova");
 
+  // Teto folgado: termo comprovado e acima do mínimo não pode sumir da lista (a IA o tiraria das competências).
+  const many = Array.from({ length: 50 }, (_, i) => `ferramenta${i}`);
+  const manyLists = Array.from({ length: 20 }, () => many);
+  const all = splitMarket(countKeywords(manyLists), `## Experiência\n- Usei ${many.join(", ")}.\n`, manyLists.length);
+  assert.equal(all.proven.length, 50);
+
   assert.ok(mentions("Atuei com Node.js e CI/CD.", "node.js"));
   assert.ok(mentions("Atuei com Node.js e CI/CD.", "CI/CD"));
   assert.ok(!mentions("Javascript", "Java"), "palavra inteira");
   assert.ok(mentions("Participo de code review.", "code reviews"), "o plural da vaga casa com o singular do perfil");
+  assert.ok(mentions("Integrei sistemas via APIs REST.", "REST APIs"), "a ordem das palavras muda de um idioma para outro");
+  assert.ok(!mentions("Análises estatísticas em SAS.", "Sass"), "Sass não é SAS");
+  assert.ok(!mentions("Estudos de System Design.", "design systems"), "sem sigla, a ordem muda o sentido");
+  assert.equal(countKeywords([["design systems"], ["System Design"]]).length, 2);
+
+  // Grafias do mesmo termo se somam (cada vaga conta uma vez) e fica a mais usada.
+  assert.deepEqual(countKeywords([["APIs REST", "REST APIs"], ["APIs REST"], ["REST APIs"], ["code reviews"], ["Code Review"], ["Code Review"]]).map((k) => `${k.term}:${k.jobs}`), [
+    "APIs REST:3",
+    "Code Review:3",
+  ]);
 });
 
 test("palavras do mercado: vão para o prompt e a conferência aponta as que faltam no currículo", () => {
@@ -119,6 +135,9 @@ test("palavras do mercado: vão para o prompt e a conferência aponta as que fal
   ]);
   assert.ok(issues.some((i) => /currículo não mostra: "SAE" \(3 vagas\)/.test(i)));
   assert.ok(!issues.some((i) => /"UTI"/.test(i)), "o que já está no currículo não é apontado");
+  // Só o topo da lista é cobrado: termo pouco pedido no fim da lista não vira enchimento.
+  const top = Array.from({ length: MARKET_CHECK_TOP }, () => ({ term: "UTI", jobs: 9 }));
+  assert.deepEqual(baseResumeIssues(r, 2, [...top, { term: "SAE", jobs: 3 }]), []);
 });
 
 test("avisos para a pessoa: telefone, formação sem período, cargos atuais demais", () => {

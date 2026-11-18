@@ -145,7 +145,7 @@ export const RESUME_CURATION = `REGRAS DO CURRÍCULO-BASE (como um recrutador e 
 - Nada de pendências, perguntas ou notas para a pessoa: nada do que está em "A confirmar", nenhuma frase como "a confirmar", "verificar" ou "pendente".
 - Resumo: 3 a 4 frases, até cerca de 600 caracteres: o cargo ou a área, o tempo de experiência (só se o perfil disser), as principais competências da área (as que um ATS procura) e 1 ou 2 resultados concretos do perfil. Sem adjetivos genéricos que qualquer pessoa escreveria ("foco em qualidade", "proativo", "apaixonado por").
 - Competências: 4 a 7 categorias com o que um ATS procura (tecnologias, ferramentas, métodos, áreas, registros), até cerca de 12 itens por categoria. Prefira os termos que as vagas da área procuram aos de nicho que ninguém procura. Detalhe de implementação fica no tópico da experiência, não em competências.
-- Palavras do mercado (bloco <palavras_do_mercado>, quando houver): termos que as vagas analisadas pela pessoa pedem e que o perfil comprova. Use cada um onde for verdade (competências, resumo ou um tópico), com a grafia da vaga. Nunca use um termo que o perfil não comprova.
+- Palavras do mercado (bloco <palavras_do_mercado>, quando houver): termos que as vagas analisadas pela pessoa pedem e que o perfil comprova. Use cada um onde for verdade (competências, resumo ou um tópico), com a grafia da vaga (as maiúsculas seguem o padrão do currículo: "Testes automatizados", não "testes automatizados"). Nunca use um termo que o perfil não comprova.
 - Revise ortografia e concordância.`;
 
 /** As palavras do mercado da pessoa que o perfil comprova (src/onboarding/marketKeywords.ts), para o prompt. */
