@@ -513,8 +513,8 @@ Each package folder moves on its own when the status changes. Inside it:
 
 ```
 LEIA-ME.md                          rating, ATS, HOW TO APPLY and a checklist
-<Name>_Curriculo_<Company>.pdf      ATS resume (Resume_ for jobs abroad)
-<Name>_Cover_Letter_<Company>.pdf   when the market expects one (US, Canada, Europe) or you ask for it
+<Name>_Curriculo_<Company>.pdf      ATS resume (Resume_ when the job is in English)
+<Name>_Cover_Letter_<Company>.pdf   when the job is in English or you ask for it
 emails.md                           application, LinkedIn, follow-up, thank-you, short cover message
 rascunho_candidatura.eml            the application e-mail with the resume attached (opens in Outlook and similar)
 ficha_de_candidatura.md             the application-form fields, ready to copy
@@ -522,7 +522,7 @@ ats_report.md · rating_report.md · coverage_review.md · interview_prep.md
 resume.json                         edit by hand and use "Generate the PDF again"
 ```
 
-**Cover letter vs. resume:** in the US the norm is resume + cover letter, on Letter paper, with no photo, age or marital status. In Brazil the resume comes out on A4 and the letter is optional. A job in English produces a resume in English.
+**Cover letter vs. resume:** in the US the norm is resume + cover letter, on Letter paper, with no photo, age or marital status. In Brazil the resume comes out on A4 and the letter is optional. A job in English follows the international pattern in any market: a resume in English, named Resume, with a short cover letter. That includes a foreign company hiring in Brazil.
 
 To keep profiles for several people (for example, helping a family member), use another folder: `AJF_HOME=/path/to/folder`.
 

@@ -19,7 +19,8 @@ import { extractJson, strictJsonSchema, structuredViaText } from "../src/provide
 import { activeProviderId, normalizeProviderId } from "../src/providers/index.js";
 import { which } from "../src/providers/spawn.js";
 import { isStatus, matchJobs } from "../src/jobs/status.js";
-import { relocatePackage } from "../src/jobs/folders.js";
+import { relocatePackage, samePath } from "../src/jobs/folders.js";
+import { openCommand } from "../src/util/open.js";
 import { parseEmails } from "../src/ui/routes/jobs.js";
 import { pendingItems } from "../src/ui/routes/profile.js";
 import { diffStats, lineDiff } from "../src/util/diff.js";
@@ -308,6 +309,14 @@ test("pastas: pacote vai para a subpasta do status e os caminhos dos PDFs acompa
     assert.equal(moved.outputDir, path.join(paths.outputDir, "2-em-andamento", path.basename(old)));
     assert.ok(fs.existsSync(moved.files!.resume!) && !fs.existsSync(old));
     assert.equal(relocatePackage({ ...job, ...moved }), null);
+    // Mesma pasta escrita de outro jeito não é outra pasta (antes ganhava o sufixo "-<id>" e o "Abrir pasta" perdia o caminho).
+    assert.ok(samePath(moved.outputDir!, `${moved.outputDir}${path.sep}`));
+    assert.ok(!samePath(moved.outputDir!, old));
+    if (process.platform === "win32") {
+      const otherCase = moved.outputDir!.replace(/^[a-z]:/i, (d) => (d === d.toUpperCase() ? d.toLowerCase() : d.toUpperCase()));
+      assert.equal(relocatePackage({ ...job, ...moved, outputDir: otherCase }), null, "C:\\ e c:\\ são a mesma pasta");
+      assert.ok(fs.existsSync(moved.outputDir!));
+    }
     // Caminho salvo desatualizado (pasta já movida por outro comando): reencontra a pasta.
     const healed = relocatePackage(job)!;
     assert.equal(healed.outputDir, moved.outputDir);
@@ -494,4 +503,29 @@ test("perguntas do formulário: travas do texto e o arquivo .md", () => {
   assert.match(md, /## Por que a Acme\?\n\nPorque o produto/);
   assert.match(md, /_52 caracteres \(limite 300\)_/);
   assert.match(md, /- Você já usou o produto\?/);
+});
+
+test("mercado: vaga em inglês sai como resume com cover letter, em qualquer mercado; em português, currículo", () => {
+  const pick = (m: ReturnType<typeof marketProfile>) => `${m.language} ${m.docName} ${m.coverLetter ? "carta" : "sem carta"}`;
+  // Empresa de fora contratando no Brasil, classificada como BR: a vaga em inglês segue o padrão internacional.
+  assert.equal(pick(marketProfile("BR", "en")), "en Resume carta");
+  assert.equal(pick(marketProfile("BR", "pt-BR")), "pt-BR Curriculo sem carta");
+  assert.equal(pick(marketProfile("BR")), "pt-BR Curriculo sem carta");
+  assert.equal(pick(marketProfile("GLOBAL", "en")), "en Resume carta");
+  assert.equal(pick(marketProfile("LATAM", "pt-BR")), "pt-BR Curriculo sem carta", "documento em português nunca se chama Resume");
+  assert.equal(pick(marketProfile("US")), "en Resume carta");
+  assert.equal(pick(marketProfile("UK")), "en CV carta");
+});
+
+test("abrir pasta, arquivo ou link: comando de cada sistema, sem shell e sem janela escondida", () => {
+  const win = openCommand("C:/Users/ana/output/1-prontas-para-enviar/acme", "win32");
+  assert.equal(win.cmd, "explorer.exe");
+  assert.deepEqual(win.args, [["C:", "Users", "ana", "output", "1-prontas-para-enviar", "acme"].join("\\")], "com '/' o explorer.exe abre Documentos");
+  assert.ok(!win.options.windowsHide, "windowsHide faz a janela da pasta abrir invisível");
+  assert.ok(!win.options.shell);
+  const url = "https://example.com/vaga?a=1&b=2|x";
+  assert.deepEqual(openCommand(url, "win32").args, [url], "link vai inteiro, sem passar pelo cmd");
+  assert.equal(openCommand("/home/ana/output", "linux").cmd, "xdg-open");
+  assert.equal(openCommand("/Users/ana/output", "darwin").cmd, "open");
+  assert.deepEqual(openCommand("/Users/ana/output", "darwin").args, ["/Users/ana/output"]);
 });

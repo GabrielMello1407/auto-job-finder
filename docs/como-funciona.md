@@ -214,7 +214,7 @@ flowchart LR
 - **lacunas:** requisitos obrigatórios sem evidência. São só registradas, nunca preenchidas;
 - **sinais de golpe:** pedido de pagamento ou documentos, salário irreal, teste que manda baixar e rodar código;
 - **critérios eliminatórios** (`knockouts`): o que a vaga põe como requisito obrigatório e que as plataformas usam como filtro antes de alguém ler o currículo (anos de experiência, nível de idioma, local ou trabalho presencial, autorização de trabalho ou visto, formação, certificação). Cada um ganha `sim` (o perfil comprova), `nao` (o perfil mostra que não atende) ou `incerto` (o perfil não diz), com a evidência. As respostas fixas dos formulários nas preferências (pretensão, disponibilidade, aviso prévio, mudança de cidade, autorização de trabalho) contam como evidência;
-- **mercado** (BR, US, UK, EU, LATAM...), idioma e senioridade;
+- **mercado** (BR, US, UK, EU, LATAM...): o da empresa que contrata, não o lugar onde a pessoa vai trabalhar (empresa de fora contratando no Brasil não é BR), idioma e senioridade;
 - **recomendação:** `candidatar` vira "Para decidir" com ⭐, `decidir` fica em "Para decidir", e `descartar` vai para "Encerradas". Um eliminatório `nao` transforma `candidatar` em `decidir` (`priority.ts#applyKnockouts`): a vaga nunca é descartada sozinha, porque "5+ anos" com 4 às vezes passa. Vaga que a pessoa colou (fonte `manual`) também nunca é descartada pela triagem: `descartar` a deixa em "Para decidir" (`triage.ts#statusAfterTriage`).
 
 ### Prioridade

@@ -114,3 +114,12 @@ test("foco da resposta: análise do pacote, provas e lacunas da triagem, missão
   // Sem pacote, triagem nem pesquisa: nada a acrescentar.
   assert.equal(jobFocus(job()), "");
 });
+
+test("resposta de formulário: marcador para preencher é barrado", async () => {
+  const { hasPlaceholder } = await import("../src/writers/answers.js");
+  assert.ok(hasPlaceholder("My work authorization status in Brazil is [insert confirmed status]."));
+  assert.ok(hasPlaceholder("Posso começar em [inserir data]."));
+  assert.ok(hasPlaceholder("My visa expires on XXX."));
+  assert.ok(!hasPlaceholder("I built a CRM with Next.js and PostgreSQL [1]."), "número de referência não é marcador");
+  assert.ok(!hasPlaceholder("Uso Node.js, React e PostgreSQL no dia a dia."));
+});

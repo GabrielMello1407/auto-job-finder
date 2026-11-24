@@ -513,8 +513,8 @@ A pasta de cada pacote muda de lugar sozinha quando o status muda. Dentro dela:
 
 ```
 LEIA-ME.md                          nota, ATS, COMO SE CANDIDATAR e checklist
-<Nome>_Curriculo_<Empresa>.pdf      currículo ATS (Resume_ em vagas de fora)
-<Nome>_Cover_Letter_<Empresa>.pdf   quando o mercado pede (EUA, Canadá, Europa) ou você pede
+<Nome>_Curriculo_<Empresa>.pdf      currículo ATS (Resume_ quando a vaga é em inglês)
+<Nome>_Cover_Letter_<Empresa>.pdf   quando a vaga é em inglês ou você pede
 emails.md                           candidatura, LinkedIn, follow-up, agradecimento, mensagem curta
 rascunho_candidatura.eml            o e-mail de candidatura com o currículo anexado (abre no Outlook e afins)
 ficha_de_candidatura.md             os campos dos formulários de candidatura, prontos para copiar
@@ -522,7 +522,7 @@ ats_report.md · rating_report.md · coverage_review.md · interview_prep.md
 resume.json                         edite à mão e use "Gerar o PDF de novo"
 ```
 
-**Cover letter × currículo:** nos EUA o padrão é currículo + carta, em papel Letter, sem foto, idade ou estado civil. No Brasil sai o currículo em A4 e a carta é opcional. Vaga em inglês gera currículo em inglês.
+**Cover letter × currículo:** nos EUA o padrão é currículo + carta, em papel Letter, sem foto, idade ou estado civil. No Brasil sai o currículo em A4 e a carta é opcional. Vaga em inglês segue o padrão internacional em qualquer mercado: currículo em inglês, com o nome Resume, e uma cover letter curta. Isso vale também para empresa de fora contratando no Brasil.
 
 Para manter perfis de várias pessoas (por exemplo, ajudar alguém da família), use outra pasta: `AJF_HOME=/caminho/da/pasta`.
 

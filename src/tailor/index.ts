@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureDir, paths, settings } from "../config.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
-import { marketProfile, type MarketProfile } from "../market.js";
+import { samePath } from "../jobs/folders.js";
+import { docNameFor, marketProfile, type MarketProfile } from "../market.js";
 import { englishBase, loadBaseResume, profileTruthEvidence, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { coverLetterHtml, resumeHtml, withoutDashesLetter } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
@@ -200,7 +201,7 @@ function howToApply(a: JobAnalysis, job: Job, attachments: string[]): string {
   const steps: Record<JobAnalysis["applyChannel"], string> = {
     email: `📧 **Por e-mail**${a.recruiterEmail ? ` para **${a.recruiterEmail}**` : ""}: abra \`${DRAFT_FILE}\` (o e-mail 1 de emails.md, já com ${files} anexado), confira e envie. No Gmail pelo navegador, use "Abrir no Gmail" na interface e anexe ${files}.`,
     linkedin: `💼 **Pelo LinkedIn** (${link}): use a candidatura simplificada e envie ${attachments[0]}. Depois mande o convite de conexão (emails.md, item 2) para quem publicou a vaga.`,
-    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}. Os campos que o formulário pede (dados, resumo em 3 tamanhos, cada experiência) estão prontos para copiar em \`${SHEET_FILE}\` ou na aba Ficha da vaga. Se houver campo de mensagem ou carta, use a mensagem curta (emails.md, item 6). Perguntas de triagem: aba Perguntas — não invente respostas.`,
+    plataforma: `🧾 **Pela plataforma de recrutamento** (${link}): envie ${attachments[0]}${attachments[1] ? ` e, se o formulário tiver campo para cover letter, ${attachments[1]}` : ""}. Os campos que o formulário pede (dados, resumo em 3 tamanhos, cada experiência) estão prontos para copiar em \`${SHEET_FILE}\` ou na aba Ficha da vaga. Se houver campo de mensagem${attachments[1] ? "" : " ou carta"}, use a mensagem curta (emails.md, item 6). Perguntas de triagem: aba Perguntas — não invente respostas.`,
     site: `🌐 **Pelo site da empresa** (${link}): preencha o formulário com a \`${SHEET_FILE}\` (ou a aba Ficha da vaga) e envie ${files}. Campo de mensagem ou carta: use a mensagem curta (emails.md, item 6).`,
     whatsapp: `📱 **Por WhatsApp**: adapte a mensagem direta (emails.md, item 3) e envie ${attachments[0]}. Confirme antes que o número é da empresa.`,
     desconhecido: `🔗 Abra a vaga (${link}) e siga o que ela pede. Os textos prontos estão em emails.md.`,
@@ -238,7 +239,10 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   const market = opts.market ?? job.triage?.market ?? analysis.market;
   const jobLang = job.triage?.jobLanguage === "other" ? undefined : (job.triage?.jobLanguage ?? guessLanguage(jd));
   const mp = { ...marketProfile(market, jobLang) };
-  if (opts.lang) mp.language = opts.lang;
+  if (opts.lang) {
+    mp.language = opts.lang;
+    mp.docName = docNameFor(opts.lang, mp.market);
+  }
   if (opts.paper) mp.paper = opts.paper;
   const wantCover = opts.cover ?? mp.coverLetter;
   console.log(`   mercado ${mp.market} · idioma ${mp.language} · papel ${mp.paper} · cover letter: ${wantCover ? "sim" : "não"}`);
@@ -465,7 +469,7 @@ export async function rerender(dir: string) {
   if (draft) writeDraft(dir, draft);
   fs.writeFileSync(path.join(dir, SHEET_FILE), sheetMarkdown(sheetFromResume(resume, "pacote"), `Ficha de candidatura: ${meta.company}`));
   // O currículo editado muda o retrato do topo; a versão do currículo-base continua a mesma.
-  const owner = loadJobs().find((j) => j.outputDir && path.resolve(j.outputDir) === path.resolve(dir));
+  const owner = loadJobs().find((j) => j.outputDir && samePath(j.outputDir, dir));
   const stats = owner && statsFromPackage(dir, owner.resumeStats?.base);
   if (owner && stats) updateJob(owner.id, { resumeStats: stats });
   const guards = runGuards(resume, loadBaseResume(resume.language), sourcesText());
