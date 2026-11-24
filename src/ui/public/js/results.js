@@ -1,6 +1,6 @@
 // Resultados: o funil das candidaturas e o que funciona melhor (canal, fonte, prazo, nota). Dados de src/jobs/funnel.ts.
 import { $, api, btn, esc, S, t } from "./core.js";
-import { dateText } from "./i18n.js";
+import { dateText, timeText } from "./i18n.js";
 import { STAGE_TEXT } from "./jobs.js";
 
 let data = null; // GET /api/funnel
@@ -70,7 +70,8 @@ const R_KEYWORDS = { muitas: t("3/4 ou mais no topo"), parte: t("parte no topo")
 const R_NUMBERS = { "metade+": t("metade ou mais dos tópicos com número"), menos: t("menos da metade dos tópicos com número") };
 const R_LANG = { "pt-BR": t("Português"), en: t("Inglês") };
 const R_COVER = { sim: t("com carta"), nao: t("sem carta") };
-const versionText = (iso) => t("versão de {date}", { date: dateText(iso) });
+// Data e hora: duas versões do mesmo dia ficavam com o mesmo rótulo.
+const versionText = (iso) => t("versão de {date}", { date: `${dateText(iso)} ${timeText(iso)}` });
 const comparable = (groups) => (groups?.filter((g) => g.key !== "?").length >= 2 ? groups : []);
 
 function resumeTables(r) {

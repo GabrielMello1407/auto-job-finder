@@ -279,8 +279,9 @@ export function funnel(all: Job[], now = Date.now(), noReplyDays = settings.noRe
   return { totals, byChannel, bySource, byLag, byScore, stages, medianDaysToReply, missingOutcome, missingChannel, followUpsDue, insights, ...(byResume ? { byResume } : {}) };
 }
 
-/** Data de uma versão do currículo-base para o terminal ("versão de 03/11/2026"). */
-const versionLabel = (iso: string) => `versão de ${new Date(iso).toLocaleDateString("pt-BR")}`;
+/** Data e hora de uma versão do currículo-base para o terminal ("versão de 03/11/2026 14:05"): duas versões do mesmo dia ficavam iguais. */
+const versionLabel = (iso: string) =>
+  `versão de ${new Date(iso).toLocaleDateString("pt-BR")} ${new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 
 /** Texto de cada conclusão para o terminal e o painel (a interface usa as chaves do dicionário). */
 export function insightText(i: Insight): string {

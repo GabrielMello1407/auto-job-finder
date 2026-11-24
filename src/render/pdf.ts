@@ -31,6 +31,27 @@ export async function htmlToPdf(html: string, outPath: string, paper: "A4" | "Le
   }
 }
 
+const PAPER_MM = { A4: { w: 210, h: 297 }, Letter: { w: 215.9, h: 279.4 } };
+
+/**
+ * Quanto de uma página o conteúdo ocupa (1 = uma página cheia; 1,12 = passou 12%), com o layout de impressão
+ * e as margens do modelo. Serve para dizer à IA quanto cortar quando o currículo tem de caber em 1 página.
+ */
+export async function contentFill(html: string, paper: "A4" | "Letter", margin: { top: number; right: number; bottom: number; left: number }): Promise<number> {
+  const b = await getBrowser();
+  const page = await b.newPage();
+  const px = (mm: number) => (mm / 25.4) * 96;
+  try {
+    await page.emulateMediaType("print");
+    await page.setViewport({ width: Math.round(px(PAPER_MM[paper].w - margin.left - margin.right)), height: 1000 });
+    await page.setContent(html, { waitUntil: "load" });
+    const height = await page.evaluate(() => document.body.scrollHeight);
+    return height / px(PAPER_MM[paper].h - margin.top - margin.bottom);
+  } finally {
+    await page.close();
+  }
+}
+
 /** Texto visível de uma página que só monta o conteúdo com JavaScript (ex.: portfólio em React). */
 export async function renderedPageText(url: string): Promise<string> {
   const b = await getBrowser();

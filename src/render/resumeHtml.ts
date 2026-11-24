@@ -43,8 +43,11 @@ function link(text: string): string {
  * uma coluna, Arial/Helvetica, títulos em caixa alta com filete, bullets justificados.
  * Tudo é texto real (selecionável), sem tabelas nem imagens — amigável para ATS.
  */
+/** Margens da página do currículo, em mm (também usadas para medir quanto da página o conteúdo ocupa). */
+export const PAGE_MARGIN_MM = { top: 15, right: 17, bottom: 14, left: 17 };
+
 const BASE_CSS = (paper: "A4" | "Letter") => `
-@page { size: ${paper}; margin: 15mm 17mm 14mm 17mm; }
+@page { size: ${paper}; margin: ${PAGE_MARGIN_MM.top}mm ${PAGE_MARGIN_MM.right}mm ${PAGE_MARGIN_MM.bottom}mm ${PAGE_MARGIN_MM.left}mm; }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; }
 body { margin: 0; font-family: Arial, "Liberation Sans", Helvetica, sans-serif; font-size: 9.6pt; line-height: 1.32; color: #111; }

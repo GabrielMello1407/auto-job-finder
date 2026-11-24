@@ -85,7 +85,7 @@ export function atsReport(
     { ok: true, item: "Layout de uma coluna, sem tabelas/imagens/ícones (template)" },
     { ok: true, item: "Títulos de seção padrão e contato no corpo do documento (não no cabeçalho/rodapé do PDF)" },
     { ok: true, item: "PDF com texto selecionável gerado pelo Chrome" },
-    { ok: opts.pages > 0 && opts.pages <= 2, item: `Tamanho: ${opts.pages} página(s) (ideal 1–2)` },
+    { ok: opts.pages > 0 && opts.pages <= (opts.market.maxPages ?? 2), item: `Tamanho: ${opts.pages} página(s) (ideal ${opts.market.maxPages === 1 ? "1" : "1–2"})` },
     { ok: titleWords.length === 0 || titleHits / titleWords.length >= 0.6, item: `Título da vaga ("${analysis.roleTitle}") refletido no headline/resumo` },
     { ok: resume.experience.every((e) => /^(\d{2}\/)?\d{4}$/.test(e.start)), item: "Datas no formato MM/AAAA" },
     { ok: /^[A-Za-z0-9_.-]+\.pdf$/.test(opts.fileName), item: `Nome do arquivo sem espaços/acentos: ${opts.fileName}` },

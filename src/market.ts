@@ -9,6 +9,8 @@ export interface MarketProfile {
   coverLetter: boolean;
   docName: string;
   notes: string[];
+  /** Páginas do currículo pelo tempo de carreira (src/career.ts#pageLimit); sem valor, 2. */
+  maxPages?: 1 | 2;
 }
 
 /** O nome do arquivo segue o idioma do documento: "Curriculo" em português; em inglês, "CV" no Reino Unido e "Resume" no resto. */

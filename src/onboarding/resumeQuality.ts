@@ -2,8 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
-import { htmlToPdf } from "../render/pdf.js";
-import { resumeHtml } from "../render/resumeHtml.js";
+import { contentFill, htmlToPdf } from "../render/pdf.js";
+import { PAGE_MARGIN_MM, resumeHtml } from "../render/resumeHtml.js";
+import { mainRoleFirst, pageLimit, professionalMonths } from "../career.js";
 import type { Resume } from "../schemas.js";
 import { buildBaseResume, reviseBaseResume } from "./build.js";
 import { currentMarket, mentions, type MarketKeyword } from "./marketKeywords.js";
@@ -31,6 +32,19 @@ const MAX_SUMMARY_CHARS = 750;
 const MAX_SKILL_GROUPS = 8;
 const MAX_SKILLS_PER_GROUP = 15;
 export const MAX_PAGES = 2;
+/** Linhas de texto que cabem numa página do modelo (corpo 9,6 pt, entrelinha 1,32, área útil do A4). */
+const LINES_PER_PAGE = 60;
+
+/**
+ * Limites pelo tempo de carreira (src/career.ts): até 3 anos de experiência com datas, 1 página e menos
+ * tópicos; daí em diante, até 2 páginas. Puro.
+ */
+export function resumeLimits(r: Pick<Resume, "experience">) {
+  const pages = pageLimit(professionalMonths(r));
+  return pages === 1
+    ? { pages, bullets: 5, mainBullets: 6, total: 12, aim: "8 a 11" }
+    : { pages, bullets: MAX_BULLETS, mainBullets: MAX_MAIN_BULLETS, total: MAX_TOTAL_BULLETS, aim: "12 a 16" };
+}
 
 /** De onde o número veio, ou uma nota para a pessoa: fica no perfil, nunca no currículo. */
 const INTERNAL_NOTE =
@@ -40,22 +54,25 @@ const WORK_COUNTER = /\b\d[\d.,]*\s*(mil\s+|k\s+)?(commits?|pull requests?|PRs\b
 /** Pendência que nunca é conteúdo de currículo. */
 const PENDING = /\ba confirmar\b|\bto be confirmed\b/i;
 
+export const isPageIssue = (issue: string) => /^o PDF ficou com \d+ páginas/.test(issue);
+
 const cut = (s: string, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
  * Os problemas do currículo-base, em frases que vão para a revisão da IA e para o log. Com `market` (as palavras
  * do mercado que o perfil comprova, marketKeywords.ts), aponta as mais pedidas que o currículo não mostra. Puro.
  */
-export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeyword[] = []): string[] {
+export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeyword[] = [], fill?: number): string[] {
   const out: string[] = [];
+  const lim = resumeLimits(r);
   const total = r.experience.reduce((n, e) => n + e.bullets.length, 0);
-  // A posição com mais tópicos é a principal: ela pode ir até 8; as outras, até 6.
+  // A posição com mais tópicos é a principal: ela pode ir um pouco além das outras.
   const main = r.experience.reduce((best, e, i) => (e.bullets.length > r.experience[best].bullets.length ? i : best), 0);
   r.experience.forEach((e, i) => {
     const where = `${e.title} (${e.company})`;
-    const max = i === main ? MAX_MAIN_BULLETS : MAX_BULLETS;
+    const max = i === main ? lim.mainBullets : lim.bullets;
     if (e.bullets.length > max)
-      out.push(`${where}: ${e.bullets.length} tópicos; o máximo é ${max}${i === main ? " (posição principal)" : ` (só a posição principal passa de ${MAX_BULLETS})`}`);
+      out.push(`${where}: ${e.bullets.length} tópicos; o máximo é ${max}${i === main ? " (posição principal)" : ` (só a posição principal passa de ${lim.bullets})`}`);
     const prefixes = new Map<string, number>();
     for (const b of e.bullets) {
       if (b.length > MAX_BULLET_CHARS) out.push(`${where}: tópico longo demais (${b.length} caracteres; até cerca de 250): "${cut(b)}"`);
@@ -68,7 +85,7 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
     }
     for (const [prefix, n] of prefixes) if (n >= 3) out.push(`${where}: o prefixo "${prefix}:" se repete em ${n} tópicos`);
   });
-  if (total > MAX_TOTAL_BULLETS) out.push(`${total} tópicos de experiência no total; mire em 12 a 16`);
+  if (total > lim.total) out.push(`${total} tópicos de experiência no total; mire em ${lim.aim}`);
   const text = JSON.stringify(r);
   const missing = market
     .slice(0, MARKET_CHECK_TOP)
@@ -83,7 +100,16 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
   if (r.skills.length > MAX_SKILL_GROUPS) out.push(`${r.skills.length} categorias de competências; use de 4 a 7`);
   for (const g of r.skills) if (g.items.length > MAX_SKILLS_PER_GROUP) out.push(`competências "${g.category}": ${g.items.length} itens; até cerca de 12`);
   for (const p of r.projects) if (INTERNAL_NOTE.test(p.description)) out.push(`projeto ${p.name}: nota interna do perfil na descrição`);
-  if (pages && pages > MAX_PAGES) out.push(`o PDF ficou com ${pages} páginas; o máximo é ${MAX_PAGES}`);
+  if (pages && pages > lim.pages)
+    out.push(
+      lim.pages === 1
+        ? `o PDF ficou com ${pages} páginas; com menos de 3 anos de experiência com datas, o currículo cabe em 1 página${
+            fill && fill > 1
+              ? ` (o conteúdo ocupa ${Math.round(fill * 100)}% de uma página: corte cerca de ${Math.ceil((fill - 1) * LINES_PER_PAGE) + 2} linhas, encurtando competências, resumo e tópicos)`
+              : ""
+          }`
+        : `o PDF ficou com ${pages} páginas; o máximo é ${lim.pages}`,
+    );
   return out;
 }
 
@@ -93,6 +119,15 @@ export function withoutPendingNotes(r: Resume): Resume {
 }
 
 /** Páginas do PDF (precisa do navegador; sem ele, não conta). */
+/** Páginas do PDF e quanto de uma página o conteúdo ocupa (render/pdf.ts#contentFill). */
+async function measure(r: Resume): Promise<{ pages?: number; fill?: number }> {
+  try {
+    return { pages: await pageCount(r), fill: await contentFill(resumeHtml(r, "A4"), "A4", PAGE_MARGIN_MM) };
+  } catch {
+    return { pages: await pageCount(r) };
+  }
+}
+
 async function pageCount(r: Resume): Promise<number | undefined> {
   const file = path.join(os.tmpdir(), `ajf-base-${process.pid}-${Date.now()}.pdf`);
   try {
@@ -132,17 +167,24 @@ export async function polishBaseResume(
   log: (m: string) => void = console.log,
   market: MarketKeyword[] = [],
 ): Promise<{ resume: Resume; issues: string[] }> {
-  let resume = withoutPendingNotes(draft);
-  const issues = baseResumeIssues(resume, await pageCount(resume), market);
-  if (!issues.length) return { resume, issues };
-  log(`   revisando o currículo (${issues.length} ponto(s): ${cut(issues.join("; "), 160)})`);
-  try {
-    resume = withoutPendingNotes(await reviseBaseResume(truth, resume, issues, market));
-  } catch (e) {
-    log(`   ⚠ a revisão não deu certo (${(e as Error).message}); fica a versão sem revisão.`);
-    return { resume, issues };
+  let resume = mainRoleFirst(withoutPendingNotes(draft));
+  const check = async (r: Resume) => {
+    const m = await measure(r);
+    return baseResumeIssues(r, m.pages, market, m.fill);
+  };
+  let issues = await check(resume);
+  // Até duas revisões: a segunda só quando ainda passa do limite de páginas (a IA não vê o PDF; a medida diz quanto cortar).
+  for (let round = 0; round < 2 && issues.length && (round === 0 || issues.some(isPageIssue)); round++) {
+    log(`   revisando o currículo (${issues.length} ponto(s): ${cut(issues.join("; "), 160)})`);
+    try {
+      resume = mainRoleFirst(withoutPendingNotes(await reviseBaseResume(truth, resume, issues, market, resumeLimits(resume).pages)));
+    } catch (e) {
+      log(`   ⚠ a revisão não deu certo (${(e as Error).message}); fica a versão anterior.`);
+      return { resume, issues };
+    }
+    issues = await check(resume);
   }
-  return { resume, issues: baseResumeIssues(resume, await pageCount(resume), market) };
+  return { resume, issues };
 }
 
 /**

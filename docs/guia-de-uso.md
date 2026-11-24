@@ -113,7 +113,8 @@ Fez um projeto novo, mudou de emprego, terminou um curso? Não precisa montar tu
 - os termos que as vagas que você analisou mais pedem, quando o seu perfil comprova;
 - os números que mostram impacto ou escala. Números pequenos (poucos clientes, um único usuário) e contadores de código (commits, linhas de código) ficam de fora;
 - nenhuma nota interna do perfil, como "autodeclarado", a data em que um número foi medido ou "a confirmar";
-- até 2 páginas, usando o espaço: se sobra, entram mais projetos que reforçam os seus cargos-alvo.
+- 1 página com menos de 3 anos de experiência com datas (voluntariado não conta); até 2 páginas daí em diante, usando o espaço;
+- o emprego principal primeiro: empresa ou projeto próprio e voluntariado que correm junto vêm logo depois;
 
 Depois de refeito, uma conferência automática aponta o que passou disso e a IA corrige esses pontos. O registro também mostra:
 - **💡** o que só você pode preencher: falta de telefone, formação sem período, cargos atuais demais ao mesmo tempo;
@@ -451,7 +452,7 @@ Depois de mudar essas opções, uma vaga já avaliada continua com a avaliação
 
 ### Respostas fixas dos formulários
 
-Os formulários sempre perguntam coisas que não estão no currículo: pretensão salarial, disponibilidade para começar, aviso prévio, mudança de cidade e autorização de trabalho ou visto. Preencha uma vez em **📝 Respostas fixas dos formulários**. Elas entram na [ficha de candidatura](#ficha-de-candidatura), nas [respostas às perguntas](#perguntas-do-formulário) (a IA usa o seu valor em vez de perguntar) e na triagem, para conferir critérios eliminatórios como visto ou vaga presencial em outra cidade. Deixe vazio o que não quiser informar: a IA nunca inventa.
+Os formulários sempre perguntam coisas que não estão no currículo: pretensão salarial, disponibilidade para começar, aviso prévio, mudança de cidade e autorização de trabalho ou visto. Preencha uma vez em **📝 Respostas fixas dos formulários**. Elas entram na [ficha de candidatura](#ficha-de-candidatura), nas [respostas às perguntas](#perguntas-do-formulário) (a IA usa o seu valor em vez de perguntar) e na triagem, para conferir critérios eliminatórios como visto ou vaga presencial em outra cidade. Deixe vazio o que não quiser informar: a IA nunca inventa. Na pretensão salarial, escreva um valor por tipo de contrato (por exemplo CLT, PJ e vaga no exterior): a IA usa o que combina com a vaga e nunca converte sozinha. No Brasil, PJ costuma pedir de 30% a 50% a mais que CLT, para compensar 13º, férias e FGTS.
 
 ## 8. LinkedIn
 

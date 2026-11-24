@@ -53,7 +53,14 @@ function gauges(j) {
     10,
     j.rating != null ? level(j.rating, S.settings.minRating, 5) : "",
     j.rating != null ? decimal(j.rating) : "",
-  )}${ring("ATS", j.atsScore, 100, j.atsScore != null ? level(j.atsScore, 80, 60) : "", j.atsScore != null ? `${j.atsScore}` : "")}</div>`;
+  )}${ring(
+    "ATS",
+    j.atsScore,
+    100,
+    j.atsScore != null ? level(j.atsScore, 80, 60) : "",
+    j.atsScore != null ? `${j.atsScore}` : "",
+    t("Palavras-chave da vaga que aparecem no currículo. Não é a chance de passar na triagem."),
+  )}</div>`;
 }
 
 function meta(j) {

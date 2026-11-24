@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageLimit, professionalMonths } from "../career.js";
 import { structured } from "../llm.js";
 import { ResumeSchema, type Resume } from "../schemas.js";
 import { today } from "../util/text.js";
@@ -133,11 +134,15 @@ As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação
  * contexto, que servem para entrevistas e para um pacote quando uma vaga pedir); o currículo escolhe.
  * Vale para montar do zero, para atualizar depois de uma novidade e para a revisão (src/onboarding/resumeQuality.ts).
  */
-export const RESUME_CURATION = `REGRAS DO CURRÍCULO-BASE (como um recrutador e um ATS leem):
-- O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até 2 páginas.
-- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 4 a 6 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 8 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1 a 2. No total, de 12 a 16 tópicos de experiência.
-- Posições ao mesmo tempo: a principal (o emprego formal ou a mais relevante para os cargos-alvo) vem primeiro.
-- Use o espaço sem encher: o limite é 2 páginas. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar meia página vazia. Se passa de 2 páginas ou de 16 tópicos, corte primeiro o que pesa menos.
+export const resumeCuration = (pages: 1 | 2 = 2) => `REGRAS DO CURRÍCULO-BASE (como um recrutador e um ATS leem):
+- O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até ${pages === 1 ? "1 página (com menos de 3 anos de experiência com datas, o recrutador espera um currículo de 1 página)" : "2 páginas"}.
+${
+  pages === 1
+    ? "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 3 a 5 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 6 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1. No total, de 8 a 11 tópicos de experiência.\n- Em 1 página: resumo de 2 a 3 frases; competências em até 5 categorias com cerca de 8 itens cada; tópicos de 1 a 2 linhas; projetos só se couberem sem passar da página."
+    : "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 4 a 6 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 8 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1 a 2. No total, de 12 a 16 tópicos de experiência."
+}
+- Posições ao mesmo tempo: a principal (o emprego formal ou a mais relevante para os cargos-alvo) vem primeiro; empresa ou projeto próprio e voluntariado em paralelo a um emprego vêm depois dele.
+- Use o espaço sem encher: o limite é ${pages === 1 ? "1 página" : "2 páginas"}. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar espaço vazio. Se passa de ${pages === 1 ? "1 página ou de 11 tópicos" : "2 páginas ou de 16 tópicos"}, corte primeiro o que pesa menos.
 - Cada tópico é UMA realização: começa com verbo de ação, ocupa no máximo 2 linhas (cerca de 250 caracteres) e diz o que foi feito, como (só as ferramentas que importam) e o resultado. Junte fatos relacionados num tópico só; não liste funcionalidades uma a uma; não junte duas realizações sem relação no mesmo tópico.
 - Vários projetos, clientes ou frentes na mesma posição: cada um que for relevante ganha um tópico antes de outro ganhar o segundo. Cite o nome dentro do tópico, sem repetir o mesmo prefixo ("Projeto X:") em vários tópicos seguidos. Os menores podem ficar de fora.
 - Números: use os que mostram impacto ou escala que importa para os cargos-alvo (tempo economizado, melhoria percentual, volume processado, pessoas atendidas, economia ou receita relevante), no máximo 1 ou 2 por tópico. Deixe de fora números que diminuem o trabalho (poucos clientes, receita pequena, um único usuário, contagens de cadastros) e contadores internos de trabalho (commits, pull requests, linhas de código, quantidade de rotas, arquivos, modelos ou migrations), a não ser que o cargo-alvo peça exatamente isso.
@@ -147,6 +152,9 @@ export const RESUME_CURATION = `REGRAS DO CURRÍCULO-BASE (como um recrutador e 
 - Competências: 4 a 7 categorias com o que um ATS procura (tecnologias, ferramentas, métodos, áreas, registros), até cerca de 12 itens por categoria. Prefira os termos que as vagas da área procuram aos de nicho que ninguém procura. Detalhe de implementação fica no tópico da experiência, não em competências.
 - Palavras do mercado (bloco <palavras_do_mercado>, quando houver): termos que as vagas analisadas pela pessoa pedem e que o perfil comprova. Use cada um onde for verdade (competências, resumo ou um tópico), com a grafia da vaga (as maiúsculas seguem o padrão do currículo: "Testes automatizados", não "testes automatizados"). Nunca use um termo que o perfil não comprova.
 - Revise ortografia e concordância.`;
+
+/** As regras para 2 páginas (o padrão de quem tem 3 anos ou mais de experiência com datas). */
+export const RESUME_CURATION = resumeCuration(2);
 
 /** As palavras do mercado da pessoa que o perfil comprova (src/onboarding/marketKeywords.ts), para o prompt. */
 export function marketBlock(terms: { term: string; jobs: number }[] = []): string {
@@ -168,10 +176,14 @@ export function buildBaseResume(
 ): Promise<Resume> {
   const en = lang === "en";
   const words = en ? "" : marketBlock(market);
+  // Páginas pelo tempo de carreira (src/career.ts): do currículo que já existe; montando do zero, 2, e a
+  // conferência (resumeQuality.ts) corta para 1 se o currículo montado mostrar menos de 3 anos com datas.
+  const known = ptVersion ?? previous;
+  const pages = known ? pageLimit(professionalMonths(known)) : 2;
   return structured(ResumeSchema, {
     label: `init:resume-${lang}`,
     effort: "high",
-    system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, RESUME_CURATION],
+    system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, resumeCuration(pages)],
     user: !en && previous
       ? `<curriculo_base_atual>\n${JSON.stringify(previous, null, 2)}\n</curriculo_base_atual>${words}
 
@@ -199,12 +211,18 @@ Não invente nada.`,
 }
 
 /** Revisão de um currículo-base: corrige só os problemas apontados pela conferência (resumeQuality.ts). */
-export function reviseBaseResume(profileTruth: string, resume: Resume, problems: string[], market: { term: string; jobs: number }[] = []): Promise<Resume> {
+export function reviseBaseResume(
+  profileTruth: string,
+  resume: Resume,
+  problems: string[],
+  market: { term: string; jobs: number }[] = [],
+  pages: 1 | 2 = 2,
+): Promise<Resume> {
   const en = resume.language === "en";
   return structured(ResumeSchema, {
     label: `init:resume-${resume.language}-revisao`,
     effort: "high",
-    system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, RESUME_CURATION],
+    system: [SYSTEM, `<profile_truth>\n${profileTruth}\n</profile_truth>`, resumeCuration(pages)],
     user: `<curriculo>\n${JSON.stringify(resume, null, 2)}\n</curriculo>${en ? "" : marketBlock(market)}
 
 <problemas>
