@@ -23,6 +23,24 @@ const inside = (dir: string, parent: string) => {
 };
 
 /**
+ * Os dois caminhos são a mesma pasta? Comparar o texto não basta: no Windows "C:\..." e "c:\..." são a
+ * mesma pasta (o terminal do VS Code usa a letra minúscula), e no macOS o disco também ignora
+ * maiúsculas. Quando as duas existem, vale o disco (mesmo dispositivo e mesmo número de arquivo).
+ */
+export function samePath(a: string, b: string): boolean {
+  const ra = path.resolve(a);
+  const rb = path.resolve(b);
+  if (ra === rb || (process.platform === "win32" && ra.toLowerCase() === rb.toLowerCase())) return true;
+  try {
+    const x = fs.statSync(ra, { bigint: true });
+    const y = fs.statSync(rb, { bigint: true });
+    return x.ino !== 0n && x.ino === y.ino && x.dev === y.dev;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Move a pasta do pacote para a subpasta do status atual. Devolve os campos com os caminhos novos,
  * ou null se não havia nada para mover. Só mexe em pastas dentro de output/.
  */
@@ -34,7 +52,7 @@ export function relocatePackage(job: Job): Pick<Job, "outputDir" | "files"> | nu
   if (!from) return null;
   let to = path.join(paths.outputDir, STATUS_FOLDER[job.status], path.basename(from));
   const remap = (p?: string) => (p && inside(p, saved) ? path.join(to, path.relative(saved, p)) : p);
-  if (path.resolve(from) !== path.resolve(to)) {
+  if (!samePath(from, to)) {
     if (fs.existsSync(to)) to = `${to}-${job.id}`;
     fs.mkdirSync(path.dirname(to), { recursive: true });
     fs.renameSync(from, to);

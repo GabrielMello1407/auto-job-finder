@@ -210,6 +210,9 @@ interface Draft {
 
 const block = (tag: string, body: string | null | undefined) => (body?.trim() ? `\n<${tag}>\n${body.trim()}\n</${tag}>\n` : "");
 
+/** Marcador para a pessoa preencher ("[insert status]", "[inserir data]", "XXX"): num formulário, colchete com texto é sempre isso. Puro. */
+export const hasPlaceholder = (text: string) => /\[[^\]\n]*\p{L}[^\]\n]*\]|\bX{3,}\b/u.test(text);
+
 async function write(job: Job, d: Draft): Promise<{ answer: string; needsYou: string[]; warnings: string[] }> {
   const resume = tailoredResume(job);
   const others = (job.answers ?? []).filter((a) => a.question !== d.question).slice(-MAX_HISTORY);
@@ -232,16 +235,18 @@ ${
 }
 Escreva a resposta que a pessoa vai colar no formulário:
 - Primeira pessoa, no idioma da pergunta, tom humano e direto. Sem clichês ("sou apaixonado por", "proativo", "vestir a camisa") e sem bajular a empresa.
-- Sobre a pessoa, só fatos das fontes (profile_truth, currículos-base, currículo enviado) e do que ela contou: <o_que_a_pessoa_contou> e os ajustes, que podem trazer fatos como "uso o app há um ano". Ligue a pergunta a 1 ou 2 provas concretas que combinam com a vaga.
+- Sobre a pessoa, só fatos das fontes (profile_truth, currículos-base, currículo enviado) e do que ela contou: <o_que_a_pessoa_contou> e os ajustes, que podem trazer fatos como "uso o app há um ano". Em pergunta sobre experiência, motivação ou encaixe, ligue a pergunta a 1 ou 2 provas concretas que combinam com a vaga. Em pergunta de fato (pretensão salarial, disponibilidade, aviso prévio, mudança de cidade, visto ou autorização de trabalho, dados de contato), responda só o fato, curto, sem provas nem conquistas.
 - Use a <analise_da_vaga> para escolher essas provas: prefira as que atendem um requisito obrigatório ou o que a empresa valoriza. O que está nas lacunas a pessoa não tem: não afirme nem insinue.
 - Sobre a empresa, só o que está na <vaga> e na <analise_da_vaga> (inclusive a pesquisa na web e a missão e os valores da página oficial, se houver). Se citar um valor ou a missão da empresa, use as palavras da página e ligue a uma prova concreta da pessoa, sem bajular. Não invente produto, valores, notícias, clientes ou números da empresa.
 - Coerente com <respostas_ja_dadas_nesta_candidatura>, sem repetir as mesmas provas se der para variar.
-- Se a pergunta pede algo que só a pessoa sabe (motivação pessoal, opinião sobre o produto ou o app, pretensão salarial, disponibilidade, por que quer sair do emprego), escreva a melhor resposta verdadeira possível com as fontes, sem inventar sentimentos ou experiências, e diga em needsYou o que ela precisa contar. Pretensão salarial, disponibilidade, aviso prévio, mudança de cidade e visto: use só <respostas_fixas_da_pessoa>; se não estiver lá, não invente e peça em needsYou. Nunca invente valor de salário, documento ou endereço.`;
+- Se a pergunta pede algo que só a pessoa sabe (motivação pessoal, opinião sobre o produto ou o app, pretensão salarial, disponibilidade, por que quer sair do emprego), escreva a melhor resposta verdadeira possível com as fontes, sem inventar sentimentos ou experiências, e diga em needsYou o que ela precisa contar. Pretensão salarial, disponibilidade, aviso prévio, mudança de cidade e visto: use só <respostas_fixas_da_pessoa>; se não estiver lá, não invente e peça em needsYou. Nunca invente valor de salário, documento ou endereço.
+- Nunca deixe marcador para a pessoa preencher ("[inserir ...]", "[insert ...]", "XXX"): escreva só o que é verdade e peça o resto em needsYou.`;
 
   const ask = (extra = "") => structured(AnswerSchema, { label: "write:answer", effort: "medium", system: profileSystem(), user: prompt + extra });
   let r = await ask();
   const problems = () => [
     ...answerViolations(r.answer, sources),
+    ...(hasPlaceholder(r.answer) ? ["a resposta tem um marcador para preencher entre colchetes; escreva só o que é verdade e peça o resto em needsYou"] : []),
     ...(d.limit && r.answer.trim().length > d.limit ? [`a resposta tem ${r.answer.trim().length} caracteres e o limite é ${d.limit}`] : []),
   ];
   let issues = problems();

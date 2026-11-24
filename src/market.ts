@@ -11,24 +11,30 @@ export interface MarketProfile {
   notes: string[];
 }
 
+/** O nome do arquivo segue o idioma do documento: "Curriculo" em português; em inglês, "CV" no Reino Unido e "Resume" no resto. */
+export const docNameFor = (language: "pt-BR" | "en", market: Market) => (language === "pt-BR" ? "Curriculo" : market === "UK" ? "CV" : "Resume");
+
 /**
  * Convenções por mercado. EUA/Canadá: "resume" (1–2 páginas), papel Letter, cover letter esperada,
- * sem foto/idade/estado civil/endereço completo. Brasil: "currículo", A4, carta opcional.
+ * sem foto/idade/estado civil/endereço completo. Brasil: "currículo", A4, carta opcional. Vaga em inglês
+ * segue o padrão internacional em qualquer mercado: "Resume" e cover letter curta.
  */
 export function marketProfile(market: Market, jobLanguage?: "pt-BR" | "en" | "other"): MarketProfile {
   switch (market) {
-    case "BR":
+    case "BR": {
+      const language = jobLanguage === "en" ? "en" : "pt-BR";
       return {
         market,
-        language: jobLanguage === "en" ? "en" : "pt-BR",
+        language,
         paper: "A4",
-        coverLetter: false,
-        docName: "Curriculo",
-        notes: [
-          "No Brasil a carta de apresentação é opcional; prefira uma mensagem curta no e-mail ou no LinkedIn.",
-          "Se a vaga estiver em inglês, o currículo sai em inglês.",
-        ],
+        coverLetter: language === "en",
+        docName: docNameFor(language, market),
+        notes:
+          language === "en"
+            ? ["Vaga em inglês: o currículo sai em inglês, como resume, com uma cover letter curta (anexe se o formulário tiver campo para ela)."]
+            : ["No Brasil a carta de apresentação é opcional; prefira uma mensagem curta no e-mail ou no LinkedIn."],
       };
+    }
     case "US":
     case "CA":
       return {
@@ -55,14 +61,16 @@ export function marketProfile(market: Market, jobLanguage?: "pt-BR" | "en" | "ot
       };
     case "LATAM":
     case "GLOBAL":
-    default:
+    default: {
+      const language = jobLanguage === "pt-BR" ? "pt-BR" : "en";
       return {
         market,
-        language: jobLanguage === "pt-BR" ? "pt-BR" : "en",
+        language,
         paper: "A4",
-        coverLetter: jobLanguage !== "pt-BR",
-        docName: "Resume",
-        notes: ["Empresa internacional/remota: currículo em inglês e cover letter curta."],
+        coverLetter: language === "en",
+        docName: docNameFor(language, market),
+        notes: [language === "en" ? "Empresa internacional/remota: currículo em inglês e cover letter curta." : "Empresa internacional com vaga em português: currículo em português; a carta é opcional."],
       };
+    }
   }
 }

@@ -214,7 +214,7 @@ flowchart LR
 - **gaps:** required items with no evidence. They are only recorded, never filled in;
 - **scam signals:** requests for payment or documents, an unrealistic salary, a test that asks you to download and run code;
 - **dealbreakers** (`knockouts`): what the job states as a hard requirement and platforms filter on before anyone reads the resume (years of experience, language level, location or on-site work, work authorization or visa, degree, certification). Each one gets `sim` (the profile proves it), `nao` (the profile shows it doesn't meet it) or `incerto` (the profile doesn't say), with the evidence. The standard form answers in the preferences (salary, availability, notice period, relocation, work authorization) count as evidence;
-- **market** (BR, US, UK, EU, LATAM...), language and seniority;
+- **market** (BR, US, UK, EU, LATAM...): the hiring company's market, not where the person will work (a foreign company hiring in Brazil is not BR), language and seniority;
 - **recommendation:** `candidatar` (apply) goes to "Para decidir" with ⭐, `decidir` (decide) stays in "Para decidir", and `descartar` (discard) goes to "Encerradas". A `nao` dealbreaker turns `candidatar` into `decidir` (`priority.ts#applyKnockouts`): the job is never discarded on its own, because "5+ years" with 4 sometimes gets through. A job the person pasted (`manual` source) is never discarded by the triage either: `descartar` keeps it in "Para decidir" (`triage.ts#statusAfterTriage`).
 
 ### Priority

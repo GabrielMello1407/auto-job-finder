@@ -16,7 +16,7 @@ export function analyzeJob(jd: string): Promise<JobAnalysis> {
     system: profileSystem(),
     user: `${jobBlock(jd)}
 
-Analise a vaga acima. Extraia requisitos obrigatórios e desejáveis, responsabilidades e de 15 a 35 palavras-chave ATS exatamente como escritas na vaga (ferramentas, tecnologias, metodologias, certificações, nome do cargo). Identifique o mercado do empregador (BR, US, CA, UK, EU, LATAM ou GLOBAL).
+Analise a vaga acima. Extraia requisitos obrigatórios e desejáveis, responsabilidades e de 15 a 35 palavras-chave ATS exatamente como escritas na vaga (ferramentas, tecnologias, metodologias, certificações, nome do cargo). Identifique o mercado do empregador (BR, US, CA, UK, EU, LATAM ou GLOBAL): o da empresa que contrata, não o lugar onde a pessoa vai trabalhar (empresa de fora contratando no Brasil não é BR).
 Descubra também COMO se candidatar (applyChannel): e-mail com currículo anexo, LinkedIn (Easy Apply/candidatura simplificada ou mensagem), plataforma de recrutamento (Gupy, Greenhouse, Lever, Workday, Solides, Kenoby...), formulário no site da empresa ou WhatsApp. Copie instruções específicas (assunto obrigatório do e-mail, código da vaga, documentos pedidos, prazo). Não avalie o candidato aqui.`,
   });
 }

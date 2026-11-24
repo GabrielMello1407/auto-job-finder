@@ -61,7 +61,7 @@ Critérios:
 - score 0–100 coerente com o fit.
 - evidence: cite trechos curtos do perfil. mustHaveGaps: requisitos obrigatórios sem evidência (escreva "sem evidência", não suponha).
 - scamSignals: domínio de e-mail estranho, pedido de documento/pagamento, teste que exige baixar e rodar código, salário irreal, vaga vaga demais.
-- market: país do empregador/contratação (BR se empresa brasileira contratando no Brasil; US se empresa americana, mesmo remota).
+- market: o mercado da empresa que contrata, não o lugar onde a pessoa vai trabalhar (BR só para empresa brasileira; empresa de fora contratando no Brasil, como CLT por parceiro ou contractor, usa o país dela ou GLOBAL; US se empresa americana, mesmo remota).
 - recommendation: "candidatar" (fit alta/média sem golpe), "decidir" (dúvida real), "descartar".
 - O candidato mora em ${prefs.country} (a cidade está no perfil). ${
         prefs.relocateAbroad
