@@ -114,7 +114,7 @@ Did a new project, changed jobs, finished a course? You don't need to rebuild ev
 - the numbers that show impact or scale. Small figures (few customers, a single user) and code counters (commits, lines of code) stay out;
 - no internal note from the profile, such as "self-reported", the date a number was measured or "to confirm";
 - 1 page with under 3 years of experience with dates (volunteering doesn't count); up to 2 pages from then on, using the space;
-- the main job first: your own company or project and volunteering that run alongside it come right after;
+- the main job first: your own company or project and volunteering that run alongside it come right after; volunteering gets 1 or 2 bullets, even when current;
 
 After it is rebuilt, an automatic check flags what is out of line and the AI fixes those points. The log also shows:
 - **💡** what only you can fill in: no phone number, education without a date, too many current roles at once;

@@ -22,7 +22,7 @@ function emitPending() {
 }
 
 const running = (kind) => S.tasks.find((k) => k.kind === kind && (k.status === "queued" || k.status === "running"));
-const lastLog = (task) => task?.log?.[task.log.length - 1] ?? t("Começando…");
+const lastLog = (task) => task?.log?.[task.log.length - 1] ?? t("A IA está trabalhando, pode levar alguns minutos…");
 
 /* =================================================================== assistente */
 

@@ -84,3 +84,13 @@ test("triagem recebe o tempo de experiência com datas e a regra de senioridade"
   assert.match(line, /knockout "tempo de experiência" com "nao"/);
   assert.match(line, /o fit não pode ser "alta"/);
 });
+
+test("voluntariado tem 1 a 2 tópicos, mesmo atual", () => {
+  const base = loadBaseResume("pt-BR");
+  const r: Resume = {
+    ...base,
+    experience: [role("Desenvolvedora", "Acme", "01/2019", "Atual", ["A.", "B.", "C."]), role("Desenvolvedora Voluntária", "ONG", "01/2024", "Atual", ["D.", "E.", "F."])],
+  };
+  assert.ok(baseResumeIssues(r, 2).some((i) => /3 tópicos de voluntariado; use 1 a 2/.test(i)));
+  assert.match(resumeCuration(1), /Voluntariado tem 1 a 2 tópicos/);
+});

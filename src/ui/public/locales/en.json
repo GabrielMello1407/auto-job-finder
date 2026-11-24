@@ -1112,5 +1112,8 @@
   "Arraste este botão para a barra de favoritos do navegador.": "Drag this button onto the browser's bookmarks bar.",
   "O preenchimento de formulários está desligado (Preferências → Candidatura e resultados).": "Form autofill is off (Preferences → Applying and results).",
   "Palavras-chave da vaga que aparecem no currículo. Não é a chance de passar na triagem.": "Job keywords that show up in the resume. It is not the chance of passing the screening.",
-  "Um valor por tipo de contrato (CLT, PJ, vaga no exterior): a IA usa o do tipo da vaga e nunca converte sozinha. No Brasil, PJ costuma pedir de 30% a 50% a mais que CLT, para compensar 13º, férias e FGTS.": "One amount per contract type (CLT employee, PJ contractor, job abroad): the AI uses the one for the job's type and never converts on its own. In Brazil, a PJ contract usually asks 30% to 50% more than CLT, to make up for the 13th salary, vacation and FGTS."
+  "Um valor por tipo de contrato (CLT, PJ, vaga no exterior): a IA usa o do tipo da vaga e nunca converte sozinha. No Brasil, PJ costuma pedir de 30% a 50% a mais que CLT, para compensar 13º, férias e FGTS.": "One amount per contract type (CLT employee, PJ contractor, job abroad): the AI uses the one for the job's type and never converts on its own. In Brazil, a PJ contract usually asks 30% to 50% more than CLT, to make up for the 13th salary, vacation and FGTS.",
+  "A IA está trabalhando, pode levar alguns minutos…": "The AI is working, this can take a few minutes…",
+  "{s} s": "{s}s",
+  "{m} min {s} s": "{m} min {s}s"
 }

@@ -4,7 +4,7 @@ import path from "node:path";
 import { withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { contentFill, htmlToPdf } from "../render/pdf.js";
 import { PAGE_MARGIN_MM, resumeHtml } from "../render/resumeHtml.js";
-import { mainRoleFirst, pageLimit, professionalMonths } from "../career.js";
+import { isVolunteer, mainRoleFirst, pageLimit, professionalMonths } from "../career.js";
 import type { Resume } from "../schemas.js";
 import { buildBaseResume, reviseBaseResume } from "./build.js";
 import { currentMarket, mentions, type MarketKeyword } from "./marketKeywords.js";
@@ -18,6 +18,8 @@ import { currentMarket, mentions, type MarketKeyword } from "./marketKeywords.js
 /** Tópicos por posição: só a principal (a que tem mais projetos) pode passar de MAX_BULLETS, até MAX_MAIN_BULLETS. */
 export const MAX_BULLETS = 6;
 export const MAX_MAIN_BULLETS = 8;
+/** Voluntariado, mesmo atual, não divide o espaço com o emprego principal. */
+export const MAX_VOLUNTEER_BULLETS = 2;
 /** O prompt pede de 12 a 16 tópicos no total; a conferência aponta a partir daqui. */
 export const MAX_TOTAL_BULLETS = 18;
 /** Palavras do mercado que faltam e que a revisão tenta encaixar (as mais pedidas primeiro). */
@@ -71,7 +73,9 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
   r.experience.forEach((e, i) => {
     const where = `${e.title} (${e.company})`;
     const max = i === main ? lim.mainBullets : lim.bullets;
-    if (e.bullets.length > max)
+    if (isVolunteer(e) && e.bullets.length > MAX_VOLUNTEER_BULLETS)
+      out.push(`${where}: ${e.bullets.length} tópicos de voluntariado; use 1 a ${MAX_VOLUNTEER_BULLETS} e dê o espaço ao emprego principal`);
+    else if (e.bullets.length > max)
       out.push(`${where}: ${e.bullets.length} tópicos; o máximo é ${max}${i === main ? " (posição principal)" : ` (só a posição principal passa de ${lim.bullets})`}`);
     const prefixes = new Map<string, number>();
     for (const b of e.bullets) {
@@ -105,7 +109,7 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
       lim.pages === 1
         ? `o PDF ficou com ${pages} páginas; com menos de 3 anos de experiência com datas, o currículo cabe em 1 página${
             fill && fill > 1
-              ? ` (o conteúdo ocupa ${Math.round(fill * 100)}% de uma página: corte cerca de ${Math.ceil((fill - 1) * LINES_PER_PAGE) + 2} linhas, encurtando competências, resumo e tópicos)`
+              ? ` (o conteúdo ocupa ${Math.round(fill * 100)}% de uma página: corte cerca de ${Math.ceil((fill - 1) * LINES_PER_PAGE) + 5} linhas, encurtando competências, resumo e tópicos, para ficar em até 95% da página; uma seção que não cabe inteira pula para a página seguinte)`
               : ""
           }`
         : `o PDF ficou com ${pages} páginas; o máximo é ${lim.pages}`,

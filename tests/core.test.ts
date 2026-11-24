@@ -529,3 +529,15 @@ test("abrir pasta, arquivo ou link: comando de cada sistema, sem shell e sem jan
   assert.equal(openCommand("/Users/ana/output", "darwin").cmd, "open");
   assert.deepEqual(openCommand("/Users/ana/output", "darwin").args, ["/Users/ana/output"]);
 });
+
+test("codex exec: sem o config.toml da pessoa (plugins de navegador e controle do computador) e só leitura", async () => {
+  const { codexArgs } = await import("../src/providers/codex.js");
+  const base = { images: [], effort: "high" as const, search: false, outFile: "o.txt", isolate: true };
+  const args = codexArgs(base);
+  assert.ok(args.includes("--ignore-user-config"), "um pedido de texto não carrega plugins nem servidores MCP");
+  assert.deepEqual(args.slice(args.indexOf("--sandbox"), args.indexOf("--sandbox") + 2), ["--sandbox", "read-only"]);
+  assert.equal(args.at(-1), "-", "o pedido vai pelo stdin");
+  assert.ok(!codexArgs({ ...base, isolate: false }).includes("--ignore-user-config"), "Codex antigo ou AJF_CODEX_USER_CONFIG=1");
+  assert.ok(codexArgs({ ...base, search: true }).includes('web_search="live"'));
+  assert.deepEqual(codexArgs({ ...base, schemaFile: "s.json", model: "m" }).slice(-5), ["--output-schema", "s.json", "-m", "m", "-"]);
+});

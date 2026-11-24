@@ -142,6 +142,7 @@ ${
     : "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 4 a 6 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 8 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1 a 2. No total, de 12 a 16 tópicos de experiência."
 }
 - Posições ao mesmo tempo: a principal (o emprego formal ou a mais relevante para os cargos-alvo) vem primeiro; empresa ou projeto próprio e voluntariado em paralelo a um emprego vêm depois dele.
+- Voluntariado tem 1 a 2 tópicos, mesmo atual: nunca mais tópicos que o emprego principal, nem às custas dele.
 - Use o espaço sem encher: o limite é ${pages === 1 ? "1 página" : "2 páginas"}. Se sobra espaço, inclua projetos e resultados distintos que reforçam os cargos-alvo em vez de deixar espaço vazio. Se passa de ${pages === 1 ? "1 página ou de 11 tópicos" : "2 páginas ou de 16 tópicos"}, corte primeiro o que pesa menos.
 - Cada tópico é UMA realização: começa com verbo de ação, ocupa no máximo 2 linhas (cerca de 250 caracteres) e diz o que foi feito, como (só as ferramentas que importam) e o resultado. Junte fatos relacionados num tópico só; não liste funcionalidades uma a uma; não junte duas realizações sem relação no mesmo tópico.
 - Vários projetos, clientes ou frentes na mesma posição: cada um que for relevante ganha um tópico antes de outro ganhar o segundo. Cite o nome dentro do tópico, sem repetir o mesmo prefixo ("Projeto X:") em vários tópicos seguidos. Os menores podem ficar de fora.

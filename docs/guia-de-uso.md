@@ -114,7 +114,7 @@ Fez um projeto novo, mudou de emprego, terminou um curso? Não precisa montar tu
 - os números que mostram impacto ou escala. Números pequenos (poucos clientes, um único usuário) e contadores de código (commits, linhas de código) ficam de fora;
 - nenhuma nota interna do perfil, como "autodeclarado", a data em que um número foi medido ou "a confirmar";
 - 1 página com menos de 3 anos de experiência com datas (voluntariado não conta); até 2 páginas daí em diante, usando o espaço;
-- o emprego principal primeiro: empresa ou projeto próprio e voluntariado que correm junto vêm logo depois;
+- o emprego principal primeiro: empresa ou projeto próprio e voluntariado que correm junto vêm logo depois; voluntariado tem 1 ou 2 tópicos, mesmo atual;
 
 Depois de refeito, uma conferência automática aponta o que passou disso e a IA corrige esses pontos. O registro também mostra:
 - **💡** o que só você pode preencher: falta de telefone, formação sem período, cargos atuais demais ao mesmo tempo;
