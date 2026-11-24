@@ -26,27 +26,59 @@ export function codexLoggedIn(): boolean {
   return fs.existsSync(path.join(home, "auth.json")) || Boolean(process.env.CODEX_API_KEY);
 }
 
-async function run(opts: CallOptions, model: string | undefined, schema?: object, search = false): Promise<string> {
-  const dir = isolatedDir("codex");
-  const outFile = tempFile(dir, "last", ".txt");
-  const schemaFile = schema ? tempFile(dir, "schema", ".json", JSON.stringify(schema)) : undefined;
-  const images = copyImages(dir, opts.images);
-  const args = [
+/**
+ * Os argumentos do `codex exec`. Puro (testado). Com `isolate`, o Codex não carrega o config.toml da pessoa
+ * (`--ignore-user-config`, o login continua valendo): o app do Codex liga ali plugins de navegador e de
+ * controle do computador e servidores MCP, que um pedido de texto não usa e que podiam deixar a chamada
+ * parada até o tempo limite. Mesmo isolamento do provedor do Claude Code.
+ */
+export function codexArgs(p: {
+  images: string[];
+  effort: Effort;
+  search: boolean;
+  outFile: string;
+  schemaFile?: string;
+  model?: string;
+  isolate: boolean;
+}): string[] {
+  return [
     "exec",
     // Imagem anexada ao pedido (a forma --image=arquivo não engole o "-" do stdin no fim).
-    ...images.map((f) => `--image=${f}`),
+    ...p.images.map((f) => `--image=${f}`),
+    ...(p.isolate ? ["--ignore-user-config"] : []),
     "--json",
     "--ephemeral",
     "--skip-git-repo-check",
     "--sandbox", "read-only",
     "--color", "never",
-    "-c", `model_reasoning_effort="${EFFORT[opts.effort ?? "high"]}"`,
-    "-c", `web_search="${search ? "live" : "disabled"}"`,
-    "-o", outFile,
+    "-c", `model_reasoning_effort="${EFFORT[p.effort]}"`,
+    "-c", `web_search="${p.search ? "live" : "disabled"}"`,
+    "-o", p.outFile,
+    ...(p.schemaFile ? ["--output-schema", p.schemaFile] : []),
+    ...(p.model ? ["-m", p.model] : []),
+    "-",
   ];
-  if (schemaFile) args.push("--output-schema", schemaFile);
-  if (model) args.push("-m", model);
-  args.push("-");
+}
+
+/**
+ * O Codex instalado aceita `--ignore-user-config`? (versões antigas não têm). Pergunta uma vez por execução.
+ * AJF_CODEX_USER_CONFIG=1 mantém o config.toml (por exemplo, para quem configurou outro provedor de modelo nele).
+ */
+let isolation: Promise<boolean> | undefined;
+function canIsolate(): Promise<boolean> {
+  if (process.env.AJF_CODEX_USER_CONFIG === "1") return Promise.resolve(false);
+  isolation ??= runCli({ bin: bin(), args: ["exec", "--help"], cwd: isolatedDir("codex"), name: "codex exec --help", installHint: INSTALL, timeoutMs: 30_000 })
+    .then((r) => /--ignore-user-config/.test(`${r.stdout}${r.stderr}`))
+    .catch(() => false);
+  return isolation;
+}
+
+async function run(opts: CallOptions, model: string | undefined, schema?: object, search = false): Promise<string> {
+  const dir = isolatedDir("codex");
+  const outFile = tempFile(dir, "last", ".txt");
+  const schemaFile = schema ? tempFile(dir, "schema", ".json", JSON.stringify(schema)) : undefined;
+  const images = copyImages(dir, opts.images);
+  const args = codexArgs({ images, effort: opts.effort ?? "high", search, outFile, schemaFile, model, isolate: await canIsolate() });
 
   // O Codex não tem flag de system prompt: as regras vão no início da mensagem.
   const prompt = `<instructions>\n${opts.system.join("\n\n")}\n</instructions>\n\n<task>\n${opts.user}\n</task>`;

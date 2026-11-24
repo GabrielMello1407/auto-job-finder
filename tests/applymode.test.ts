@@ -126,8 +126,9 @@ test("resultados: qual currículo dá resposta (título, versão) e só com a op
   assert.ok(codes.includes("resume_version"));
   const version = f.insights.find((i) => i.code === "resume_version")!;
   assert.deepEqual([version.vars.bestRate, version.vars.worstRate], [67, 25]);
-  assert.match(insightText(version), /^A versão de \d{2}\/\d{2}\/\d{4} do currículo teve 67% de resposta/);
-  assert.match(funnelText(f), /Currículo: versão do currículo-base\n.*\n  versão de \d{2}\/\d{2}\/\d{4}/);
+  // Data e hora: duas versões do mesmo dia não ficam com o mesmo rótulo.
+  assert.match(insightText(version), /^A versão de \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} do currículo teve 67% de resposta/);
+  assert.match(funnelText(f), /Currículo: versão do currículo-base\n.*\n  versão de \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
 
   // Um corte com um grupo só (todos sem carta) não compara nada.
   assert.deepEqual(comparable(r.cover), []);

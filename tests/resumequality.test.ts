@@ -11,7 +11,8 @@ import type { Resume } from "../src/schemas.js";
 /* ------------------------- currículo-base como um recrutador leria (sem IA) ------------------------- */
 
 const base = loadBaseResume("pt-BR");
-const job = (bullets: string[]): Resume["experience"][number] => ({ title: "Desenvolvedora", company: "Acme", location: "", mode: "", start: "01/2024", end: "Atual", bullets });
+// Desde 2019: mais de 3 anos de experiência com datas, então valem os limites de 2 páginas (src/career.ts).
+const job = (bullets: string[]): Resume["experience"][number] => ({ title: "Desenvolvedora", company: "Acme", location: "", mode: "", start: "01/2019", end: "Atual", bullets });
 
 test("currículo-base do exemplo passa na conferência", () => {
   assert.deepEqual(baseResumeIssues(base, 2), []);

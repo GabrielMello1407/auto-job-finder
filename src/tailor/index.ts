@@ -3,8 +3,9 @@ import path from "node:path";
 import { ensureDir, paths, settings } from "../config.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { samePath } from "../jobs/folders.js";
+import { mainRoleFirst, pagesFor, professionalMonths } from "../career.js";
 import { docNameFor, marketProfile, type MarketProfile } from "../market.js";
-import { englishBase, loadBaseResume, profileTruthEvidence, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
+import { englishBase, loadBaseResume, profileTruthEvidence, resumePagesPref, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { coverLetterHtml, resumeHtml, withoutDashesLetter } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
 import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type OpenCheck, type Resume } from "../schemas.js";
@@ -20,7 +21,6 @@ import { DRAFT_FILE, draftFromDir, writeDraft } from "../writers/emailDraft.js";
 import { writeCoverLetter, writeEmails, writeInterviewPrep } from "../writers/documents.js";
 import { analyzeJob, condenser, editor, reviewer, strategist } from "./agents.js";
 
-const MAX_PAGES = 2;
 import { atsMarkdown, atsReport } from "./ats.js";
 import { runGuards, type GuardReport } from "./guards.js";
 import { ratingReport, refine } from "./refine.js";
@@ -224,6 +224,10 @@ function withoutDashesEmails(e: EmailPack): EmailPack {
   };
 }
 
+/** Pacote feito só com o resumo da busca na web: a triagem e o currículo saem menos precisos. */
+export const SUMMARY_WARNING =
+  "⚠️ **Feito a partir de um resumo da busca na web, não da vaga completa.** Abra o link, copie a descrição inteira e gere de novo (Colar uma vaga, ou `ajf add --file`): a triagem e o currículo ficam mais precisos.";
+
 function coverMarkdown(c: CoverLetter, name: string): string {
   return `${c.subjectLine}\n\n${c.greeting}\n\n${c.paragraphs.join("\n\n")}\n\n${c.closing}\n${name}\n`;
 }
@@ -248,6 +252,8 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   console.log(`   mercado ${mp.market} · idioma ${mp.language} · papel ${mp.paper} · cover letter: ${wantCover ? "sim" : "não"}`);
 
   const base = loadBaseResume(mp.language);
+  // Páginas pela preferência (até 2 por padrão; 1; ou automático pelo tempo de carreira, src/career.ts).
+  mp.maxPages = pagesFor(professionalMonths(base), resumePagesPref());
   const sources = sourcesText();
   const guard = (r: Resume) => runGuards(r, base, sources);
 
@@ -269,7 +275,8 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   // Currículo em português: o cargo sem a tradução em inglês entre parênteses (ela fica só no resume em inglês).
   const english = mp.language === "pt-BR" ? englishBase() : null;
   // E sem travessão como pontuação (títulos ganham parênteses; textos, vírgula).
-  const tidy = (r: Resume) => withoutDashesResume(withoutTranslatedTitles(r, english));
+  // E com o emprego principal antes de empresa própria ou voluntariado em paralelo (src/career.ts).
+  const tidy = (r: Resume) => mainRoleFirst(withoutDashesResume(withoutTranslatedTitles(r, english)));
   let final = tidy(result.best.resume);
 
   const dir = path.join(paths.outputDir, `${today()}-${slugify(job.company, 25)}-${slugify(analysis.roleTitle, 35)}`);
@@ -283,9 +290,10 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   let pages = await htmlToPdf(html, pdfPath, mp.paper);
 
   // Passou do limite de páginas: uma passada de enxugamento. Só fica se as travas continuarem limpas.
-  if (pages > MAX_PAGES) {
-    console.log(`   ${pages} páginas — enxugando para ${MAX_PAGES}...`);
-    const shorter = tidy(await condenser({ jd, analysis, current: final, pages, maxPages: MAX_PAGES, market: mp }));
+  const maxPages = mp.maxPages ?? 2;
+  if (pages > maxPages) {
+    console.log(`   ${pages} páginas — enxugando para ${maxPages}...`);
+    const shorter = tidy(await condenser({ jd, analysis, current: final, pages, maxPages, market: mp }));
     if (guard(shorter).violations.length <= guard(final).violations.length) {
       const shortHtml = resumeHtml(shorter, mp.paper);
       const tmp = path.join(dir, "_condensed.pdf");
@@ -357,11 +365,11 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
     path.join(dir, "LEIA-ME.md"),
     `# Pacote: ${analysis.roleTitle} — ${job.company}
 
-${verdict}
+${verdict}${isWebSummary(job.description) ? `\n\n${SUMMARY_WARNING}` : ""}
 
 - Vaga: ${job.applyUrl ?? job.url}
 - Mercado: ${mp.market} · idioma ${mp.language} · papel ${mp.paper}
-- Nota final: **${result.best.rating}** (meta ${target}) · ATS: **${ats.score}%** · ${pages} página(s)
+- Nota final: **${result.best.rating}** (meta ${target}) · palavras-chave da vaga no currículo: **${ats.score}%** (não é a chance de passar na triagem) · ${pages} página(s)
 - Violações das travas: ${guards.violations.length ? `**${guards.violations.length} — leia coverage_review.md**` : "nenhuma"}
 
 ## Como se candidatar

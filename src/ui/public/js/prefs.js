@@ -177,16 +177,23 @@ function paint() {
     ${section(
       t("📝 Respostas fixas dos formulários"),
       t("O que os formulários sempre perguntam e não está no currículo. Entra na ficha de candidatura, nas respostas às perguntas e na triagem (critérios eliminatórios, como visto e mudança de cidade). Vazio = não informado: a IA não inventa."),
-      `<div class="grid2"><label class="field"><span>${t("Pretensão salarial")}</span><input name="salaryExpectation" value="${esc(p.applicationFacts.salaryExpectation)}" placeholder="${esc(t("ex.: R$ 8.000 a 9.000 CLT, ou US$ 4.000/mês PJ"))}" autocomplete="off"></label>
-      <label class="field"><span>${t("Disponibilidade para começar")}</span><input name="availability" value="${esc(p.applicationFacts.availability)}" placeholder="${esc(t("ex.: imediata, ou em 30 dias"))}" autocomplete="off"></label></div>
-      <div class="grid2"><label class="field"><span>${t("Aviso prévio")}</span><input name="noticePeriod" value="${esc(p.applicationFacts.noticePeriod)}" placeholder="${esc(t("ex.: 30 dias, ou não tenho"))}" autocomplete="off"></label>
-      <label class="field"><span>${t("Mudança de cidade")}</span><input name="relocation" value="${esc(p.applicationFacts.relocation)}" placeholder="${esc(t("ex.: não, só remoto; ou sim, para São Paulo"))}" autocomplete="off"></label></div>
-      <label class="field"><span>${t("Autorização de trabalho / visto")}</span><input name="workAuthorization" value="${esc(p.applicationFacts.workAuthorization)}" placeholder="${esc(t("ex.: brasileiro; sem visto para os EUA, só como PJ remoto"))}" autocomplete="off"></label>`,
+      `<label class="field"><span>${t("Pretensão salarial")}</span><input name="salaryExpectation" value="${esc(p.applicationFacts.salaryExpectation)}" placeholder="${esc(t("ex.: R$ 8.000 a 9.000 CLT, ou US$ 4.000/mês PJ"))}" autocomplete="off"><small class="faint">${t("Um valor por tipo de contrato (CLT, PJ, vaga no exterior): a IA usa o do tipo da vaga e nunca converte sozinha. No Brasil, PJ costuma pedir de 30% a 50% a mais que CLT, para compensar 13º, férias e FGTS.")}</small></label>
+      <div class="grid2"><label class="field"><span>${t("Disponibilidade para começar")}</span><input name="availability" value="${esc(p.applicationFacts.availability)}" placeholder="${esc(t("ex.: imediata, ou em 30 dias"))}" autocomplete="off"></label>
+      <label class="field"><span>${t("Aviso prévio")}</span><input name="noticePeriod" value="${esc(p.applicationFacts.noticePeriod)}" placeholder="${esc(t("ex.: 30 dias, ou não tenho"))}" autocomplete="off"></label></div>
+      <div class="grid2"><label class="field"><span>${t("Mudança de cidade")}</span><input name="relocation" value="${esc(p.applicationFacts.relocation)}" placeholder="${esc(t("ex.: não, só remoto; ou sim, para São Paulo"))}" autocomplete="off"></label>
+      <label class="field"><span>${t("Autorização de trabalho / visto")}</span><input name="workAuthorization" value="${esc(p.applicationFacts.workAuthorization)}" placeholder="${esc(t("ex.: brasileiro; sem visto para os EUA, só como PJ remoto"))}" autocomplete="off"></label></div>`,
     )}
     ${section(
       t("📨 Candidatura e resultados"),
       "",
-      `<label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
+      `<label class="field"><span>${t("Tamanho do currículo")}</span><select name="resumePages">${[
+        ["ate2", t("Até 2 páginas")],
+        ["1", t("1 página")],
+        ["auto", t("Automático: 1 página com menos de 3 anos de experiência com datas")],
+      ]
+        .map(([v, label]) => `<option value="${v}"${(p.resume?.pages ?? "ate2") === v ? " selected" : ""}>${esc(label)}</option>`)
+        .join("")}</select><small class="faint">${t("Vale para os currículos-base e os pacotes, sem encher para chegar à segunda página. Em 1 página, o resumo e os tópicos encurtam antes das competências. Para mudar os currículos-base já feitos: Perfil → 🔄 Refazer currículos-base.")}</small></label>
+      <label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
       <label class="switch"><input type="checkbox" name="compareResumes"${p.results?.compareResumes !== false ? " checked" : ""}><span>${t("Comparar as versões do currículo nos Resultados")}<small>${t("Mostra a taxa de resposta pelo topo do currículo (cargo no título, palavras-chave, números) e pela versão do currículo-base. Só aparece quando há dados para comparar.")}</small></span></label>
       ${autofillBlock(p.autofill ?? {})}`,
     )}

@@ -126,6 +126,18 @@ export interface CliRun {
   installHint: string;
 }
 
+/**
+ * Encerra a CLI e o que ela abriu. No Windows, `child.kill()` só fecha o processo de cima (o node que chama
+ * o codex.exe) e os de baixo ficavam rodando: o taskkill /T fecha a árvore. Sem shell.
+ */
+function killTree(child: ReturnType<typeof spawn>) {
+  if (process.platform === "win32" && child.pid) {
+    const r = spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, timeout: 10_000 });
+    if (r.status === 0) return;
+  }
+  child.kill();
+}
+
 /** Roda uma CLI de IA e devolve stdout/stderr. Lança erro com dica de instalação se não achar o binário. */
 export function runCli(run: CliRun): Promise<{ stdout: string; stderr: string; code: number | null }> {
   const { command, prefix, shell } = resolveCommand(run.bin);
@@ -140,7 +152,7 @@ export function runCli(run: CliRun): Promise<{ stdout: string; stderr: string; c
     let out = "";
     let err = "";
     const timer = setTimeout(() => {
-      child.kill();
+      killTree(child);
       reject(new Error(`${run.name} excedeu ${Math.round(timeoutMs / 60000)} min`));
     }, timeoutMs);
     child.stdout.on("data", (d) => (out += d));

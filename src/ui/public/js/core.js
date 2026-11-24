@@ -127,9 +127,10 @@ export function mono(text, cls = "") {
   return `<div class="mono ${cls}" style="--h:${hue(text)}" aria-hidden="true">${esc(initials(text))}</div>`;
 }
 export const level = (n, good, warn) => (n >= good ? "ok" : n >= warn ? "warn" : "bad");
-export function ring(label, value, max, cls, shown = value) {
-  if (value == null) return `<div class="ring none" title="${esc(t("{label}: ainda não tem", { label }))}"><div class="dial"></div><b>–</b>${esc(label)}</div>`;
-  return `<div class="ring ${cls}" style="--v:${Math.max(0, Math.min(1, value / max))}" title="${esc(label)}: ${esc(shown)}"><div class="dial"></div><b>${esc(shown)}</b>${esc(label)}</div>`;
+export function ring(label, value, max, cls, shown = value, hint = "") {
+  const more = hint ? ` · ${hint}` : "";
+  if (value == null) return `<div class="ring none" title="${esc(t("{label}: ainda não tem", { label }) + more)}"><div class="dial"></div><b>–</b>${esc(label)}</div>`;
+  return `<div class="ring ${cls}" style="--v:${Math.max(0, Math.min(1, value / max))}" title="${esc(`${label}: ${shown}${more}`)}"><div class="dial"></div><b>${esc(shown)}</b>${esc(label)}</div>`;
 }
 export function btn(act, label, id, cls = "", title = "") {
   return `<button type="button" class="${cls}" data-act="${act}"${id != null ? ` data-id="${esc(id)}"` : ""}${title ? ` title="${esc(title)}" aria-label="${esc(title)}"` : ""}>${label}</button>`;

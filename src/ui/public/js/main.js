@@ -82,6 +82,16 @@ function paintChrome() {
 let dockOpen = false;
 const seen = new Map();
 
+/** "45 s", "3 min 10 s": há quanto tempo a tarefa está rodando. */
+function elapsedText(iso) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  return s < 60 ? t("{s} s", { s }) : t("{m} min {s} s", { m: Math.floor(s / 60), s: s % 60 });
+}
+// Atualiza só o relógio (sem redesenhar o painel, para não perder a rolagem do registro).
+setInterval(() => {
+  for (const el of document.querySelectorAll("[data-since]")) el.textContent = elapsedText(el.dataset.since);
+}, 1000);
+
 function paintDock() {
   const root = $("#dock-root");
   const tasks = S.tasks;
@@ -89,8 +99,11 @@ function paintDock() {
   const running = tasks.find((k) => k.status === "running");
   const queued = tasks.filter((k) => k.status === "queued");
   const finished = tasks.filter((k) => k.status === "done" || k.status === "error").reverse();
+  // Tempo correndo: uma chamada de IA leva minutos sem escrever nada, e "Começando…" parado parecia travado.
   const head = running
-    ? `<span class="spin"></span><div class="txt"><b>${esc(running.label)}</b><span>${esc(running.log[running.log.length - 1] ?? t("Começando…"))}</span></div>`
+    ? `<span class="spin"></span><div class="txt"><b>${esc(running.label)}</b><span>${esc(running.log[running.log.length - 1] ?? t("A IA está trabalhando, pode levar alguns minutos…"))}${
+        running.startedAt ? ` · <span data-since="${esc(running.startedAt)}">${esc(elapsedText(running.startedAt))}</span>` : ""
+      }</span></div>`
     : queued.length
       ? `<span class="spin"></span><div class="txt"><b>${esc(t("{n} na fila", { n: queued.length }))}</b><span>${esc(t("Começando…"))}</span></div>`
       : `<span class="done-dot${finished[0]?.status === "error" ? " err" : ""}">${finished[0]?.status === "error" ? "✕" : "✓"}</span><div class="txt"><b>${esc(finished[0].label)}</b><span>${esc(finished[0].status === "error" ? finished[0].error : finished[0].result ?? t("concluído"))}</span></div>`;

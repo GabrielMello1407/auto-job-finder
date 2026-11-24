@@ -51,3 +51,6 @@ export function t(text, vars) {
 
 /** Data no formato do idioma da interface. */
 export const dateText = (iso) => new Date(iso).toLocaleDateString(lang === "pt-BR" ? "pt-BR" : "en-US");
+
+/** Hora e minuto no formato do idioma da interface. */
+export const timeText = (iso) => new Date(iso).toLocaleTimeString(lang === "pt-BR" ? "pt-BR" : "en-US", { hour: "2-digit", minute: "2-digit" });
