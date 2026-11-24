@@ -64,9 +64,16 @@ export function monthsText(months: number): string {
   return [years, rest].filter(Boolean).join(" e ") || "menos de 1 mês";
 }
 
-/** Até 3 anos de experiência com datas, o currículo cabe em 1 página; daí em diante, até 2. */
+/** No modo automático: até 3 anos de experiência com datas, 1 página; daí em diante, até 2. */
 export const EARLY_CAREER_MONTHS = 36;
 export const pageLimit = (months: number): 1 | 2 => (months < EARLY_CAREER_MONTHS ? 1 : 2);
+
+/** Tamanho do currículo nas Preferências: até 2 páginas (padrão), 1 página, ou automático pelo tempo de carreira. */
+export type PagesPref = "ate2" | "1" | "auto";
+export const PAGES_PREFS: PagesPref[] = ["ate2", "1", "auto"];
+
+/** Páginas do currículo pela preferência e pelo tempo de carreira. Puro. */
+export const pagesFor = (months: number, pref: PagesPref = "ate2"): 1 | 2 => (pref === "1" ? 1 : pref === "auto" ? pageLimit(months) : 2);
 
 /**
  * Posições ao mesmo tempo: o emprego principal vem primeiro. Empresa ou projeto próprio e voluntariado que

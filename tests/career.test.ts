@@ -1,10 +1,10 @@
 import "./setup.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mainRoleFirst, monthIndex, monthsText, pageLimit, professionalMonths } from "../src/career.js";
+import { mainRoleFirst, monthIndex, monthsText, pageLimit, pagesFor, professionalMonths } from "../src/career.js";
 import { resumeCuration } from "../src/onboarding/build.js";
 import { baseResumeIssues, isPageIssue, resumeLimits } from "../src/onboarding/resumeQuality.js";
-import { loadBaseResume } from "../src/profile.js";
+import { loadBaseResume, loadPreferences } from "../src/profile.js";
 import type { Resume } from "../src/schemas.js";
 
 const NOW = new Date(2026, 10, 15); // 15/11/2026
@@ -56,22 +56,31 @@ test("ordem das posições: o emprego principal vem antes da empresa própria e 
   assert.equal(mainRoleFirst(founder), founder);
 });
 
-test("páginas pelo tempo de carreira: até 3 anos, 1 página e menos tópicos", () => {
-  const base = loadBaseResume("pt-BR"); // o exemplo tem mais de 5 anos: 2 páginas, como antes
+test("tamanho do currículo: até 2 páginas por padrão; 1 página ou automático pelas Preferências", () => {
+  assert.equal(pagesFor(10), 2, "o padrão é até 2 páginas, mesmo no começo da carreira");
+  assert.equal(pagesFor(120, "1"), 1);
+  assert.equal(pagesFor(22, "auto"), 1);
+  assert.equal(pagesFor(40, "auto"), 2);
+  assert.equal(loadPreferences().resume.pages, "ate2", "sem a opção no arquivo, vale o padrão");
+
+  const base = loadBaseResume("pt-BR"); // o exemplo tem mais de 5 anos
   assert.equal(resumeLimits(base).pages, 2);
+  assert.equal(resumeLimits(base, "1").pages, 1);
   assert.deepEqual(baseResumeIssues(base, 2), []);
   const early: Resume = {
     ...base,
     experience: [role("Desenvolvedora", "Acme", "02/2025", "Atual", ["A.", "B.", "C.", "D.", "E.", "F."]), role("Voluntária", "ONG", "01/2024", "Atual", ["G."])],
   };
-  assert.equal(resumeLimits(early).pages, 1);
-  const issues = baseResumeIssues(early, 2);
-  assert.ok(issues.some((i) => /com menos de 3 anos de experiência com datas, o currículo cabe em 1 página/.test(i)), issues.join("\n"));
+  assert.equal(resumeLimits(early).pages, 2, "começo de carreira com o padrão: 2 páginas, sem aviso");
+  assert.ok(!baseResumeIssues(early, 2).some(isPageIssue));
+  assert.equal(resumeLimits(early, "auto").pages, 1);
+  const issues = baseResumeIssues(early, 2, [], undefined, "auto");
+  assert.ok(issues.some((i) => /o currículo cabe em 1 página/.test(i)), issues.join("\n"));
   assert.match(resumeCuration(1), /de 8 a 11 tópicos/);
   assert.match(resumeCuration(1), /em até 1 página/);
-  assert.match(resumeCuration(1), /competências em até 5 categorias/);
+  assert.match(resumeCuration(1), /Mantenha as competências que os cargos-alvo pedem/, "em 1 página, competências não são o primeiro corte");
   // A medida diz à IA quanto cortar (ela não vê o PDF).
-  const over = baseResumeIssues(early, 2, [], 1.12);
+  const over = baseResumeIssues(early, 2, [], 1.12, "1");
   assert.ok(over.some((i) => /ocupa 112% de uma página: corte cerca de \d+ linhas/.test(i) && isPageIssue(i)), over.join("\n"));
   assert.match(resumeCuration(2), /de 12 a 16 tópicos/);
   assert.match(resumeCuration(2), /voluntariado em paralelo a um emprego vêm depois dele/);

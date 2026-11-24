@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { pageLimit, professionalMonths } from "../career.js";
+import { pagesFor, professionalMonths } from "../career.js";
+import { resumePagesPref } from "../profile.js";
 import { structured } from "../llm.js";
 import { ResumeSchema, type Resume } from "../schemas.js";
 import { today } from "../util/text.js";
@@ -135,10 +136,10 @@ As seções "Lacunas", "A confirmar", "Nunca afirmar" e "Regras de comunicação
  * Vale para montar do zero, para atualizar depois de uma novidade e para a revisão (src/onboarding/resumeQuality.ts).
  */
 export const resumeCuration = (pages: 1 | 2 = 2) => `REGRAS DO CURRÍCULO-BASE (como um recrutador e um ATS leem):
-- O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até ${pages === 1 ? "1 página (com menos de 3 anos de experiência com datas, o recrutador espera um currículo de 1 página)" : "2 páginas"}.
+- O currículo é uma SELEÇÃO do perfil, não uma cópia. O profile_truth guarda todos os fatos; o currículo mostra o que mais pesa para os cargos-alvo, em até ${pages === 1 ? "1 página" : "2 páginas"}.
 ${
   pages === 1
-    ? "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 3 a 5 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 6 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1. No total, de 8 a 11 tópicos de experiência.\n- Em 1 página: resumo de 2 a 3 frases; competências em até 5 categorias com cerca de 8 itens cada; tópicos de 1 a 2 linhas; projetos só se couberem sem passar da página."
+    ? "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 3 a 5 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 6 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1. No total, de 8 a 11 tópicos de experiência.\n- Em 1 página: resumo de 2 a 3 frases e tópicos de 1 a 2 linhas; projetos só se couberem. Mantenha as competências que os cargos-alvo pedem (são compactas e o ATS procura por elas): para caber, encurte primeiro o resumo e os tópicos."
     : "- Tópicos por posição: cada posição atual ou relevante para os cargos-alvo tem de 4 a 6 (duas posições atuais e relevantes valem igual, nenhuma vira secundária); a principal pode chegar a 8 quando reúne projetos ou frentes diferentes; posições antigas ou pouco relevantes, 1 a 2. No total, de 12 a 16 tópicos de experiência."
 }
 - Posições ao mesmo tempo: a principal (o emprego formal ou a mais relevante para os cargos-alvo) vem primeiro; empresa ou projeto próprio e voluntariado em paralelo a um emprego vêm depois dele.
@@ -177,10 +178,11 @@ export function buildBaseResume(
 ): Promise<Resume> {
   const en = lang === "en";
   const words = en ? "" : marketBlock(market);
-  // Páginas pelo tempo de carreira (src/career.ts): do currículo que já existe; montando do zero, 2, e a
-  // conferência (resumeQuality.ts) corta para 1 se o currículo montado mostrar menos de 3 anos com datas.
+  // Páginas pela preferência (src/career.ts#pagesFor): no automático, pelo currículo que já existe; montando do
+  // zero, 2, e a conferência (resumeQuality.ts) corta para 1 se o currículo montado mostrar menos de 3 anos.
+  const pref = resumePagesPref();
   const known = ptVersion ?? previous;
-  const pages = known ? pageLimit(professionalMonths(known)) : 2;
+  const pages = known ? pagesFor(professionalMonths(known), pref) : pref === "1" ? 1 : 2;
   return structured(ResumeSchema, {
     label: `init:resume-${lang}`,
     effort: "high",

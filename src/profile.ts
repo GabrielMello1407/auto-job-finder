@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { PAGES_PREFS, type PagesPref } from "./career.js";
 import { hasProfile, paths } from "./config.js";
 import { ResumeSchema, type Resume } from "./schemas.js";
 import { withoutDashes } from "./util/text.js";
@@ -61,6 +62,8 @@ export interface Preferences {
   applyMode: { referralStep: boolean };
   /** Resultados (src/jobs/funnel.ts): comparar as versões do currículo (src/jobs/resumeStats.ts). */
   results: { compareResumes: boolean };
+  /** Tamanho do currículo (src/career.ts#pagesFor): até 2 páginas (padrão), 1 página ou automático. */
+  resume: { pages: PagesPref };
   /** Preencher formulários com o favorito do navegador (src/autofill/): ligado e quais grupos de campos. */
   autofill: AutofillPrefs;
 }
@@ -150,6 +153,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   applicationFacts: { salaryExpectation: "", availability: "", noticePeriod: "", relocation: "", workAuthorization: "" },
   applyMode: { referralStep: true },
   results: { compareResumes: true },
+  resume: { pages: "ate2" },
   autofill: { enabled: false, contact: true, links: true, location: true, current: true, message: true, facts: false },
 };
 
@@ -170,8 +174,18 @@ export function loadPreferences(): Preferences {
     googleJobs: { ...DEFAULT_PREFERENCES.googleJobs, ...raw.googleJobs },
     applyMode: { ...DEFAULT_PREFERENCES.applyMode, ...raw.applyMode },
     results: { ...DEFAULT_PREFERENCES.results, ...raw.results },
+    resume: { pages: PAGES_PREFS.includes(raw.resume?.pages) ? raw.resume.pages : DEFAULT_PREFERENCES.resume.pages },
     autofill: { ...DEFAULT_PREFERENCES.autofill, ...raw.autofill },
   };
+}
+
+/** O tamanho do currículo escolhido nas Preferências (sem arquivo de preferências, o padrão: até 2 páginas). */
+export function resumePagesPref(): PagesPref {
+  try {
+    return loadPreferences().resume.pages;
+  } catch {
+    return "ate2";
+  }
 }
 
 /** Grava as preferências (a interface, o terminal e o cadastro usam o mesmo arquivo). */

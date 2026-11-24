@@ -3,9 +3,9 @@ import path from "node:path";
 import { ensureDir, paths, settings } from "../config.js";
 import { findJob, loadJobs, updateJob } from "../jobs/store.js";
 import { samePath } from "../jobs/folders.js";
-import { mainRoleFirst, pageLimit, professionalMonths } from "../career.js";
+import { mainRoleFirst, pagesFor, professionalMonths } from "../career.js";
 import { docNameFor, marketProfile, type MarketProfile } from "../market.js";
-import { englishBase, loadBaseResume, profileTruthEvidence, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
+import { englishBase, loadBaseResume, profileTruthEvidence, resumePagesPref, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { coverLetterHtml, resumeHtml, withoutDashesLetter } from "../render/resumeHtml.js";
 import { closeBrowser, htmlToPdf } from "../render/pdf.js";
 import { ResumeSchema, type CoverLetter, type EmailPack, type Job, type JobAnalysis, type Market, type OpenCheck, type Resume } from "../schemas.js";
@@ -252,8 +252,8 @@ export async function tailorJob(id: string, opts: TailorOptions = {}) {
   console.log(`   mercado ${mp.market} · idioma ${mp.language} · papel ${mp.paper} · cover letter: ${wantCover ? "sim" : "não"}`);
 
   const base = loadBaseResume(mp.language);
-  // Até 3 anos de experiência com datas, 1 página; daí em diante, até 2 (src/career.ts).
-  mp.maxPages = pageLimit(professionalMonths(base));
+  // Páginas pela preferência (até 2 por padrão; 1; ou automático pelo tempo de carreira, src/career.ts).
+  mp.maxPages = pagesFor(professionalMonths(base), resumePagesPref());
   const sources = sourcesText();
   const guard = (r: Resume) => runGuards(r, base, sources);
 

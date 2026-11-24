@@ -53,7 +53,7 @@ Tarefas:
 4. experience: mantenha TODAS as posições, mesmas empresas, cargos e datas, em ordem cronológica reversa (posições ao mesmo tempo: o emprego principal primeiro; empresa ou projeto próprio e voluntariado em paralelo, depois dele). Dentro de cada posição, coloque primeiro os bullets mais relevantes para a vaga e reescreva-os com verbo de ação + o quê + como (ferramentas, métodos) + resultado real. Pode trazer do profile_truth projetos/fatos verdadeiros que não estão no currículo-base quando forem relevantes para a vaga. Não descarte fatos distintos; junte só repetições.
 5. projects: inclua de 0 a 3 projetos/trabalhos do profile_truth (portfólio, projetos pessoais, voluntariado, cases; marque "em desenvolvimento" entre parênteses no nome quando for o caso) SOMENTE se reforçarem requisitos da vaga. Senão, deixe vazio.
 6. education, certifications, languages e contact: copie do currículo inicial (pode reordenar certificações por relevância). Não altere a linha de idiomas.
-7. Mire em no máximo ${market.maxPages === 1 ? "1 página (menos de 3 anos de experiência com datas: o recrutador espera um currículo curto)" : "2 páginas"}: corte redundância, não fatos relevantes.
+7. Mire em no máximo ${market.maxPages === 1 ? "1 página (encurte resumo e tópicos antes de tirar competências que a vaga pede)" : "2 páginas"}: corte redundância, não fatos relevantes.
 8. Métricas: só os números exatos que já existem nas fontes.`,
   });
 }

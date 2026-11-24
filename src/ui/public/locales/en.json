@@ -1115,5 +1115,10 @@
   "Um valor por tipo de contrato (CLT, PJ, vaga no exterior): a IA usa o do tipo da vaga e nunca converte sozinha. No Brasil, PJ costuma pedir de 30% a 50% a mais que CLT, para compensar 13º, férias e FGTS.": "One amount per contract type (CLT employee, PJ contractor, job abroad): the AI uses the one for the job's type and never converts on its own. In Brazil, a PJ contract usually asks 30% to 50% more than CLT, to make up for the 13th salary, vacation and FGTS.",
   "A IA está trabalhando, pode levar alguns minutos…": "The AI is working, this can take a few minutes…",
   "{s} s": "{s}s",
-  "{m} min {s} s": "{m} min {s}s"
+  "{m} min {s} s": "{m} min {s}s",
+  "Tamanho do currículo": "Resume length",
+  "Até 2 páginas": "Up to 2 pages",
+  "1 página": "1 page",
+  "Automático: 1 página com menos de 3 anos de experiência com datas": "Automatic: 1 page with under 3 years of dated experience",
+  "Vale para os currículos-base e os pacotes, sem encher para chegar à segunda página. Em 1 página, o resumo e os tópicos encurtam antes das competências. Para mudar os currículos-base já feitos: Perfil → 🔄 Refazer currículos-base.": "Applies to the base resumes and the packages, without padding to reach a second page. On 1 page, the summary and the bullets get shorter before the skills. To change the base resumes you already have: Profile → 🔄 Rebuild base resumes."
 }

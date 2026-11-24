@@ -186,7 +186,14 @@ function paint() {
     ${section(
       t("📨 Candidatura e resultados"),
       "",
-      `<label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
+      `<label class="field"><span>${t("Tamanho do currículo")}</span><select name="resumePages">${[
+        ["ate2", t("Até 2 páginas")],
+        ["1", t("1 página")],
+        ["auto", t("Automático: 1 página com menos de 3 anos de experiência com datas")],
+      ]
+        .map(([v, label]) => `<option value="${v}"${(p.resume?.pages ?? "ate2") === v ? " selected" : ""}>${esc(label)}</option>`)
+        .join("")}</select><small class="faint">${t("Vale para os currículos-base e os pacotes, sem encher para chegar à segunda página. Em 1 página, o resumo e os tópicos encurtam antes das competências. Para mudar os currículos-base já feitos: Perfil → 🔄 Refazer currículos-base.")}</small></label>
+      <label class="switch"><input type="checkbox" name="applyReferralStep"${p.applyMode?.referralStep !== false ? " checked" : ""}><span>${t("Mostrar o passo de pedir indicação no modo candidatura")}<small>${t("No modo candidatura (Vagas → Prontas → 📨 Modo candidatura), cada vaga mostra o passo opcional de pedir indicação antes de enviar.")}</small></span></label>
       <label class="switch"><input type="checkbox" name="compareResumes"${p.results?.compareResumes !== false ? " checked" : ""}><span>${t("Comparar as versões do currículo nos Resultados")}<small>${t("Mostra a taxa de resposta pelo topo do currículo (cargo no título, palavras-chave, números) e pela versão do currículo-base. Só aparece quando há dados para comparar.")}</small></span></label>
       ${autofillBlock(p.autofill ?? {})}`,
     )}

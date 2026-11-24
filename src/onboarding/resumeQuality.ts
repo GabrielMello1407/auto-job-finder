@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
+import { resumePagesPref, withoutDashesResume, withoutTranslatedTitles } from "../profile.js";
 import { contentFill, htmlToPdf } from "../render/pdf.js";
 import { PAGE_MARGIN_MM, resumeHtml } from "../render/resumeHtml.js";
-import { isVolunteer, mainRoleFirst, pageLimit, professionalMonths } from "../career.js";
+import { isVolunteer, mainRoleFirst, pagesFor, professionalMonths, type PagesPref } from "../career.js";
 import type { Resume } from "../schemas.js";
 import { buildBaseResume, reviseBaseResume } from "./build.js";
 import { currentMarket, mentions, type MarketKeyword } from "./marketKeywords.js";
@@ -38,11 +38,11 @@ export const MAX_PAGES = 2;
 const LINES_PER_PAGE = 60;
 
 /**
- * Limites pelo tempo de carreira (src/career.ts): até 3 anos de experiência com datas, 1 página e menos
- * tópicos; daí em diante, até 2 páginas. Puro.
+ * Limites do currículo pelo tamanho escolhido nas Preferências (src/career.ts#pagesFor): até 2 páginas por
+ * padrão; 1 página (ou o automático, com menos de 3 anos de experiência com datas) tem menos tópicos.
  */
-export function resumeLimits(r: Pick<Resume, "experience">) {
-  const pages = pageLimit(professionalMonths(r));
+export function resumeLimits(r: Pick<Resume, "experience">, pref: PagesPref = resumePagesPref()) {
+  const pages = pagesFor(professionalMonths(r), pref);
   return pages === 1
     ? { pages, bullets: 5, mainBullets: 6, total: 12, aim: "8 a 11" }
     : { pages, bullets: MAX_BULLETS, mainBullets: MAX_MAIN_BULLETS, total: MAX_TOTAL_BULLETS, aim: "12 a 16" };
@@ -64,9 +64,9 @@ const cut = (s: string, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s
  * Os problemas do currículo-base, em frases que vão para a revisão da IA e para o log. Com `market` (as palavras
  * do mercado que o perfil comprova, marketKeywords.ts), aponta as mais pedidas que o currículo não mostra. Puro.
  */
-export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeyword[] = [], fill?: number): string[] {
+export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeyword[] = [], fill?: number, pref?: PagesPref): string[] {
   const out: string[] = [];
-  const lim = resumeLimits(r);
+  const lim = resumeLimits(r, pref);
   const total = r.experience.reduce((n, e) => n + e.bullets.length, 0);
   // A posição com mais tópicos é a principal: ela pode ir um pouco além das outras.
   const main = r.experience.reduce((best, e, i) => (e.bullets.length > r.experience[best].bullets.length ? i : best), 0);
@@ -107,7 +107,7 @@ export function baseResumeIssues(r: Resume, pages?: number, market: MarketKeywor
   if (pages && pages > lim.pages)
     out.push(
       lim.pages === 1
-        ? `o PDF ficou com ${pages} páginas; com menos de 3 anos de experiência com datas, o currículo cabe em 1 página${
+        ? `o PDF ficou com ${pages} páginas; o currículo cabe em 1 página${
             fill && fill > 1
               ? ` (o conteúdo ocupa ${Math.round(fill * 100)}% de uma página: corte cerca de ${Math.ceil((fill - 1) * LINES_PER_PAGE) + 5} linhas, encurtando competências, resumo e tópicos, para ficar em até 95% da página; uma seção que não cabe inteira pula para a página seguinte)`
               : ""

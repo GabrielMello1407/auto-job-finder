@@ -113,7 +113,7 @@ Did a new project, changed jobs, finished a course? You don't need to rebuild ev
 - the terms the jobs you analyzed ask for most, when your profile proves them;
 - the numbers that show impact or scale. Small figures (few customers, a single user) and code counters (commits, lines of code) stay out;
 - no internal note from the profile, such as "self-reported", the date a number was measured or "to confirm";
-- 1 page with under 3 years of experience with dates (volunteering doesn't count); up to 2 pages from then on, using the space;
+- up to 2 pages, without padding. Under Preferences → 📨 Applying and results → **Resume length** you can choose 1 page, or automatic (1 page with under 3 years of dated experience; volunteering doesn't count);
 - the main job first: your own company or project and volunteering that run alongside it come right after; volunteering gets 1 or 2 bullets, even when current;
 
 After it is rebuilt, an automatic check flags what is out of line and the AI fixes those points. The log also shows:

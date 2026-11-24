@@ -1,4 +1,5 @@
 import { ensureDir, paths, setEnvVar, settings } from "../../config.js";
+import { PAGES_PREFS } from "../../career.js";
 import { SOURCES } from "../../jobs/sources/index.js";
 import { SERPAPI_KEY_URL, SERPAPI_SIGNUP_URL, serpApiJobs } from "../../jobs/sources/googlejobs.js";
 import { bookmarkletHref } from "../../autofill/index.js";
@@ -115,6 +116,7 @@ export function preferenceRoutes(): Route[] {
         // Modo candidatura e resultados.
         prefs.applyMode = { referralStep: Boolean(b.applyReferralStep) };
         prefs.results = { compareResumes: Boolean(b.compareResumes) };
+        prefs.resume = { pages: PAGES_PREFS.includes(b.resumePages) ? b.resumePages : "ate2" };
         prefs.autofill = {
           enabled: Boolean(b.autofillEnabled),
           contact: Boolean(b.autofillContact),
